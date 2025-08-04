@@ -6,6 +6,8 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthSync } from "@/components/AuthSync";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -43,7 +45,10 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <AuthSync />
+              <Navbar/>
+    
             {children}
+              <Footer/>
           </ThemeProvider>
         </ClerkProvider>
       </body>
