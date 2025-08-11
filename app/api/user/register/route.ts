@@ -1,52 +1,64 @@
 // app/api/user/register/route.ts
-import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { currentUser } from "@clerk/nextjs/server"; // 👈 Import Clerk server-side API
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
-    const { clerkUserId, email, name } = body
+    const body = await req.json();
+    const { clerkUserId, email, name, phoneNumber, dob, fieldOfStudy } = body;
 
-    console.log("📦 Registering user:", { clerkUserId, email, name })
+    console.log("📦 Registering user:", { clerkUserId, email, name });
 
-    // 1. Validate required fields
     if (!clerkUserId || !email) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
-    const normalizedEmail = email.trim().toLowerCase()
+    const normalizedEmail = email.trim().toLowerCase();
 
-    // 2. Check if user already exists
+    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { clerkUserId },
-    })
+    });
 
     if (existingUser) {
-      console.log("✅ User already exists:", existingUser.email)
-      return NextResponse.json({ user: existingUser, created: false })
+      console.log("✅ User already exists:", existingUser.email);
+      return NextResponse.json({ user: existingUser, created: false });
     }
 
-    // 3. Create new user with default role
+    // 🔹 Fetch Clerk user to get the provider's profile image
+    const clerkUser = await currentUser();
+    const clerkImageUrl = clerkUser?.imageUrl || null;
+
+    // Create user with Clerk's image as default
     const newUser = await prisma.user.create({
       data: {
         clerkUserId,
         email: normalizedEmail,
         name: name?.trim() || null,
-        role: 'STUDENT', // default role (can be dynamic later)
+        role: "STUDENT",
+        profileImageUrl: clerkImageUrl, // 👈 Default from Clerk
+        phoneNumber,
+        dob: dob ? new Date(dob) : undefined,
+        fieldOfStudy,
       },
-    })
+    });
 
-    console.log("✅ User created and stored:", newUser.email)
-    return NextResponse.json({ user: newUser, created: true })
-
+    console.log("✅ User created and stored:", newUser.email);
+    return NextResponse.json({ user: newUser, created: true });
   } catch (error: any) {
-    console.error('❌ Error creating user:', error)
+    console.error("❌ Error creating user:", error);
 
-    // 4. Handle common Prisma errors
-    if (error.code === 'P2002') {
-      return NextResponse.json({ error: 'Duplicate user' }, { status: 409 })
+    if (error.code === "P2002") {
+      return NextResponse.json({ error: "Duplicate user" }, { status: 409 });
     }
 
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

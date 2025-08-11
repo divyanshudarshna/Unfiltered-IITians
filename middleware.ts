@@ -8,7 +8,13 @@ const isPublicRoute = createRouteMatcher([
   '/blog(.*)',           // Blog posts
   '/api/webhooks/clerk', // Clerk webhook
   '/contact',
-  '/youtube'
+  '/youtube',
+    // ✅ Temporarily make these APIs public:
+  '/api/user/(.*)',
+  '/api/mock/(.*)',
+  '/api/subscription/(.*)',
+  '/api/performance/(.*)',
+
   // Add other public routes here
 ]);
 

@@ -182,6 +182,36 @@
   --sidebar-ring: oklch(0.541 0.281 293.009);
 }
 
+/*CUSTOM PROPERTIES DEFINED: FONTS  */
+
+:root {
+  --font-heading: 'Zilla Slab', serif;
+  --font-body: 'Poppins', sans-serif;
+  --font-pricing: 'Helvetica', sans-serif;
+}
+
+/* Default body font */
+body {
+  font-family: var(--font-body);
+}
+
+/* All headings use Zilla Slab */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* Optional: Ensure paragraph spacing */
+p {
+  margin-bottom: 1rem;
+}
+
+/* Use explicitly for pricing areas */
+.font-pricing {
+  font-family: var(--font-pricing);
+}
+
 
 
 @layer base {

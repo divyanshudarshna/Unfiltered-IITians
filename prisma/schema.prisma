@@ -7,20 +7,106 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
- id String  @id @default(auto()) @map("_id") @db.ObjectId
-
-  clerkUserId String   @unique
-  email       String   @unique
-  name        String?
-  role        Role     @default(STUDENT)
-  password    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
+// Enums
 enum Role {
   STUDENT
   INSTRUCTOR
   ADMIN
+}
+
+enum DifficultyLevel {
+  EASY
+  MEDIUM
+  HARD
+}
+
+// User Model
+model User {
+  id               String         @id @default(auto()) @map("_id") @db.ObjectId
+  clerkUserId      String         @unique
+  email            String         @unique
+  name             String?
+  role             Role           @default(STUDENT)
+  password         String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Profile
+  profileImageUrl  String?
+  phoneNumber      String?
+  dob              DateTime?
+  fieldOfStudy     String?
+
+  // Subscription
+  isSubscribed     Boolean        @default(false)
+  subscriptionKey  String?
+
+  // Relations
+  mockAttempts     MockAttempt[]
+  enrollments      Enrollment[]
+  subscriptions    Subscription[]
+}
+
+// Mock Test Model
+model MockTest {
+  id             String           @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  description    String?
+  price          Int              @default(0)
+  questions      Json             // include type, options, explanation, etc.
+  tags           String[]         @default([])
+  difficulty     DifficultyLevel  @default(EASY)
+  createdAt      DateTime         @default(now())
+
+  // Relations
+  attempts       MockAttempt[]
+  subscriptions  Subscription[]
+}
+
+// Attempt Model
+model MockAttempt {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String    @db.ObjectId
+  mockTestId   String    @db.ObjectId
+  answers      Json      @default("[]")
+  score        Int?
+  startedAt    DateTime  @default(now())
+  submittedAt  DateTime?
+
+  // Relations
+  user         User      @relation(fields: [userId], references: [id])
+  mockTest     MockTest  @relation(fields: [mockTestId], references: [id])
+}
+
+// Subscription (for paid mocks)
+model Subscription {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @db.ObjectId
+  mockTestId      String    @db.ObjectId
+  razorpayOrderId String
+  paid            Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  mockTest MockTest  @relation(fields: [mockTestId], references: [id])
+}
+
+// Course & Enrollment
+model Course {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  createdAt   DateTime     @default(now())
+
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String     @db.ObjectId
+  courseId   String     @db.ObjectId
+  enrolledAt DateTime   @default(now())
+
+  user       User       @relation(fields: [userId], references: [id])
+  course     Course     @relation(fields: [courseId], references: [id])
 }
