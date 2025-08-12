@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
+
 // Define all public routes that should never trigger auth redirects
 const isPublicRoute = createRouteMatcher([
   '/',                   // Home page - always public
@@ -14,6 +15,10 @@ const isPublicRoute = createRouteMatcher([
   '/api/mock/(.*)',
   '/api/subscription/(.*)',
   '/api/performance/(.*)',
+
+
+  // ✅ TEMP: make admin APIs public for testing
+  '/api/admin/(.*)',
 
   // Add other public routes here
 ]);
@@ -37,6 +42,11 @@ export default clerkMiddleware(async (auth, req) => {
 
   // For all other routes, require authentication
   await auth.protect();
+
+  // Optional: Add additional role checking for admin routes
+
+   // Optional: Add additional role checking for admin routes
+
 });
 
 export const config = {
