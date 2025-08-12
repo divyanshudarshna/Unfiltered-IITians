@@ -40,6 +40,13 @@ export default clerkMiddleware(async (auth, req) => {
     return; // Allow access without protection
   }
 
+  // NOTE : UNCOMMENT THE LINES BELOW TO ADD ADMIN ROLE CHECKING
+
+  //   if (url.pathname.startsWith("/admin") && role !== "ADMIN") {
+  //   url.pathname = "/";
+  //   return Response.redirect(url);
+  // }
+
   // For all other routes, require authentication
   await auth.protect();
 

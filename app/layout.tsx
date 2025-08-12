@@ -1,15 +1,15 @@
+// app/layout.tsx
 import type { Metadata } from "next"
 import { ClerkProvider } from "@clerk/nextjs"
 import { ThemeProvider } from "@/components/ThemeProvider"
 import { AuthSync } from "@/components/AuthSync"
-import Navbar from "@/components/Navbar"
-import Footer from "@/components/Footer"
 import GlobalLoading from "@/components/GlobalLoading"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Zilla_Slab, Poppins } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/sonner";
-// Font imports
+
+// Fonts setup (same as before)
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -38,12 +38,11 @@ export const metadata: Metadata = {
   title: "Unfiltered IITIans",
   description: "A course platform for competitive exams",
   icons: {
-    icon: "/logo.jpeg", // favicon path in public folder
+    icon: "/logo.jpeg",
   },
-
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
@@ -55,27 +54,16 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${zillaSlab.variable} ${poppins.variable}`}
     >
       <link rel="icon" href="/logo.jpeg" type="image/jpeg" />
-
       <body className="font-body">
         <ClerkProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             <AuthSync />
-            <Navbar />
             {children}
-               <Toaster />
-            <GlobalLoading/>
-            <Footer />
+            <Toaster />
+            <GlobalLoading />
           </ThemeProvider>
         </ClerkProvider>
-
-        {/* Razorpay script */}
-<script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
-
+        <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
       </body>
     </html>
   )

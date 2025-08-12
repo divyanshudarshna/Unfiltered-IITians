@@ -3,15 +3,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 
-async function adminAuth() {
-  // ✅ TEMP: bypass authentication for testing
-  console.log("⚠️ Skipping auth checks for testing");
-  return { id: "test-admin", role: "ADMIN" };
-}
+// async function adminAuth() {
+//   // ✅ TEMP: bypass authentication for testing
+//   console.log("⚠️ Skipping auth checks for testing");
+//   return { id: "test-admin", role: "ADMIN" };
+// }
 
 export async function GET() {
   try {
-    await adminAuth();
+    // await adminAuth();
 
     const users = await prisma.user.findMany({
       include: {

@@ -1,34 +1,19 @@
-// app/(admin)/layout.tsx
-'use client';
+import { ReactNode } from "react";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { AdminSidebar } from "@/components/admin/sidebar";
 
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/admin/app-sidebar";
-import { SiteHeader } from "@/components/admin/site-header";
-import { SidebarInset } from "@/components/ui/sidebar";
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  const user = await currentUser();
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+  if (!user || user.publicMetadata.role !== "ADMIN") {
+    redirect("/");
+  }
+
   return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "280px",
-          "--header-height": "64px",
-        } as React.CSSProperties
-      }
-    >
-      <div className="flex h-screen w-full">
-        <AppSidebar />
-        <div className="flex flex-col w-full">
-          <SiteHeader />
-          <main className="flex-1 overflow-auto p-4 md:p-6">
-            {children}
-          </main>
-        </div>
-      </div>
-    </SidebarProvider>
-  )
+    <div className="flex min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      <AdminSidebar />
+      <main className="flex-1 p-6">{children}</main>
+    </div>
+  );
 }
