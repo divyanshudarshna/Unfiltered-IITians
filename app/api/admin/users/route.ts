@@ -1,38 +1,43 @@
-// app/api/admin/users/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
-
-// async function adminAuth() {
-//   // ✅ TEMP: bypass authentication for testing
-//   console.log("⚠️ Skipping auth checks for testing");
-//   return { id: "test-admin", role: "ADMIN" };
-// }
 
 export async function GET() {
   try {
-    // await adminAuth();
-
     const users = await prisma.user.findMany({
-      include: {
-        enrollments: { include: { course: true } },
-        mockAttempts: { include: { mockTest: true } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        profileImageUrl: true,
+        phoneNumber: true,
+        fieldOfStudy: true,
+        isSubscribed: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
       },
     });
 
-    return NextResponse.json({ users });
+    const formattedUsers = users.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      profileImageUrl: u.profileImageUrl,
+      phoneNumber: u.phoneNumber,
+      fieldOfStudy: u.fieldOfStudy,
+      isSubscribed: u.isSubscribed,
+      joinedAt: u.createdAt.toISOString().split("T")[0], // short date format YYYY-MM-DD
+    }));
+
+    return NextResponse.json(formattedUsers);
   } catch (error: any) {
     console.error("Error in admin GET users:", error);
     return NextResponse.json(
-      { 
-        error: error.message || "Internal Server Error",
-        details: error.message.includes("Unauthorized") 
-          ? "Authentication failed" 
-          : "Server error"
-      },
-      { 
-        status: error.message.includes("Unauthorized") ? 401 : 500 
-      }
+      { error: error.message || "Internal Server Error" },
+      { status: 500 }
     );
   }
 }

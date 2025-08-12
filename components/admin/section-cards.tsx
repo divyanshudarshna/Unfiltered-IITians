@@ -52,7 +52,7 @@ export function SectionCards() {
     fetchStats()
   }, [])
 
-  if (loading) return <div>Loading dashboard stats...</div>
+  if (loading) return <div className="text-ceter">Loading dashboard stats...</div>
   if (error) return <div>Error loading stats: {error}</div>
   if (!stats) return null
 
