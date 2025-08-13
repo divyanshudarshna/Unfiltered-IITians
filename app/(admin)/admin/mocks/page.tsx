@@ -22,8 +22,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { CreateMockModal } from "@/components/admin/mocks/CreateMockModal";
 import {
-  ArrowUpDown,
   Edit2,
   Trash2,
   ArrowLeft,
@@ -33,8 +33,9 @@ import {
   Trophy,
   Star,
   Award,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
+import { EditMockModal } from "@/components/admin/mocks/EditMockModal";
 
 type MockTest = {
   id: string;
@@ -44,6 +45,7 @@ type MockTest = {
   difficulty: string;
   questions: Array<any>;
   createdAt: string;
+  status: string;
 };
 
 export default function AdminMocksPage() {
@@ -52,20 +54,21 @@ export default function AdminMocksPage() {
   const [error, setError] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
   const router = useRouter();
+  const [editOpen, setEditOpen] = useState(false);
+  const [selectedMock, setSelectedMock] = useState<MockTest | null>(null);
 
+  // Fetch mocks
   const fetchMocks = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/mocks", {
-        credentials: 'include' // Ensure cookies are sent
-      });
-      if (!res.ok) throw new Error("Failed to fetch");
+      const res = await fetch("/api/admin/mocks", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch mocks");
       const data = await res.json();
       setMocks(data.mocks);
       setError(null);
     } catch (err) {
-      setError("Failed to load mocks. Please try again.");
       console.error(err);
+      setError("Failed to load mocks. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -81,13 +84,11 @@ export default function AdminMocksPage() {
     try {
       const res = await fetch(`/api/admin/mocks/${id}`, {
         method: "DELETE",
-        credentials: 'include'
+        credentials: "include",
       });
       if (res.ok) {
         setMocks((prev) => prev.filter((m) => m.id !== id));
-      } else {
-        throw new Error("Delete failed");
-      }
+      } else throw new Error("Delete failed");
     } catch (err) {
       alert("Error deleting mock");
     }
@@ -98,59 +99,58 @@ export default function AdminMocksPage() {
       EASY: { icon: <Star className="w-4 h-4" />, color: "bg-green-100 text-green-800" },
       MEDIUM: { icon: <Award className="w-4 h-4" />, color: "bg-yellow-100 text-yellow-800" },
       HARD: { icon: <Trophy className="w-4 h-4" />, color: "bg-red-100 text-red-800" },
-      DEFAULT: { icon: <AlertCircle className="w-4 h-4" />, color: "bg-gray-100 text-gray-800" }
+      DEFAULT: { icon: <AlertCircle className="w-4 h-4" />, color: "bg-gray-100 text-gray-800" },
     };
-
     const { icon, color } = difficultyMap[difficulty] || difficultyMap.DEFAULT;
-    
     return (
       <Badge className={`${color} flex items-center gap-1`}>
-        {icon}
-        {difficulty}
+        {icon} {difficulty}
       </Badge>
     );
   };
 
+
+
+  // Columns
   const columns: ColumnDef<MockTest>[] = [
     {
       accessorKey: "title",
       header: "Title",
-      cell: (info) => (
-        <span className="font-medium">{info.getValue() as string}</span>
-      ),
+      cell: (info) => <span className="font-medium">{info.getValue() as string}</span>,
     },
     {
       accessorKey: "description",
       header: "Description",
-      cell: (info) => (
-        <span className="text-muted-foreground">
-          {info.getValue() || "-"}
-        </span>
-      ),
+      cell: (info) => <span className="text-muted-foreground"> {info.getValue() || "-"}</span>,
     },
     {
       id: "questions",
       header: () => (
         <div className="flex items-center">
-          <BookOpen className="w-4 h-4 mr-1" />
-          Questions
+          <BookOpen className="w-4 h-4 mr-1" /> Questions
         </div>
       ),
-      cell: (info) => {
-        const questions = info.row.original.questions || [];
-        return (
-          <Badge variant="outline" className="font-mono">
-            {questions.length}
-          </Badge>
-        );
+       cell: (info) => {
+      // Ensure questions is always an array
+      
+      const questions = Array.isArray(info.row.original.questions) ? info.row.original.questions : [];
+
+      return (
+        <Badge 
+          variant="outline" 
+          className="font-mono hover:bg-gray-50 cursor-pointer"
+          onClick={() => router.push(`/admin/mocks/${info.row.original.id}`)}
+        >
+          {questions.length}
+        </Badge>
+      );
       },
     },
     {
       accessorKey: "price",
       header: () => (
         <div className="flex items-center">
-          <DollarSign className="w-4 h-4 mr-1" />
-          Price
+          <DollarSign className="w-4 h-4 mr-1" /> Price
         </div>
       ),
       cell: (info) => {
@@ -158,9 +158,7 @@ export default function AdminMocksPage() {
         return price > 0 ? (
           <span className="font-bold text-green-600">₹{price}</span>
         ) : (
-          <Badge variant="secondary" className="text-xs">
-            FREE
-          </Badge>
+          <Badge variant="secondary" className="text-xs">FREE</Badge>
         );
       },
     },
@@ -170,11 +168,30 @@ export default function AdminMocksPage() {
       cell: (info) => getDifficultyBadge(info.getValue() as string),
     },
     {
+      accessorKey: "status",
+      header: "Status",
+      cell: (info) => {
+        const status = info.getValue() as string;
+        return (
+          <Badge
+            variant={status === "PUBLISHED" ? "default" : status === "DRAFT" ? "secondary" : "outline"}
+            className="capitalize"
+          >
+            {status.toLowerCase()}
+          </Badge>
+        );
+      },
+    },
+    {
       accessorKey: "createdAt",
       header: "Created At",
       cell: (info) => (
         <span className="text-sm text-muted-foreground">
-          {new Date(info.getValue() as string).toLocaleDateString()}
+          {new Date(info.getValue() as string).toLocaleDateString("en-IN", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })}
         </span>
       ),
     },
@@ -183,17 +200,32 @@ export default function AdminMocksPage() {
       header: "Actions",
       cell: ({ row }) => {
         const mock = row.original;
+
         return (
-          <div className="flex space-x-2">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => {
+                setSelectedMock(mock);
+                setEditOpen(true);
+              }}
+            >
+              <Edit2 className="w-4 h-4 mr-1" />
+              Edit
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
               className="h-8"
               onClick={() => router.push(`/admin/mocks/${mock.id}`)}
             >
-              <Edit2 className="w-4 h-4 mr-1" />
-              Edit
+              <BookOpen className="w-4 h-4 mr-1" />
+              Questions
             </Button>
+
             <Button
               variant="destructive"
               size="sm"
@@ -209,82 +241,73 @@ export default function AdminMocksPage() {
     },
   ];
 
+  // Table instance
   const table = useReactTable({
     data: mocks,
     columns,
-    state: {
-      globalFilter,
-    },
+    state: { globalFilter },
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn: (row, columnId, filterValue) => {
+    globalFilterFn: (row, _, filterValue) => {
       const search = filterValue.toLowerCase();
       const title = row.getValue("title").toString().toLowerCase();
       const difficulty = row.getValue("difficulty").toString().toLowerCase();
       const description = row.getValue("description")?.toString().toLowerCase() || "";
-      return (
-        title.includes(search) ||
-        difficulty.includes(search) ||
-        description.includes(search)
-      );
+      return title.includes(search) || difficulty.includes(search) || description.includes(search);
     },
   });
 
-  if (loading) return (
-    <div className="p-6 flex justify-center">
-      <p className="animate-pulse">Loading mocks...</p>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="p-6 flex justify-center">
+        <p className="animate-pulse">Loading mocks...</p>
+      </div>
+    );
 
-  if (error) return (
-    <div className="p-6">
-      <p className="text-red-600 flex items-center">
-        <AlertCircle className="w-5 h-5 mr-2" />
-        {error}
-      </p>
-      <Button variant="outline" className="mt-4" onClick={fetchMocks}>
-        Retry
-      </Button>
-    </div>
-  );
+  if (error)
+    return (
+      <div className="p-6">
+        <p className="text-red-600 flex items-center">
+          <AlertCircle className="w-5 h-5 mr-2" /> {error}
+        </p>
+        <Button variant="outline" className="mt-4" onClick={fetchMocks}>
+          Retry
+        </Button>
+      </div>
+    );
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Mock Tests Management</h1>
-        <Button onClick={() => router.push("/admin/mocks/new")}>
-          Create New Mock
-        </Button>
+        <CreateMockModal onSuccess={fetchMocks} />
       </div>
 
       <div className="flex items-center justify-between mb-4">
         <Input
           placeholder="Search mocks..."
-          value={globalFilter ?? ""}
+          value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-md"
         />
         <div className="text-sm text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} mocks found
+          {table.getFilteredRowModel().rows.length} found
         </div>
       </div>
 
       <div className="rounded-md border">
         <Table>
-          <TableHeader className="bg-gray-900">
+          <TableHeader className="bg-gray-900 text-white">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                      : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -303,10 +326,7 @@ export default function AdminMocksPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   No results.
                 </TableCell>
               </TableRow>
@@ -315,10 +335,18 @@ export default function AdminMocksPage() {
         </Table>
       </div>
 
+      {selectedMock && (
+        <EditMockModal
+          mock={selectedMock}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          onSuccess={fetchMocks}
+        />
+      )}
+
       <div className="flex items-center justify-between px-2 py-4">
         <div className="text-sm text-muted-foreground">
-          Showing {table.getRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s)
+          Showing {table.getRowModel().rows.length} of {table.getFilteredRowModel().rows.length}
         </div>
         <div className="flex space-x-2">
           <Button
@@ -327,8 +355,7 @@ export default function AdminMocksPage() {
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Previous
+            <ArrowLeft className="w-4 h-4 mr-1" /> Previous
           </Button>
           <Button
             variant="outline"
@@ -336,8 +363,7 @@ export default function AdminMocksPage() {
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
-            Next
-            <ArrowRight className="w-4 h-4 ml-1" />
+            Next <ArrowRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
       </div>

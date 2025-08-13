@@ -30,15 +30,16 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Edit2,
   Trash2,
-  ChevronUp,
-  ChevronDown,
+  // ChevronUp,
+  // ChevronDown,
   Plus,
   Search,
   List,
   CheckCircle,
   Type,
   FileText,
-  Hash
+  AlertCircle,
+  // Hash
 } from "lucide-react";
 
 type Question = {
@@ -128,34 +129,54 @@ export default function MockDetailPage() {
   };
 
   // Handle save from edit modal
-  const handleSaveQuestion = async (updatedQuestion: Question) => {
-    try {
-      const res = await fetch(`/api/admin/mocks/${mockId}/questions/${updatedQuestion.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include',
-        body: JSON.stringify(updatedQuestion),
-      });
-      const data = await res.json();
 
-      if (res.ok) {
-        setMock((prev) => {
-          if (!prev) return prev;
+const handleSaveQuestion = async (updatedQuestion: Question) => {
+  try {
+    const isNew = updatedQuestion.id.startsWith("temp-");
+    const url = isNew
+      ? `/api/admin/mocks/${mockId}/questions`
+      : `/api/admin/mocks/${mockId}/questions/${updatedQuestion.id}`;
+
+    const method = isNew ? "POST" : "PUT";
+
+    // Send body according to API expectation
+    const bodyData = isNew ? { question: updatedQuestion } : updatedQuestion;
+
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(bodyData),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      setMock((prev) => {
+        if (!prev) return prev;
+        if (isNew) {
+          // Add new question to existing questions array
+          return { ...prev, questions: [...prev.questions, data.question] };
+        } else {
+          // Update existing question
           return {
             ...prev,
             questions: prev.questions.map((q) =>
               q.id === updatedQuestion.id ? data.question : q
             ),
           };
-        });
-        setIsEditOpen(false);
-      } else {
-        alert(data.error || "Failed to update question");
-      }
-    } catch (err) {
-      alert("Error updating question");
+        }
+      });
+      setIsEditOpen(false);
+    } else {
+      alert(data.error || "Failed to save question");
     }
-  };
+  } catch (err) {
+    console.error(err);
+    alert("Error saving question");
+  }
+};
+y
 
   // Add new question
   const handleAddQuestion = () => {

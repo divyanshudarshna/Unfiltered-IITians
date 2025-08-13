@@ -18,7 +18,7 @@ import {
   IconSettings,
   IconUsers,
 } from "@tabler/icons-react"
-
+import Link from "next/link"
 // import { NavDocuments } from "@/components/admin/nav-documents"
 import { NavMain } from "@/components/admin/nav-main"
 import { NavSecondary } from "@/components/admin/nav-secondary"
@@ -63,11 +63,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <a href="#">
+            >  
+          
+          
+                  <Link href="/admin/dashboard" className="flex items-center gap-2">
                 <IconInnerShadowTop className="!size-5" />
                 <span className="text-base font-semibold">Admin Dashboard</span>
-              </a>
+              </Link>
+
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

@@ -50,6 +50,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (data.questions !== undefined) updateData.questions = data.questions;
     if (data.tags !== undefined) updateData.tags = data.tags;
     if (data.difficulty !== undefined) updateData.difficulty = data.difficulty;
+    if (data.status !== undefined) updateData.status = data.status;
 
     const updatedMock = await prisma.mockTest.update({
       where: { id: mockId },

@@ -80,7 +80,9 @@ export function SectionCards() {
         </CardFooter>
       </Card>
 
-      <Card className="@container/card">
+
+      {/* WILL UNCOMMENT LATER WHEN NEEDED  */}
+      {/* <Card className="@container/card">
         <CardHeader>
           <CardDescription>New Customers</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -99,9 +101,9 @@ export function SectionCards() {
           </div>
           <div className="text-muted-foreground">Last 30 days</div>
         </CardFooter>
-      </Card>
+      </Card> */}
 
-      <Card className="@container/card">
+      {/* <Card className="@container/card">
         <CardHeader>
           <CardDescription>Active Accounts</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -120,7 +122,7 @@ export function SectionCards() {
           </div>
           <div className="text-muted-foreground">Subscribed users</div>
         </CardFooter>
-      </Card>
+      </Card> */}
 
       <Card className="@container/card">
         <CardHeader>

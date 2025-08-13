@@ -20,6 +20,11 @@ enum DifficultyLevel {
   HARD
 }
 
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
 // User Model
 model User {
   id               String         @id @default(auto()) @map("_id") @db.ObjectId
@@ -48,6 +53,7 @@ model User {
 }
 
 // Mock Test Model
+// Update MockTest model
 model MockTest {
   id             String           @id @default(auto()) @map("_id") @db.ObjectId
   title          String
@@ -56,7 +62,9 @@ model MockTest {
   questions      Json             // include type, options, explanation, etc.
   tags           String[]         @default([])
   difficulty     DifficultyLevel  @default(EASY)
+  status         PublishStatus    @default(DRAFT)
   createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   // Relations
   attempts       MockAttempt[]
