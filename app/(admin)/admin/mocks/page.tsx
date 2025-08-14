@@ -118,11 +118,25 @@ export default function AdminMocksPage() {
       header: "Title",
       cell: (info) => <span className="font-medium">{info.getValue() as string}</span>,
     },
-    {
-      accessorKey: "description",
-      header: "Description",
-      cell: (info) => <span className="text-muted-foreground"> {info.getValue() || "-"}</span>,
-    },
+   {
+  accessorKey: "description",
+  header: "Description",
+  cell: (info) => {
+    const value = info.getValue() as string;
+    const maxLength = 30; // truncate after 30 characters
+    const displayText = value?.length > maxLength ? value.slice(0, maxLength) + "..." : value || "-";
+
+    return (
+      <span
+        className="text-muted-foreground"
+        title={value || "-"} // tooltip shows full text
+      >
+        {displayText}
+      </span>
+    );
+  },
+}
+,
     {
       id: "questions",
       header: () => (

@@ -21,11 +21,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Edit2,
@@ -57,6 +69,8 @@ type MockTestDetail = {
   questions: Question[];
 };
 
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+
 export default function MockDetailPage() {
   const router = useRouter();
   const { id: mockId } = useParams();
@@ -75,7 +89,7 @@ export default function MockDetailPage() {
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/mocks/${mockId}`, {
-        credentials: 'include'
+        credentials: "include",
       });
       const data = await res.json();
 
@@ -102,10 +116,13 @@ export default function MockDetailPage() {
     if (!confirm("Are you sure you want to delete this question?")) return;
 
     try {
-      const res = await fetch(`/api/admin/mocks/${mockId}/questions/${questionId}`, {
-        method: "DELETE",
-        credentials: 'include'
-      });
+      const res = await fetch(
+        `/api/admin/mocks/${mockId}/questions/${questionId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
       if (res.ok) {
         setMock((prev) => {
           if (!prev) return prev;
@@ -130,53 +147,52 @@ export default function MockDetailPage() {
 
   // Handle save from edit modal
 
-const handleSaveQuestion = async (updatedQuestion: Question) => {
-  try {
-    const isNew = updatedQuestion.id.startsWith("temp-");
-    const url = isNew
-      ? `/api/admin/mocks/${mockId}/questions`
-      : `/api/admin/mocks/${mockId}/questions/${updatedQuestion.id}`;
+  const handleSaveQuestion = async (updatedQuestion: Question) => {
+    try {
+      const isNew = updatedQuestion.id.startsWith("temp-");
+      const url = isNew
+        ? `/api/admin/mocks/${mockId}/questions`
+        : `/api/admin/mocks/${mockId}/questions/${updatedQuestion.id}`;
 
-    const method = isNew ? "POST" : "PUT";
+      const method = isNew ? "POST" : "PUT";
 
-    // Send body according to API expectation
-    const bodyData = isNew ? { question: updatedQuestion } : updatedQuestion;
+      // Send body according to API expectation
+      const bodyData = isNew ? { question: updatedQuestion } : updatedQuestion;
 
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(bodyData),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      setMock((prev) => {
-        if (!prev) return prev;
-        if (isNew) {
-          // Add new question to existing questions array
-          return { ...prev, questions: [...prev.questions, data.question] };
-        } else {
-          // Update existing question
-          return {
-            ...prev,
-            questions: prev.questions.map((q) =>
-              q.id === updatedQuestion.id ? data.question : q
-            ),
-          };
-        }
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(bodyData),
       });
-      setIsEditOpen(false);
-    } else {
-      alert(data.error || "Failed to save question");
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMock((prev) => {
+          if (!prev) return prev;
+          if (isNew) {
+            // Add new question to existing questions array
+            return { ...prev, questions: [...prev.questions, data.question] };
+          } else {
+            // Update existing question
+            return {
+              ...prev,
+              questions: prev.questions.map((q) =>
+                q.id === updatedQuestion.id ? data.question : q
+              ),
+            };
+          }
+        });
+        setIsEditOpen(false);
+      } else {
+        alert(data.error || "Failed to save question");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error saving question");
     }
-  } catch (err) {
-    console.error(err);
-    alert("Error saving question");
-  }
-};
-y
+  };
 
   // Add new question
   const handleAddQuestion = () => {
@@ -194,13 +210,25 @@ y
   // Get question type icon and color
   const getQuestionTypeBadge = (type: string) => {
     const typeMap: Record<string, { icon: JSX.Element; color: string }> = {
-      MCQ: { icon: <List className="w-4 h-4" />, color: "bg-blue-100 text-blue-800" },
-      MSQ: { icon: <CheckCircle className="w-4 h-4" />, color: "bg-purple-100 text-purple-800" },
-      DESCRIPTIVE: { icon: <FileText className="w-4 h-4" />, color: "bg-green-100 text-green-800" },
+      MCQ: {
+        icon: <List className="w-4 h-4" />,
+        color: "bg-blue-100 text-blue-800",
+      },
+      MSQ: {
+        icon: <CheckCircle className="w-4 h-4" />,
+        color: "bg-purple-100 text-purple-800",
+      },
+      DESCRIPTIVE: {
+        icon: <FileText className="w-4 h-4" />,
+        color: "bg-green-100 text-green-800",
+      },
     };
 
-    const { icon, color } = typeMap[type] || { icon: <Type className="w-4 h-4" />, color: "bg-gray-100 text-gray-800" };
-    
+    const { icon, color } = typeMap[type] || {
+      icon: <Type className="w-4 h-4" />,
+      color: "bg-gray-100 text-gray-800",
+    };
+
     return (
       <Badge className={`${color} flex items-center gap-1`}>
         {icon}
@@ -209,92 +237,140 @@ y
     );
   };
 
-  // Columns for questions table
-  const columns: ColumnDef<Question>[] = [
-    {
-      accessorKey: "id",
-      header: "ID",
-      cell: (info) => (
-        <span className="text-muted-foreground font-mono text-sm">
-          #{info.getValue()?.toString().slice(0, 6)}
-        </span>
-      ),
+
+// Columns for questions table
+const columns: ColumnDef<Question>[] = [
+  {
+    id: "serial",
+    header: "S.No",
+    cell: ({ row }) => (
+      <span className="text-muted-foreground font-mono text-sm">
+        {row.index + 1}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "question",
+    header: "Question",
+    cell: (info) => {
+      const value = info.getValue();
+      const text = typeof value === "string" ? value : "Invalid question";
+      const maxLength = 50; // truncate after 50 chars
+
+      const truncated = text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
+
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="font-medium line-clamp-2 cursor-pointer">{truncated}</span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-sm whitespace-pre-wrap">
+            {text}
+          </TooltipContent>
+        </Tooltip>
+      );
     },
-    {
-      accessorKey: "question",
-      header: "Question",
-      cell: (info) => (
-        <span className="font-medium line-clamp-2">
-          {info.getValue() as string}
-        </span>
-      ),
+  },
+  {
+    accessorKey: "options",
+    header: "Options",
+    cell: (info) => {
+      const options = info.getValue();
+      if (!Array.isArray(options)) return <span className="text-red-500">No options</span>;
+      const maxLength = 20; // truncate each option
+
+      return (
+        <div className="space-y-1">
+          {options.map((opt, i) => {
+            const text = typeof opt === "string" ? opt || "-" : "Invalid option";
+            const truncated = text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
+
+            return (
+              <Tooltip key={i}>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center cursor-pointer">
+                    <span className="text-muted-foreground text-xs w-6">
+                      {String.fromCharCode(65 + i)}.
+                    </span>
+                    <span className="text-sm">{truncated}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs whitespace-pre-wrap">{text}</TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+      );
     },
-    {
-      accessorKey: "options",
-      header: "Options",
-      cell: (info) => {
-        const options = info.getValue() as string[];
-        return (
-          <div className="space-y-1">
-            {options.map((opt, i) => (
-              <div key={i} className="flex items-center">
-                <span className="text-muted-foreground text-xs w-6">{String.fromCharCode(65 + i)}.</span>
-                <span className="text-sm">{opt || "-"}</span>
-              </div>
-            ))}
-          </div>
-        );
-      },
+  },
+  {
+    accessorKey: "type",
+    header: "Type",
+    cell: (info) => {
+      const value = info.getValue();
+      return getQuestionTypeBadge(typeof value === "string" ? value : "UNKNOWN");
     },
-    {
-      accessorKey: "type",
-      header: "Type",
-      cell: (info) => getQuestionTypeBadge(info.getValue() as string),
+  },
+  {
+    accessorKey: "answer",
+    header: "Correct Answer",
+    cell: (info) => {
+      const answer = info.getValue();
+      const question = info.row.original;
+
+      if (typeof answer !== "string") {
+        return <Badge variant="outline" className="font-mono">Invalid</Badge>;
+      }
+
+      const options = Array.isArray(question?.options) ? question.options : [];
+      const optionIndex = options.indexOf(answer);
+      const display = optionIndex >= 0 ? String.fromCharCode(65 + optionIndex) : answer;
+
+      const maxLength = 20;
+      const truncated = display.length > maxLength ? display.slice(0, maxLength) + "..." : display;
+
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="outline" className="font-mono cursor-pointer">{truncated}</Badge>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs whitespace-pre-wrap">{display}</TooltipContent>
+        </Tooltip>
+      );
     },
-    {
-      accessorKey: "answer",
-      header: "Correct Answer",
-      cell: (info) => {
-        const answer = info.getValue() as string;
-        const question = info.row.original;
-        const optionIndex = question.options.indexOf(answer);
-        return (
-          <Badge variant="outline" className="font-mono">
-            {optionIndex >= 0 ? String.fromCharCode(65 + optionIndex) : answer}
-          </Badge>
-        );
-      },
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    cell: ({ row }) => {
+      const question = row.original;
+      if (!question || typeof question !== "object") return <span className="text-red-500">Invalid</span>;
+
+      return (
+        <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => openEditModal(question)}
+          >
+            <Edit2 className="w-4 h-4 mr-1" /> Edit
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-8"
+            onClick={() => handleDeleteQuestion(question.id)}
+          >
+            <Trash2 className="w-4 h-4 mr-1" /> Delete
+          </Button>
+        </div>
+      );
     },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => {
-        const question = row.original;
-        return (
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => openEditModal(question)}
-            >
-              <Edit2 className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-8"
-              onClick={() => handleDeleteQuestion(question.id)}
-            >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Delete
-            </Button>
-          </div>
-        );
-      },
-    },
-  ];
+  },
+];
+
+
 
   const table = useReactTable({
     data: mock?.questions ?? [],
@@ -312,7 +388,7 @@ y
       const question = row.getValue("question").toString().toLowerCase();
       const type = row.getValue("type").toString().toLowerCase();
       const answer = row.getValue("answer").toString().toLowerCase();
-      
+
       return (
         question.includes(search) ||
         type.includes(search) ||
@@ -321,32 +397,39 @@ y
     },
   });
 
-  if (loading) return (
-    <div className="p-6 flex justify-center">
-      <p className="animate-pulse">Loading mock details...</p>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="p-6 flex justify-center">
+        <p className="animate-pulse">Loading mock details...</p>
+      </div>
+    );
 
-  if (error) return (
-    <div className="p-6">
-      <p className="text-red-600 flex items-center">
-        <AlertCircle className="w-5 h-5 mr-2" />
-        {error}
-      </p>
-      <Button variant="outline" className="mt-4" onClick={fetchMock}>
-        Retry
-      </Button>
-    </div>
-  );
+  if (error)
+    return (
+      <div className="p-6">
+        <p className="text-red-600 flex items-center">
+          <AlertCircle className="w-5 h-5 mr-2" />
+          {error}
+        </p>
+        <Button variant="outline" className="mt-4" onClick={fetchMock}>
+          Retry
+        </Button>
+      </div>
+    );
 
-  if (!mock) return (
-    <div className="p-6">
-      <p>No mock found.</p>
-      <Button variant="outline" className="mt-4" onClick={() => router.back()}>
-        Go Back
-      </Button>
-    </div>
-  );
+  if (!mock)
+    return (
+      <div className="p-6">
+        <p>No mock found.</p>
+        <Button
+          variant="outline"
+          className="mt-4"
+          onClick={() => router.back()}
+        >
+          Go Back
+        </Button>
+      </div>
+    );
 
   return (
     <div className="p-6">
@@ -400,7 +483,10 @@ y
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -451,9 +537,10 @@ y
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-          <DialogTitle>
-  {editQuestion?.id?.startsWith("temp-") ? "Add New" : "Edit"} Question
-</DialogTitle>
+            <DialogTitle>
+              {editQuestion?.id?.startsWith("temp-") ? "Add New" : "Edit"}{" "}
+              Question
+            </DialogTitle>
           </DialogHeader>
           {editQuestion && (
             <EditQuestionForm
@@ -487,9 +574,10 @@ function EditQuestionForm({
     e.preventDefault();
     const updatedQuestion = {
       ...formData,
-      answer: formData.type === "DESCRIPTIVE" 
-        ? formData.answer 
-        : formData.options[parseInt(answerOption)],
+      answer:
+        formData.type === "DESCRIPTIVE"
+          ? formData.answer
+          : formData.options[parseInt(answerOption)],
     };
     onSave(updatedQuestion);
   };
@@ -526,7 +614,9 @@ function EditQuestionForm({
         <Textarea
           id="question"
           value={formData.question}
-          onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, question: e.target.value })
+          }
           required
           className="min-h-[100px]"
         />
@@ -535,38 +625,46 @@ function EditQuestionForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="type">Question Type</Label>
-          <Select
-            value={formData.type}
-            onValueChange={(value) => setFormData({ 
-              ...formData, 
-              type: value as "MCQ" | "MSQ" | "DESCRIPTIVE" 
-            })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="MCQ">Multiple Choice (MCQ)</SelectItem>
-              <SelectItem value="MSQ">Multiple Select (MSQ)</SelectItem>
-              <SelectItem value="DESCRIPTIVE">Descriptive</SelectItem>
-            </SelectContent>
-          </Select>
+        <Select
+  value={formData.type}
+  onValueChange={(value) => {
+    const newType = value as "MCQ" | "MSQ" | "DESCRIPTIVE";
+
+    setFormData((prev) => ({
+      ...prev,
+      type: newType,
+      options: newType === "DESCRIPTIVE" ? [] : prev.options.length ? prev.options : ["", "", "", ""], // reset options if descriptive
+      answer: newType === "DESCRIPTIVE" ? "" : prev.answer,
+    }));
+
+    // Reset selected answer if switching to DESCRIPTIVE
+    if (newType === "DESCRIPTIVE") {
+      setAnswerOption("0");
+    }
+  }}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Select type" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="MCQ">Multiple Choice (MCQ)</SelectItem>
+    <SelectItem value="MSQ">Multiple Select (MSQ)</SelectItem>
+    <SelectItem value="DESCRIPTIVE">Descriptive</SelectItem>
+  </SelectContent>
+</Select>
         </div>
 
         {formData.type !== "DESCRIPTIVE" && (
           <div>
             <Label htmlFor="answer">Correct Answer</Label>
-            <Select
-              value={answerOption}
-              onValueChange={setAnswerOption}
-            >
+            <Select value={answerOption} onValueChange={setAnswerOption}>
               <SelectTrigger>
                 <SelectValue placeholder="Select answer" />
               </SelectTrigger>
               <SelectContent>
                 {formData.options.map((_, index) => (
-                  <SelectItem 
-                    key={index} 
+                  <SelectItem
+                    key={index}
                     value={index.toString()}
                     disabled={!formData.options[index]}
                   >
@@ -626,7 +724,9 @@ function EditQuestionForm({
           <Textarea
             id="answer"
             value={formData.answer}
-            onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, answer: e.target.value })
+            }
             required
             className="min-h-[100px]"
           />
@@ -638,7 +738,9 @@ function EditQuestionForm({
         <Textarea
           id="explanation"
           value={formData.explanation || ""}
-          onChange={(e) => setFormData({ ...formData, explanation: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, explanation: e.target.value })
+          }
           className="min-h-[100px]"
         />
       </div>
