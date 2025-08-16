@@ -10,6 +10,7 @@ export async function POST(req: Request) {
     }
 
     // Fetch attempt and related mock
+    console.log("🪵 Submitting attempt:", { attemptId, answers });
     const attempt = await prisma.mockAttempt.findUnique({
       where: { id: attemptId },
       include: { mockTest: true },

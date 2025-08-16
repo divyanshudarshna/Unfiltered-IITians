@@ -29,6 +29,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Mock test not found' }, { status: 404 })
     }
 
+     const attemptCount = await prisma.mockAttempt.count({
+      where: {
+        userId: user.id,
+        mockTestId: mockTestId,
+      },
+    })
+
+    // ✅ Decide max attempts (paid = 10, free = 3)
+    const maxAttempts = mockTest.price > 0 ? 10 : 3
+
+    if (attemptCount >= maxAttempts) {
+      return NextResponse.json(
+        { error: `You have reached the maximum of ${maxAttempts} attempts for this test.` },
+        { status: 403 }
+      )
+    }
+
     // ✅ Create attempt with user.id
     const attempt = await prisma.mockAttempt.create({
       data: {
