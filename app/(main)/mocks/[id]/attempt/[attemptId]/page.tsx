@@ -287,8 +287,6 @@ useEffect(() => {
             </div>
 
             {/* Options */}
-            {/* Options */}
-            {/* Options */}
             <div className="space-y-3">
               {["MCQ", "MSQ"].includes(currentQuestion.type) ? (
                 currentQuestion.options.map((option, i) => (
@@ -337,6 +335,8 @@ useEffect(() => {
 
           {/* Navigation Buttons */}
           <div className="flex justify-between border-t pt-4">
+    
+
             <Button
               onClick={() => setCurrentIndex((i) => Math.max(i - 1, 0))}
               disabled={currentIndex === 0}
@@ -346,6 +346,22 @@ useEffect(() => {
               Previous
             </Button>
             <div className="flex gap-2">
+                          {/* ✅ Clear Response (only visible if an answer exists) */}
+    {answers[mock.questions[currentIndex].id] && (
+      <Button
+        variant="outline"
+        onClick={() =>
+          setAnswers((prev) => {
+            const updated = { ...prev };
+            delete updated[mock.questions[currentIndex].id]; // clear answer for current Q
+            return updated;
+          })
+        }
+        className="border-red-300 text-red-700 hover:bg-red-700 hover:text-white"
+      >
+        Clear Response
+      </Button>
+    )}
               <Button
                 variant="outline"
                 onClick={() => setShowCalculator(true)}

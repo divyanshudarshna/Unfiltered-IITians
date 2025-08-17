@@ -189,7 +189,7 @@ const attemptCount = await prisma.mockAttempt.count({
 
       {/* Sidebar Navigation */}
       <aside className="lg:w-72 space-y-6">
-        <Card className="sticky top-6">
+        <Card className="sticky top-20">
           <CardHeader>
             <CardTitle className="text-lg">Questions Navigation</CardTitle>
           </CardHeader>
@@ -244,7 +244,7 @@ const attemptCount = await prisma.mockAttempt.count({
                 <span className="text-muted-foreground">Correct Answers</span>
                 <span className="font-medium">{correctCount} ({Math.round((correctCount / totalQuestions) * 100)}%)</span>
               </div>
-              <Progress value={(correctCount / totalQuestions) * 100} className="h-2 bg-green-100 dark:bg-green-900/30" indicatorClassName="bg-green-600 dark:bg-green-400" />
+              <Progress value={(correctCount / totalQuestions) * 100} className="h-2 bg-green-100 dark:bg-green-900/30" />
             </div>
 
             <div className="space-y-2">
@@ -252,7 +252,7 @@ const attemptCount = await prisma.mockAttempt.count({
                 <span className="text-muted-foreground">Incorrect Answers</span>
                 <span className="font-medium">{incorrectCount} ({Math.round((incorrectCount / totalQuestions) * 100)}%)</span>
               </div>
-              <Progress value={(incorrectCount / totalQuestions) * 100} className="h-2 bg-red-100 dark:bg-red-900/30" indicatorClassName="bg-red-600 dark:bg-red-400" />
+              <Progress value={(incorrectCount / totalQuestions) * 100} className="h-2 bg-red-100 dark:bg-red-900/30"  />
             </div>
 
             <div className="space-y-2">
@@ -260,7 +260,7 @@ const attemptCount = await prisma.mockAttempt.count({
                 <span className="text-muted-foreground">Unanswered</span>
                 <span className="font-medium">{unansweredCount} ({Math.round((unansweredCount / totalQuestions) * 100)}%)</span>
               </div>
-              <Progress value={(unansweredCount / totalQuestions) * 100} className="h-2 bg-gray-100 dark:bg-gray-800" indicatorClassName="bg-gray-600 dark:bg-gray-400" />
+              <Progress value={(unansweredCount / totalQuestions) * 100} className="h-2 bg-gray-100 dark:bg-gray-800"  />
             </div>
 
             {/* 🆕 Show attempt count */}

@@ -77,7 +77,12 @@ model MockAttempt {
   userId       String    @db.ObjectId
   mockTestId   String    @db.ObjectId
   answers      Json      @default("[]")
-  score        Int?
+  score        Int?      @default(0)
+  correctCount Int?      @default(0)
+  incorrectCount Int?    @default(0)
+  unansweredCount Int?   @default(0)
+  totalQuestions Int?    @default(0)
+  percentage   Int?      @default(0)
   startedAt    DateTime  @default(now())
   submittedAt  DateTime?
 
