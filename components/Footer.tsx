@@ -81,9 +81,9 @@ export default function Footer() {
 
       <div className="max-w-7xl mx-auto px-6 py-4 border-t border-border text-center text-sm">
         © {new Date().getFullYear()} Unfiltered IITians. All rights reserved. | 
-        <Link href="/privacy" className="hover:underline mx-1">Privacy Policy</Link> | 
-        <Link href="/refund" className="hover:underline mx-1">Refund Policy</Link> | 
-        <Link href="/terms" className="hover:underline mx-1">Terms of Service</Link>
+        <Link href="/privacy-policy" className="hover:underline mx-1">Privacy Policy</Link> | 
+        <Link href="/refund-policy" className="hover:underline mx-1">Refund Policy</Link> | 
+        <Link href="/terms-of-service" className="hover:underline mx-1">Terms of Service</Link>
       </div>
     </footer>
   )
