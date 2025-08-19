@@ -15,7 +15,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/mock/(.*)',
   '/api/subscription/(.*)',
   '/api/performance/(.*)',
-
+  '/api/testimonials(.*)', // ✅ FIXED (added slash)
+  '/api/contact-us(.*)', // ✅ FIXED (added slash)
 
   // ✅ TEMP: make admin APIs public for testing
   '/api/admin/(.*)',

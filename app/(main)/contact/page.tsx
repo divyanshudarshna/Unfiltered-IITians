@@ -1,54 +1,63 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { useTheme } from 'next-themes';
 import { Separator } from '@/components/ui/separator';
 
 const Contact = () => {
   const form = useRef<HTMLFormElement>(null);
   const [isSending, setIsSending] = useState(false);
-  const { theme } = useTheme();
 
   const sendEmail = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(form.current!);
+    
+    if (!form.current) return;
+    
+    const formData = new FormData(form.current);
     const data = {
-      user_email: formData.get('user_email'),
-      user_name: formData.get('user_name'),
-      subject: formData.get('subject'),
-      message: formData.get('message'),
+      user_name: formData.get('user_name') as string,
+      user_email: formData.get('user_email') as string,
+      subject: formData.get('subject') as string,
+      message: formData.get('message') as string,
     };
+
+    // Basic validation
+    if (!data.user_name || !data.user_email || !data.subject || !data.message) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.user_email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
 
     try {
       setIsSending(true);
-      const res = await fetch('/api/contact', {
+      const res = await fetch('/api/contact-us', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
       const result = await res.json();
-      if (result.success) {
-        toast.success('Message sent successfully!', {
-          position: 'top-right',
-          theme,
-        });
-        form.current?.reset();
+      
+      if (res.ok) {
+        toast.success('Message sent successfully! We will get back to you soon.');
+        form.current.reset();
       } else {
         throw new Error(result.error || 'Something went wrong');
       }
     } catch (err) {
-      toast.error('Failed to send message. Please try again.', {
-        position: 'top-right',
-        theme,
-      });
+      console.error('Contact form error:', err);
+      toast.error('Failed to send message. Please try again.');
     } finally {
       setIsSending(false);
     }
@@ -59,8 +68,6 @@ const Contact = () => {
       id="contact"
       className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
     >
-      <ToastContainer />
-
       <div className="w-full max-w-4xl space-y-8">
         {/* Section Header */}
         <div className="text-center space-y-4">
@@ -88,7 +95,7 @@ const Contact = () => {
             >
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="user_name">Name</Label>
+                  <Label htmlFor="user_name">Name *</Label>
                   <Input
                     id="user_name"
                     name="user_name"
@@ -99,36 +106,37 @@ const Contact = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="user_email">Email</Label>
+                  <Label htmlFor="user_email">Email *</Label>
                   <Input
                     id="user_email"
                     name="user_email"
                     type="email"
-                    placeholder="Your Email"
+                    placeholder="your.email@example.com"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
+                <Label htmlFor="subject">Subject *</Label>
                 <Input
                   id="subject"
                   name="subject"
                   type="text"
-                  placeholder="Subject"
+                  placeholder="What is this regarding?"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="message">Message</Label>
+                <Label htmlFor="message">Message *</Label>
                 <Textarea
                   id="message"
                   name="message"
                   rows={5}
-                  placeholder="Your message..."
+                  placeholder="Tell us how we can help you..."
                   className="min-h-[120px]"
+                  required
                 />
               </div>
 

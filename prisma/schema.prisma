@@ -123,3 +123,40 @@ model Enrollment {
   user       User       @relation(fields: [userId], references: [id])
   course     Course     @relation(fields: [courseId], references: [id])
 }
+
+
+//NEW MODELS 
+// Testimonials
+model Testimonial {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  role        String        // e.g. "From YouTube", "AIR-51 IIT JAM Qualified"
+  content     String
+  image       String?       // profile image url (optional)
+  rating      Float         @default(0) // allow half-stars like 4.5
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// Contact Us
+enum ContactStatus {
+  PENDING
+  RESOLVED
+  DELETED
+}
+
+model ContactUs {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String
+  subject   String
+  message   String
+  status    ContactStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+// TO MAKE THE MAKESURE TO UPDATE THE PRISMA MODEL FILES AND RUN THE COMMANDS IN ORDER
+// npx prisma db push
+// npx prisma generate
+// npx prisma studio
