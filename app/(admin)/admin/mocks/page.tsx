@@ -294,8 +294,8 @@ export default function AdminMocksPage() {
     );
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="flex flex-col gap-3">
+      <div className="flex justify-between items-center mb-6 mt-4">
         <h1 className="text-2xl font-bold">Mock Tests Management</h1>
         <CreateMockModal onSuccess={fetchMocks} />
       </div>

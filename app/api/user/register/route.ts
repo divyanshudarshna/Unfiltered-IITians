@@ -34,18 +34,28 @@ export async function POST(req: Request) {
     const clerkImageUrl = clerkUser?.imageUrl || null;
 
     // Create user with Clerk's image as default
-    const newUser = await prisma.user.create({
-      data: {
-        clerkUserId,
-        email: normalizedEmail,
-        name: name?.trim() || null,
-        role: "STUDENT",
-        profileImageUrl: clerkImageUrl, // 👈 Default from Clerk
-        phoneNumber,
-        dob: dob ? new Date(dob) : undefined,
-        fieldOfStudy,
-      },
-    });
+  const newUser = await prisma.user.upsert({
+  where: { email: normalizedEmail },
+  update: {
+    clerkUserId,
+    name: name?.trim() || null,
+    phoneNumber,
+    dob: dob ? new Date(dob) : undefined,
+    fieldOfStudy,
+    profileImageUrl: clerkImageUrl,
+  },
+  create: {
+    clerkUserId,
+    email: normalizedEmail,
+    name: name?.trim() || null,
+    role: "STUDENT",
+    profileImageUrl: clerkImageUrl,
+    phoneNumber,
+    dob: dob ? new Date(dob) : undefined,
+    fieldOfStudy,
+  },
+});
+
 
     console.log("✅ User created and stored:", newUser.email);
     return NextResponse.json({ user: newUser, created: true });

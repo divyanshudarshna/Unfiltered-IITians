@@ -70,6 +70,7 @@ type MockTestDetail = {
 };
 
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { setLazyProp } from "next/dist/server/api-utils";
 
 export default function MockDetailPage() {
   const router = useRouter();
@@ -149,6 +150,7 @@ export default function MockDetailPage() {
 
   const handleSaveQuestion = async (updatedQuestion: Question) => {
     try {
+      setLoading(true);
       const isNew = updatedQuestion.id.startsWith("temp-");
       const url = isNew
         ? `/api/admin/mocks/${mockId}/questions`
@@ -184,11 +186,14 @@ export default function MockDetailPage() {
             };
           }
         });
+        setLoading(false);
         setIsEditOpen(false);
       } else {
+        setLoading(false);
         alert(data.error || "Failed to save question");
       }
     } catch (err) {
+      setLoading(false);
       console.error(err);
       alert("Error saving question");
     }

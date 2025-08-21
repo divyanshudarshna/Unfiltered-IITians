@@ -68,7 +68,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           
           
                   <Link href="/admin/dashboard" className="flex items-center gap-2">
-                <IconInnerShadowTop className="!size-5" />
+                {/* <IconInnerShadowTop className="!size-5" /> */}
                 <span className="text-base font-semibold">Admin Dashboard</span>
               </Link>
 

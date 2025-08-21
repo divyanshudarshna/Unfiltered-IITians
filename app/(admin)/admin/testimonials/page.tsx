@@ -150,6 +150,7 @@ export default function AdminTestimonialsPage() {
 // Create testimonial
 const handleCreate = async () => {
   try {
+    setLoading(true);
     let response;
     
     if (imageFile) {
@@ -192,9 +193,11 @@ const handleCreate = async () => {
     setImageFile(null);
     setImagePreview(null);
     fetchTestimonials();
+    setLoading(false);
     
     toast.success("Testimonial created successfully");
   } catch (err) {
+    setLoading(false);
     console.error("Create error:", err);
     toast.error(err instanceof Error ? err.message : "Failed to create testimonial");
   }
