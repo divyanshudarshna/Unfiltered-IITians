@@ -22,6 +22,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -107,14 +113,14 @@ export default function AdminTestimonialsPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      
+
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
-      
+
       if (!response.ok) throw new Error("Upload failed");
-      
+
       const data = await response.json();
       setForm({ ...form, image: data.url });
       setImagePreview(URL.createObjectURL(file));
@@ -147,101 +153,105 @@ export default function AdminTestimonialsPage() {
   };
 
   // Create testimonial
-// Create testimonial
-const handleCreate = async () => {
-  try {
-    setLoading(true);
-    let response;
-    
-    if (imageFile) {
-      // If we have a file to upload, use FormData
-      const formData = new FormData();
-      formData.append("name", form.name);
-      formData.append("role", form.role);
-      formData.append("content", form.content);
-      formData.append("rating", form.rating.toString());
-      formData.append("file", imageFile);
+  // Create testimonial
+  const handleCreate = async () => {
+    try {
+      setLoading(true);
+      let response;
 
-      response = await fetch("/api/testimonials", {
-        method: "POST",
-        body: formData,
-      });
-    } else {
-      // If we're using an existing URL or no image, use JSON
-      response = await fetch("/api/testimonials", {
-        method: "POST",
+      if (imageFile) {
+        // If we have a file to upload, use FormData
+        const formData = new FormData();
+        formData.append("name", form.name);
+        formData.append("role", form.role);
+        formData.append("content", form.content);
+        formData.append("rating", form.rating.toString());
+        formData.append("file", imageFile);
+
+        response = await fetch("/api/testimonials", {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        // If we're using an existing URL or no image, use JSON
+        response = await fetch("/api/testimonials", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: form.name,
+            role: form.role,
+            content: form.content,
+            rating: form.rating,
+            image: form.image || null,
+          }),
+        });
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to create testimonial");
+      }
+
+      setCreateOpen(false);
+      setForm({ name: "", role: "", content: "", image: "", rating: 5 });
+      setImageFile(null);
+      setImagePreview(null);
+      fetchTestimonials();
+      setLoading(false);
+
+      toast.success("Testimonial created successfully");
+    } catch (err) {
+      setLoading(false);
+      console.error("Create error:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create testimonial"
+      );
+    }
+  };
+
+  // Edit testimonial
+  // Edit testimonial
+  const handleEdit = async () => {
+    if (!selected) return;
+    try {
+      // Prepare the data for the API
+      const updateData = {
+        name: form.name,
+        role: form.role,
+        content: form.content,
+        rating: form.rating,
+        image: form.image || null, // Send null if no image
+      };
+
+      const res = await fetch(`/api/testimonials/${selected.id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: form.name,
-          role: form.role,
-          content: form.content,
-          rating: form.rating,
-          image: form.image || null,
-        }),
+        body: JSON.stringify(updateData),
       });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to update testimonial");
+      }
+
+      setEditOpen(false);
+      setSelected(null);
+      setImageFile(null);
+      setImagePreview(null);
+      fetchTestimonials();
+
+      toast.success("Testimonial updated successfully");
+    } catch (err) {
+      console.error("Edit error:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update testimonial"
+      );
     }
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to create testimonial");
-    }
-    
-    setCreateOpen(false);
-    setForm({ name: "", role: "", content: "", image: "", rating: 5 });
-    setImageFile(null);
-    setImagePreview(null);
-    fetchTestimonials();
-    setLoading(false);
-    
-    toast.success("Testimonial created successfully");
-  } catch (err) {
-    setLoading(false);
-    console.error("Create error:", err);
-    toast.error(err instanceof Error ? err.message : "Failed to create testimonial");
-  }
-};
-
-  // Edit testimonial
-// Edit testimonial
-const handleEdit = async () => {
-  if (!selected) return;
-  try {
-    // Prepare the data for the API
-    const updateData = {
-      name: form.name,
-      role: form.role,
-      content: form.content,
-      rating: form.rating,
-      image: form.image || null, // Send null if no image
-    };
-
-    const res = await fetch(`/api/testimonials/${selected.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(updateData),
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to update testimonial");
-    }
-    
-    setEditOpen(false);
-    setSelected(null);
-    setImageFile(null);
-    setImagePreview(null);
-    fetchTestimonials();
-
-    toast.success("Testimonial updated successfully");
-  } catch (err) {
-    console.error("Edit error:", err);
-    toast.error(err instanceof Error ? err.message : "Failed to update testimonial");
-  }
-};
+  };
 
   // Delete testimonial
   const handleDelete = async (id: string) => {
@@ -303,7 +313,11 @@ const handleEdit = async () => {
                 }}
               />
             ) : null}
-            <User className={`w-5 h-5 text-muted-foreground ${imageUrl ? "hidden" : ""}`} />
+            <User
+              className={`w-5 h-5 text-muted-foreground ${
+                imageUrl ? "hidden" : ""
+              }`}
+            />
           </div>
         );
       },
@@ -351,9 +365,25 @@ const handleEdit = async () => {
       cell: (info) => {
         const value = info.getValue() as string | undefined;
         if (!value) return <span className="text-muted-foreground">—</span>;
-        return value.length > 50 ? value.slice(0, 50) + "..." : value;
+
+        const truncated =
+          value.length > 40 ? value.slice(0, 40) + "..." : value;
+
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-pointer">{truncated}</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>{value}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
       },
     },
+
     {
       accessorKey: "createdAt",
       header: "Created At",
@@ -363,6 +393,7 @@ const handleEdit = async () => {
         </span>
       ),
     },
+
     {
       id: "actions",
       header: "Actions",
@@ -501,10 +532,13 @@ const handleEdit = async () => {
       </div>
 
       {/* Create Modal */}
-      <Dialog open={createOpen} onOpenChange={(open) => {
-        setCreateOpen(open);
-        if (!open) resetForm();
-      }}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) resetForm();
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add Testimonial</DialogTitle>
@@ -603,13 +637,16 @@ const handleEdit = async () => {
       </Dialog>
 
       {/* Edit Modal */}
-      <Dialog open={editOpen} onOpenChange={(open) => {
-        setEditOpen(open);
-        if (!open) {
-          setSelected(null);
-          resetForm();
-        }
-      }}>
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) {
+            setSelected(null);
+            resetForm();
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Testimonial</DialogTitle>

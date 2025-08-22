@@ -13,12 +13,18 @@ export async function POST(req: Request) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    const uploaded = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream({ resource_type: 'auto' }, (err, result) => {
-        if (err) return reject(err)
-        resolve(result)
-      }).end(buffer)
-    })
+   const uploaded = await new Promise((resolve, reject) => {
+  cloudinary.uploader.upload_stream(
+    { 
+      resource_type: 'auto',
+      format: 'pdf' // Force PDF format for PDF files
+    }, 
+    (err, result) => {
+      if (err) return reject(err)
+      resolve(result)
+    }
+  ).end(buffer)
+})
 
     return NextResponse.json({ url: (uploaded as any).secure_url })
 

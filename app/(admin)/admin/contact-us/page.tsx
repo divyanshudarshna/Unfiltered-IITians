@@ -23,6 +23,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -59,13 +65,7 @@ type ContactUs = {
   updatedAt: string;
 };
 
-import {
-
-  User,
-  Tag,
-  MessageSquare,
-
-} from "lucide-react";
+import { User, Tag, MessageSquare } from "lucide-react";
 
 export default function AdminContactUsPage() {
   const [contacts, setContacts] = useState<ContactUs[]>([]);
@@ -78,7 +78,8 @@ export default function AdminContactUsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<ContactUs | null>(null);
   const [statusUpdateOpen, setStatusUpdateOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<ContactUs["status"]>("PENDING");
+  const [selectedStatus, setSelectedStatus] =
+    useState<ContactUs["status"]>("PENDING");
 
   // Fetch contacts
   const fetchContacts = async () => {
@@ -118,7 +119,7 @@ export default function AdminContactUsPage() {
       setStatusUpdateOpen(false);
       setSelected(null);
       fetchContacts();
-      
+
       toast.success("Status updated successfully");
     } catch (err) {
       console.error(err);
@@ -139,7 +140,7 @@ export default function AdminContactUsPage() {
       setDeleteOpen(false);
       setSelected(null);
       fetchContacts();
-      
+
       toast.success("Contact deleted successfully");
     } catch (err) {
       console.error(err);
@@ -169,9 +170,17 @@ export default function AdminContactUsPage() {
   // Status badge component
   const StatusBadge = ({ status }: { status: ContactUs["status"] }) => {
     const statusConfig = {
-      PENDING: { label: "Pending", variant: "secondary",style:"bg-yellow-800" as const },
-      RESOLVED: { label: "Resolved", variant: "default" ,style:"bg-green-800 text-white" as const },
-      DELETED: { label: "Deleted", variant: "destructive", style:"" as const },
+      PENDING: {
+        label: "Pending",
+        variant: "secondary",
+        style: "bg-yellow-800" as const,
+      },
+      RESOLVED: {
+        label: "Resolved",
+        variant: "default",
+        style: "bg-green-800 text-white" as const,
+      },
+      DELETED: { label: "Deleted", variant: "destructive", style: "" as const },
     };
 
     const config = statusConfig[status];
@@ -207,7 +216,22 @@ export default function AdminContactUsPage() {
       cell: (info) => {
         const value = info.getValue() as string | undefined;
         if (!value) return <span className="text-muted-foreground">—</span>;
-        return value.length > 50 ? value.slice(0, 50) + "..." : value;
+
+        const truncated =
+          value.length > 40 ? value.slice(0, 40) + "..." : value;
+
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-pointer">{truncated}</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs whitespace-pre-wrap">
+                <p>{value}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
       },
     },
     {
@@ -251,7 +275,6 @@ export default function AdminContactUsPage() {
             </Button>
             <Button
               variant="destructive"
-              
               size="sm"
               onClick={() => openDeleteModal(contact)}
             >
@@ -263,6 +286,10 @@ export default function AdminContactUsPage() {
     },
   ];
 
+  // helper function
+  const getStr = (val: unknown) =>
+    typeof val === "string" ? val.toLowerCase() : "";
+
   // Table instance
   const table = useReactTable({
     data: contacts,
@@ -273,13 +300,14 @@ export default function AdminContactUsPage() {
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn: (row, _, filterValue) => {
+    globalFilterFn: (row, _columnId, filterValue) => {
       const search = filterValue.toLowerCase();
+
       return (
-        row.getValue("name").toString().toLowerCase().includes(search) ||
-        row.getValue("email").toString().toLowerCase().includes(search) ||
-        row.getValue("subject").toString().toLowerCase().includes(search) ||
-        row.getValue("status").toString().toLowerCase().includes(search)
+        getStr(row.getValue("name")).includes(search) ||
+        getStr(row.getValue("email")).includes(search) ||
+        getStr(row.getValue("subject")).includes(search) ||
+        getStr(row.getValue("status")).includes(search)
       );
     },
   });
@@ -373,123 +401,134 @@ export default function AdminContactUsPage() {
         </Button>
       </div>
 
-{/* View Modal */}
-<Dialog open={viewOpen} onOpenChange={setViewOpen}>
-  <DialogContent className="max-w-2xl rounded-2xl shadow-xl border">
-    <DialogHeader className="space-y-1 pb-4">
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-primary/10 rounded-full">
-          <Mail className="w-5 h-5 text-primary" />
-        </div>
-        <div>
-          <DialogTitle className="text-xl font-semibold tracking-tight">
-            Contact Message Details
-          </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            Received on {selected && new Date(selected.createdAt).toLocaleDateString("en-IN", { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </DialogDescription>
-        </div>
-      </div>
-    </DialogHeader>
+      {/* View Modal */}
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <DialogContent className="max-w-2xl rounded-2xl shadow-xl border">
+          <DialogHeader className="space-y-1 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-full">
+                <Mail className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold tracking-tight">
+                  Contact Message Details
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Received on{" "}
+                  {selected &&
+                    new Date(selected.createdAt).toLocaleDateString("en-IN", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
 
-    {selected && (
-      <div className="space-y-6 py-2">
-        {/* Name & Email */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <User className="w-4 h-4" />
-              <span>Name</span>
-            </div>
-            <div className="p-3 bg-muted/50 rounded-lg border">
-              <p className="font-medium text-foreground">{selected.name}</p>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Mail className="w-4 h-4" />
-              <span>Email Address</span>
-            </div>
-            <div className="p-3 bg-muted/50 rounded-lg border">
-              <p className="font-medium text-foreground break-all">{selected.email}</p>
-            </div>
-          </div>
-        </div>
+          {selected && (
+            <div className="space-y-6 py-2">
+              {/* Name & Email */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <User className="w-4 h-4" />
+                    <span>Name</span>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-lg border">
+                    <p className="font-medium text-foreground">
+                      {selected.name}
+                    </p>
+                  </div>
+                </div>
 
-        {/* Subject */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Tag className="w-4 h-4" />
-            <span>Subject</span>
-          </div>
-          <div className="p-3 bg-muted/50 rounded-lg border">
-            <p className="font-medium text-foreground">{selected.subject}</p>
-          </div>
-        </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Mail className="w-4 h-4" />
+                    <span>Email Address</span>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-lg border">
+                    <p className="font-medium text-foreground break-all">
+                      {selected.email}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-        {/* Message */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <MessageSquare className="w-4 h-4" />
-            <span>Message</span>
-          </div>
-          <div className="p-4 bg-muted/50 rounded-lg border">
-            <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-              {selected.message}
-            </p>
-          </div>
-        </div>
+              {/* Subject */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Tag className="w-4 h-4" />
+                  <span>Subject</span>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg border">
+                  <p className="font-medium text-foreground">
+                    {selected.subject}
+                  </p>
+                </div>
+              </div>
 
-        {/* Status & Last Updated */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <AlertCircle className="w-4 h-4" />
-              <span>Status</span>
-            </div>
-            <div className="mt-1">
-              <StatusBadge status={selected.status} />
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span>Last Updated</span>
-            </div>
-            <div className="p-3 bg-muted/50 rounded-lg border">
-              <p className="font-medium text-foreground">
-                {new Date(selected.updatedAt).toLocaleDateString("en-IN", { 
-                  year: 'numeric', 
-                  month: 'short', 
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
+              {/* Message */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Message</span>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg border">
+                  <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                    {selected.message}
+                  </p>
+                </div>
+              </div>
 
-    <DialogFooter className="pt-4 border-t">
-      <Button
-        onClick={() => setViewOpen(false)}
-        className="rounded-lg px-6 shadow-sm"
-        variant="outline"
-      >
-        Close
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+              {/* Status & Last Updated */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Status</span>
+                  </div>
+                  <div className="mt-1">
+                    <StatusBadge status={selected.status} />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Calendar className="w-4 h-4" />
+                    <span>Last Updated</span>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-lg border">
+                    <p className="font-medium text-foreground">
+                      {new Date(selected.updatedAt).toLocaleDateString(
+                        "en-IN",
+                        {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-4 border-t">
+            <Button
+              onClick={() => setViewOpen(false)}
+              className="rounded-lg px-6 shadow-sm"
+              variant="outline"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Status Update Modal */}
       <Dialog open={statusUpdateOpen} onOpenChange={setStatusUpdateOpen}>
         <DialogContent className="max-w-md">
@@ -505,7 +544,9 @@ export default function AdminContactUsPage() {
                 <Label>Status</Label>
                 <Select
                   value={selectedStatus}
-                  onValueChange={(value: ContactUs["status"]) => setSelectedStatus(value)}
+                  onValueChange={(value: ContactUs["status"]) =>
+                    setSelectedStatus(value)
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
@@ -520,7 +561,10 @@ export default function AdminContactUsPage() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setStatusUpdateOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setStatusUpdateOpen(false)}
+            >
               Cancel
             </Button>
             <Button onClick={handleStatusUpdate}>Update Status</Button>
@@ -534,7 +578,8 @@ export default function AdminContactUsPage() {
           <DialogHeader>
             <DialogTitle>Delete Contact Message</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the message from {selected?.name}? This action cannot be undone.
+              Are you sure you want to delete the message from {selected?.name}?
+              This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

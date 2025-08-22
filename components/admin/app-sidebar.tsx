@@ -44,6 +44,7 @@ const data = {
     { title: "Dashboard", url: "/admin/dashboard", icon: IconDashboard },
     { title: "Users", url: "/admin/users", icon: IconUsers },
     { title: "Mocks", url: "/admin/mocks", icon: IconFolder },
+    { title: "Courses", url: "/admin/courses", icon: IconFolder },
     { title: "Testimonials", url: "/admin/testimonials", icon: IconReport },
     { title: "Contacts", url: "/admin/contact-us", icon: IconReport },
   ],

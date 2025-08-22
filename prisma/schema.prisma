@@ -25,7 +25,14 @@ enum PublishStatus {
   PUBLISHED
   ARCHIVED
 }
-// User Model
+
+enum ContactStatus {
+  PENDING
+  RESOLVED
+  DELETED
+}
+
+// ================== USER ==================
 model User {
   id               String         @id @default(auto()) @map("_id") @db.ObjectId
   clerkUserId      String         @unique
@@ -52,8 +59,7 @@ model User {
   subscriptions    Subscription[]
 }
 
-// Mock Test Model
-// Update MockTest model
+// ================== MOCKS ==================
 model MockTest {
   id             String           @id @default(auto()) @map("_id") @db.ObjectId
   title          String
@@ -71,47 +77,57 @@ model MockTest {
   subscriptions  Subscription[]
 }
 
-// Attempt Model
 model MockAttempt {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String    @db.ObjectId
-  mockTestId   String    @db.ObjectId
-  answers      Json      @default("[]")
-  score        Int?      @default(0)
-  correctCount Int?      @default(0)
-  incorrectCount Int?    @default(0)
-  unansweredCount Int?   @default(0)
-  totalQuestions Int?    @default(0)
-  percentage   Int?      @default(0)
-  startedAt    DateTime  @default(now())
-  submittedAt  DateTime?
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String    @db.ObjectId
+  mockTestId     String    @db.ObjectId
+  answers        Json      @default("[]")
+  score          Int?      @default(0)
+  correctCount   Int?      @default(0)
+  incorrectCount Int?      @default(0)
+  unansweredCount Int?     @default(0)
+  totalQuestions Int?      @default(0)
+  percentage     Int?      @default(0)
+  startedAt      DateTime  @default(now())
+  submittedAt    DateTime?
 
   // Relations
-  user         User      @relation(fields: [userId], references: [id])
-  mockTest     MockTest  @relation(fields: [mockTestId], references: [id])
+  user           User      @relation(fields: [userId], references: [id])
+  mockTest       MockTest  @relation(fields: [mockTestId], references: [id])
 }
 
-// Subscription (for paid mocks)
 model Subscription {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String    @db.ObjectId
-  mockTestId      String    @db.ObjectId
+  id              String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String     @db.ObjectId
+  mockTestId      String?    @db.ObjectId
+  courseId        String?    @db.ObjectId
   razorpayOrderId String
-  paid            Boolean   @default(false)
-  createdAt       DateTime  @default(now())
+  paid            Boolean    @default(false)
+  createdAt       DateTime   @default(now())
 
+  // Relations
   user     User      @relation(fields: [userId], references: [id])
-  mockTest MockTest  @relation(fields: [mockTestId], references: [id])
+  mockTest MockTest? @relation(fields: [mockTestId], references: [id])
+  course   Course?   @relation(fields: [courseId], references: [id])
 }
 
-// Course & Enrollment
+// ================== COURSES ==================
 model Course {
-  id          String       @id @default(auto()) @map("_id") @db.ObjectId
-  title       String
-  description String?
-  createdAt   DateTime     @default(now())
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  description    String?
+  price          Int          // Set price
+  actualPrice    Int?         // Discounted price
+  durationMonths Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  status         PublishStatus @default(DRAFT)
 
-  enrollments Enrollment[]
+  // Relations
+  enrollments    Enrollment[]
+  contents       Content[]
+  subscriptions  Subscription[]
+  coupons        Coupon[]
 }
 
 model Enrollment {
@@ -124,25 +140,58 @@ model Enrollment {
   course     Course     @relation(fields: [courseId], references: [id])
 }
 
+model Coupon {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  code        String   @unique
+  discountPct Int      // % discount
+  validTill   DateTime
+  courseId    String   @db.ObjectId
 
-//NEW MODELS 
-// Testimonials
+  course      Course   @relation(fields: [courseId], references: [id])
+}
+
+model Content {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  order       Int
+  courseId    String     @db.ObjectId
+
+  course      Course     @relation(fields: [courseId], references: [id])
+  lectures    Lecture[]
+  quiz        Quiz?      @relation("ContentQuiz")
+}
+
+model Lecture {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  videoUrl    String?
+  pdfUrl      String?
+  summary     String?   // Rich text/markdown
+  order       Int
+  contentId   String    @db.ObjectId
+
+  content     Content   @relation(fields: [contentId], references: [id])
+}
+
+model Quiz {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  contentId   String    @unique @db.ObjectId   // 👈 unique for 1–1 relation
+  questions   Json      // store MCQs, options, correct answers, explanations
+
+  content     Content   @relation("ContentQuiz", fields: [contentId], references: [id])
+}
+
+// ================== TESTIMONIALS & CONTACT ==================
 model Testimonial {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String
-  role        String        // e.g. "From YouTube", "AIR-51 IIT JAM Qualified"
+  role        String
   content     String
-  image       String?       // profile image url (optional)
-  rating      Float         @default(0) // allow half-stars like 4.5
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-}
-
-// Contact Us
-enum ContactStatus {
-  PENDING
-  RESOLVED
-  DELETED
+  image       String?
+  rating      Float     @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model ContactUs {
@@ -155,6 +204,7 @@ model ContactUs {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 }
+
 
 // TO MAKE THE MAKESURE TO UPDATE THE PRISMA MODEL FILES AND RUN THE COMMANDS IN ORDER
 // npx prisma db push
