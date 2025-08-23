@@ -1,3 +1,4 @@
+// api/admin/courses/[id]/contents/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 

@@ -50,6 +50,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft,
@@ -57,8 +63,11 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Edit,
-  ListChecks,
-  MoreHorizontal,
+  // ListChecks,
+  // MoreHorizontal,
+  CheckCircle,
+  FileQuestion,
+  BookOpen,
   Search,
   Trash2,
   Eye,
@@ -81,14 +90,89 @@ interface ContentTableProps {
   refresh: () => void;
 }
 
-export default function ContentTable({ courseId, contents, refresh }: ContentTableProps) {
+
+  interface QuizStatusCellProps {
+  contentId: string;
+}
+
+//component to show quiz status in content table
+export const QuizStatusCell = ({ contentId }: QuizStatusCellProps) => {
+  const [quizData, setQuizData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchQuizData = async () => {
+      try {
+        const res = await fetch(`/api/admin/contents/${contentId}/quiz`);
+        if (res.ok) {
+          const data = await res.json();
+          setQuizData(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch quiz data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuizData();
+  }, [contentId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!quizData) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="p-1.5 bg-gray-100 dark:bg-gray-800 rounded-full">
+          <FileQuestion className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+        </div>
+        <span className="text-sm text-muted-foreground">Not added</span>
+      </div>
+    );
+  }
+
+  const questionCount = quizData.questions?.length || 0;
+  
+  return (
+    <div className="flex items-center gap-2">
+      <div className="p-1.5 bg-green-100 dark:bg-green-900/40 rounded-full">
+        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-sm font-medium text-green-600 dark:text-green-400">
+          {questionCount} question{questionCount !== 1 ? 's' : ''}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          Added
+        </span>
+      </div>
+    </div>
+  );
+};
+
+
+
+export default function ContentTable({
+  courseId,
+  contents,
+  refresh,
+}: ContentTableProps) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState<Content | null>(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [lectureCounts, setLectureCounts] = useState<Record<string, number>>({});
+  const [lectureCounts, setLectureCounts] = useState<Record<string, number>>(
+    {}
+  );
 
   // Initialize lectureCounts from contents._count (if present) so we don't always fetch
   useEffect(() => {
@@ -112,7 +196,9 @@ export default function ContentTable({ courseId, contents, refresh }: ContentTab
     const abortController = new AbortController();
     let isMounted = true; // additional guard
 
-    const contentsToFetch = contents.filter((c) => typeof lectureCounts[c.id] !== "number");
+    const contentsToFetch = contents.filter(
+      (c) => typeof lectureCounts[c.id] !== "number"
+    );
 
     if (!contentsToFetch.length) return; // nothing to do
 
@@ -122,9 +208,12 @@ export default function ContentTable({ courseId, contents, refresh }: ContentTab
         // map to promises so we can parallelize
         const promises = contentsToFetch.map(async (content) => {
           try {
-            const res = await fetch(`/api/admin/contents/${content.id}/lectures`, {
-              signal: abortController.signal,
-            });
+            const res = await fetch(
+              `/api/admin/contents/${content.id}/lectures`,
+              {
+                signal: abortController.signal,
+              }
+            );
 
             if (!res.ok) {
               counts[content.id] = 0;
@@ -164,12 +253,16 @@ export default function ContentTable({ courseId, contents, refresh }: ContentTab
     };
     // include lectureCounts intentionally so we only fetch missing ones
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contents, /* lectureCounts intentionally omitted to avoid refetch loops */]);
+  }, [
+    contents /* lectureCounts intentionally omitted to avoid refetch loops */,
+  ]);
 
   const handleDelete = async (id: string) => {
     try {
       setDeleting(id);
-      const response = await fetch(`/api/admin/contents/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/admin/contents/${id}`, {
+        method: "DELETE",
+      });
       if (!response.ok) throw new Error("Failed to delete content");
       toast.success("Content deleted successfully");
       // remove local lectureCount to avoid stale showing while refresh occurs
@@ -217,121 +310,193 @@ export default function ContentTable({ courseId, contents, refresh }: ContentTab
     }
   };
 
-  const columns = useMemo<ColumnDef<Content>[]>(
-    () => [
-      {
-        accessorKey: "title",
-        header: () => <span className="font-medium">Title</span>,
-        cell: ({ row }) => {
-          const content = row.original;
-          const lectureCount = lectureCounts[content.id];
 
-          return (
-            <div className="flex items-center gap-3">
-              <Badge variant="secondary" className="rounded-xl">
-                #{row.index + 1}
-              </Badge>
 
-              <div className="flex flex-col min-w-0">
-                <span className="font-medium truncate">{content.title}</span>
-                <span className="text-xs text-muted-foreground flex items-center gap-2">
-                  {lectureCount === undefined ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      <span>Loading...</span>
-                    </>
-                  ) : (
-                    <>{`${lectureCount} lecture${lectureCount !== 1 ? "s" : ""}`}</>
+
+const columns = useMemo<ColumnDef<Content>[]>(
+  () => [
+    {
+      accessorKey: "title",
+      header: () => <span className="font-medium">Title</span>,
+      cell: ({ row }) => {
+        const content = row.original;
+        const lectureCount = lectureCounts[content.id];
+        const truncatedTitle = content.title.length > 30 
+          ? `${content.title.substring(0, 30)}...` 
+          : content.title;
+
+        return (
+          <div className="flex items-center gap-3">
+            <Badge variant="secondary" className="rounded-xl">
+              #{row.index + 1}
+            </Badge>
+
+            <div className="flex flex-col min-w-0">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="font-medium truncate max-w-[200px]">
+                      {truncatedTitle}
+                    </span>
+                  </TooltipTrigger>
+                  {content.title.length > 30 && (
+                    <TooltipContent>
+                      <p className="max-w-xs break-words">{content.title}</p>
+                    </TooltipContent>
                   )}
-                </span>
-              </div>
+                </Tooltip>
+              </TooltipProvider>
+              <span className="text-xs text-muted-foreground flex items-center gap-2">
+                {lectureCount === undefined ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <>{`${lectureCount} lecture${
+                    lectureCount !== 1 ? "s" : ""
+                  }`}</>
+                )}
+              </span>
             </div>
-          );
-        },
+          </div>
+        );
       },
-      {
-        accessorKey: "description",
-        header: () => <span className="font-medium">Description</span>,
-        cell: ({ row }) => (
-          <p className="text-muted-foreground line-clamp-2 max-w-[38rem]">{row.original.description}</p>
-        ),
-        enableSorting: false,
-      },
-      {
-        accessorKey: "order",
-        header: () => <span className="font-medium">Order</span>,
-        cell: ({ getValue }) => <span className="tabular-nums">{getValue<number>() ?? 0}</span>,
-      },
-      {
-        id: "actions",
-        header: () => <span className="font-medium">Actions</span>,
-        enableSorting: false,
-        cell: ({ row }) => {
-          const content = row.original;
-          return (
-            <div className="flex items-center justify-end gap-2">
-              {/* View Lectures */}
-              <Button asChild variant="outline" size="sm" className="gap-2">
-                <Link
-                  href={{
-                    pathname: `/admin/contents/${content.id}/lectures`,
-                    query: { contentTitle: content.title },
-                  }}
-                >
-                  <Eye className="h-4 w-4" />
-                  <span>Lectures</span>
-                </Link>
-              </Button>
+    },
+    {
+      accessorKey: "description",
+      header: () => <span className="font-medium">Description</span>,
+      cell: ({ row }) => {
+        const description = row.original.description || "";
+        const truncatedDesc = description.length > 40 
+          ? `${description.substring(0, 40)}...` 
+          : description;
 
-              {/* Edit */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => {
-                  setEditingContent(content);
-                  setOpen(true);
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-muted-foreground line-clamp-2 max-w-[300px]">
+                  {truncatedDesc}
+                </p>
+              </TooltipTrigger>
+              {description.length > 40 && (
+                <TooltipContent>
+                  <p className="max-w-xs break-words">{description}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        );
+      },
+      enableSorting: false,
+    },
+    {
+      accessorKey: "order",
+      header: () => <span className="font-medium">Order</span>,
+      cell: ({ getValue }) => (
+        <span className="tabular-nums">{getValue<number>() ?? 0}</span>
+      ),
+    },
+    {
+      id: "quiz",
+      header: () => <span className="font-medium">Quiz</span>,
+      cell: ({ row }) => {
+        const content = row.original;
+        return <QuizStatusCell contentId={content.id} />;
+      },
+      enableSorting: false,
+    },
+    {
+      id: "actions",
+      header: () => <span className="font-medium">Actions</span>,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const content = row.original;
+        return (
+          <div className="flex items-center justify-end gap-2">
+            {/* View Lectures */}
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <Link
+                href={{
+                  pathname: `/admin/contents/${content.id}/lectures`,
+                  query: { contentTitle: content.title },
                 }}
               >
-                <Edit className="h-4 w-4" />
-                Edit
-              </Button>
+                <Eye className="h-4 w-4" />
+                <span>Lectures</span>
+              </Link>
+            </Button>
 
-              {/* Delete with confirmation */}
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" className="gap-2" disabled={!!deleting}>
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this content?</AlertDialogTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      This action cannot be undone. The content and all associated lectures will be permanently removed.
-                    </p>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={!!deleting}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-red-600 hover:bg-red-700"
-                      onClick={() => handleDelete(content.id)}
-                      disabled={!!deleting}
-                    >
-                      {deleting === content.id ? "Deleting…" : "Yes, delete"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          );
-        },
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <Link
+                href={{
+                  pathname: `/admin/contents/${content.id}/quiz`,
+                  query: { contentTitle: content.title, courseId },
+                }}
+              >
+                <BookOpen className="h-4 w-4" />
+                <span>Quiz</span>
+              </Link>
+            </Button>
+
+            {/* Edit */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                setEditingContent(content);
+                setOpen(true);
+              }}
+            >
+              <Edit className="h-4 w-4" />
+              {/* Edit */}
+            </Button>
+
+            {/* Delete with confirmation */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="gap-2"
+                  disabled={!!deleting}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {/* Delete */}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this content?</AlertDialogTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    This action cannot be undone. The content and all
+                    associated lectures will be permanently removed.
+                  </p>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={!!deleting}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-red-600 hover:bg-red-700"
+                    onClick={() => handleDelete(content.id)}
+                    disabled={!!deleting}
+                  >
+                    {deleting === content.id ? "Deleting…" : "Yes, delete"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        );
       },
-    ],
-    // re-compute when deleting or lectureCounts change
-    [deleting, lectureCounts]
-  );
+    },
+  ],
+  // re-compute when deleting or lectureCounts change
+  [deleting, lectureCounts]
+);
 
   const table = useReactTable({
     data: contents,
@@ -344,10 +509,15 @@ export default function ContentTable({ courseId, contents, refresh }: ContentTab
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     globalFilterFn: (row, _columnId, filterValue) => {
-      const q = String(filterValue ?? "").toLowerCase().trim();
+      const q = String(filterValue ?? "")
+        .toLowerCase()
+        .trim();
       if (!q) return true;
       const { title, description } = row.original as Content;
-      return title?.toLowerCase().includes(q) || description?.toLowerCase().includes(q);
+      return (
+        title?.toLowerCase().includes(q) ||
+        description?.toLowerCase().includes(q)
+      );
     },
     initialState: {
       pagination: { pageIndex: 0, pageSize: 10 },
@@ -415,9 +585,16 @@ export default function ContentTable({ courseId, contents, refresh }: ContentTab
                         )}
                         onClick={header.column.getToggleSortingHandler()}
                       >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {header.column.getIsSorted() === "asc" && <span>▲</span>}
-                        {header.column.getIsSorted() === "desc" && <span>▼</span>}
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {header.column.getIsSorted() === "asc" && (
+                          <span>▲</span>
+                        )}
+                        {header.column.getIsSorted() === "desc" && (
+                          <span>▼</span>
+                        )}
                       </div>
                     )}
                   </TableHead>
@@ -429,18 +606,31 @@ export default function ContentTable({ courseId, contents, refresh }: ContentTab
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-40 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-40 text-center"
+                >
                   <div className="flex flex-col items-center justify-center gap-2">
                     <FileText className="h-5 w-5 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">No contents found.</p>
+                    <p className="text-sm text-muted-foreground">
+                      No contents found.
+                    </p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -452,25 +642,42 @@ export default function ContentTable({ courseId, contents, refresh }: ContentTab
       {/* Pagination */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <p className="text-sm text-muted-foreground">
-          Showing{" "}
-          <span className="font-medium">{start}</span> – <span className="font-medium">{end}</span> of{" "}
+          Showing <span className="font-medium">{start}</span> –{" "}
+          <span className="font-medium">{end}</span> of{" "}
           <span className="font-medium">{totalFiltered}</span>
         </p>
 
         <div className="flex items-center gap-1 sm:ml-auto">
-          <Button variant="outline" size="sm" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
+          >
             <ChevronsLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.setPageIndex(Math.max(0, table.getPageCount() - 1))}
+            onClick={() =>
+              table.setPageIndex(Math.max(0, table.getPageCount() - 1))
+            }
             disabled={!table.getCanNextPage()}
           >
             <ChevronsRight className="h-4 w-4" />
@@ -491,7 +698,12 @@ export default function ContentTable({ courseId, contents, refresh }: ContentTab
                 <Label>Title</Label>
                 <Input
                   value={editingContent.title}
-                  onChange={(e) => setEditingContent({ ...editingContent, title: e.target.value })}
+                  onChange={(e) =>
+                    setEditingContent({
+                      ...editingContent,
+                      title: e.target.value,
+                    })
+                  }
                   required
                 />
               </div>
@@ -499,7 +711,12 @@ export default function ContentTable({ courseId, contents, refresh }: ContentTab
                 <Label>Description</Label>
                 <Textarea
                   value={editingContent.description || ""}
-                  onChange={(e) => setEditingContent({ ...editingContent, description: e.target.value })}
+                  onChange={(e) =>
+                    setEditingContent({
+                      ...editingContent,
+                      description: e.target.value,
+                    })
+                  }
                 />
               </div>
               <div className="grid gap-2">
@@ -507,11 +724,20 @@ export default function ContentTable({ courseId, contents, refresh }: ContentTab
                 <Input
                   type="number"
                   value={editingContent.order ?? 0}
-                  onChange={(e) => setEditingContent({ ...editingContent, order: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setEditingContent({
+                      ...editingContent,
+                      order: Number(e.target.value),
+                    })
+                  }
                 />
               </div>
               <div className="flex items-center justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="submit" disabled={loading}>

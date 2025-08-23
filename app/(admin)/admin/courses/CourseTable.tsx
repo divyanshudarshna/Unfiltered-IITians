@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -10,6 +10,18 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+
 import {
   Table,
   TableBody,
@@ -21,17 +33,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent,DialogHeader,DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import CourseForm from "./CourseForm";
 import Link from "next/link";
+import {
+  BookOpen,
+  TicketPercent,
+  Pencil,
+  Trash2,
+  Layers,
+  Users,
+} from "lucide-react";
+
 interface Course {
   id: string;
   title: string;
   description: string;
   price: number;
-  actualPrice: number;
+  actualPrice?: number | null;
   durationMonths: number;
+  status: "PUBLISHED" | "DRAFT" | "ARCHIVED";
 }
 
 interface CourseTableProps {
@@ -44,6 +66,44 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
   const [columnFilters, setColumnFilters] = useState([]);
   const [rowSelection, setRowSelection] = useState({});
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+
+  const [contentCounts, setContentCounts] = useState<Record<string, number>>({});
+  const [enrollCounts, setEnrollCounts] = useState<Record<string, number>>({});
+
+  // 🔄 Fetch contents + enrollments counts for each course
+  useEffect(() => {
+    const fetchCounts = async () => {
+      const newContentCounts: Record<string, number> = {};
+      const newEnrollCounts: Record<string, number> = {};
+
+      await Promise.all(
+        courses.map(async (course) => {
+          try {
+            // fetch contents count
+            const resContents = await fetch(`/api/admin/courses/${course.id}/contents`);
+            if (resContents.ok) {
+              const contents = await resContents.json();
+              newContentCounts[course.id] = contents.length || 0;
+            }
+
+            // fetch enrollments count
+            const resEnrolls = await fetch(`/api/admin/courses/${course.id}/enrollments`);
+            if (resEnrolls.ok) {
+              const enrollments = await resEnrolls.json();
+              newEnrollCounts[course.id] = enrollments.length || 0;
+            }
+          } catch (err) {
+            console.error("Error fetching counts", err);
+          }
+        })
+      );
+
+      setContentCounts(newContentCounts);
+      setEnrollCounts(newEnrollCounts);
+    };
+
+    if (courses.length) fetchCounts();
+  }, [courses]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -70,23 +130,22 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
       accessorKey: "price",
       header: "Price",
       cell: ({ row }) => {
-        const price = parseFloat(row.getValue("price"));
-        return (
-          <div className="font-medium">
+        const price = parseFloat(row.original.price.toString());
+        const actual = row.original.actualPrice;
+
+        return actual && actual > 0 ? (
+          <div>
+            <span className="line-through text-gray-500 mr-1">
+              ₹{price.toLocaleString("en-IN")}
+            </span>
+            <span className="text-green-600 font-semibold">
+              ₹{actual.toLocaleString("en-IN")}
+            </span>
+          </div>
+        ) : (
+          <span className="font-medium">
             ₹{price.toLocaleString("en-IN")}
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: "actualPrice",
-      header: "Discounted",
-      cell: ({ row }) => {
-        const actual = parseFloat(row.getValue("actualPrice"));
-        return (
-          <div className="text-green-600 font-semibold">
-            ₹{actual.toLocaleString("en-IN")}
-          </div>
+          </span>
         );
       },
     },
@@ -102,50 +161,122 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
         );
       },
     },
-   {
-  id: "actions",
-  header: "Actions",
-  cell: ({ row }) => {
-    const course = row.original;
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const status = row.getValue("status") as Course["status"];
+        switch (status) {
+          case "PUBLISHED":
+            return <Badge className="bg-green-100 text-green-700">Published</Badge>;
+          case "DRAFT":
+            return <Badge className="bg-yellow-100 text-yellow-700">Draft</Badge>;
+          case "ARCHIVED":
+            return <Badge className="bg-gray-200 text-gray-700">Archived</Badge>;
+          default:
+            return <Badge variant="outline">Unknown</Badge>;
+        }
+      },
+    },
+    {
+      id: "contents",
+      header: "Contents",
+      cell: ({ row }) => {
+        const count = contentCounts[row.original.id] || 0;
+        return (
+          <div className="flex items-center gap-1">
+            <Layers className="h-4 w-4 text-blue-500" />
+            <span>{count}</span>
+          </div>
+        );
+      },
+    },
+    {
+      id: "enrollments",
+      header: "Enrollments",
+      cell: ({ row }) => {
+        const count = enrollCounts[row.original.id] || 0;
+        return (
+          <div className="flex items-center gap-1">
+            <Users className="h-4 w-4 text-purple-500" />
+            <span>{count}</span>
+          </div>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const course = row.original;
+        return (
+          <div className="flex gap-2">
+            <Link href={`/admin/courses/${course.id}/contents`}>
+              <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-800">
+                <BookOpen className="h-4 w-4" />
+                Contents
+              </Button>
+            </Link>
 
-    return (
-      <div className="flex space-x-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setEditingCourse(course)}
-        >
-          Edit
-        </Button>
+            <Link href={`/admin/courses/${course.id}/coupons`}>
+              <Button size="sm" variant="ghost" className="text-amber-600 hover:text-amber-800">
+                <TicketPercent className="h-4 w-4" />
+                Coupons
+              </Button>
+            </Link>
 
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={() => handleDelete(course.id)}
-        >
-          Delete
-        </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-green-600 hover:text-green-800"
+              onClick={() => setEditingCourse(course)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
 
-        <Link href={`/admin/courses/${course.id}/contents`}>
-          <Button size="sm" variant="secondary">
-            Manage Contents
-          </Button>
-        </Link>
-      </div>
-    );
-  },
-},
-
+            {/* Delete with confirmation */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-red-600 hover:text-red-800"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Are you sure you want to delete this course?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the
+                course <span className="font-semibold">{course.title}</span> and
+                all its data.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => handleDelete(course.id)}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Yes, Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+          </div>
+        );
+      },
+    },
   ];
 
   const table = useReactTable({
     data: courses,
     columns,
-    state: {
-      sorting,
-      columnFilters,
-      rowSelection,
-    },
+    state: { sorting, columnFilters, rowSelection },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
@@ -156,7 +287,7 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
   });
 
   return (
-    <div className="w-full">
+    <div className="w-full mx-2">
       {/* Search */}
       <div className="flex items-center py-4">
         <Input
@@ -170,7 +301,7 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="rounded-md border ">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -179,10 +310,7 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
                   <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                      : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -191,36 +319,28 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   No courses found.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-      </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-end space-x-2 py-4">
+        
+      </div>
+  {/* Pagination */}
+      <div className="flex items-center justify-end space-x-2 mr-4 py-4">
         <Button
           variant="outline"
           size="sm"
@@ -238,21 +358,27 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
           Next
         </Button>
       </div>
+    
 
-      {/* Edit Modal */}
-      <Dialog open={!!editingCourse} onOpenChange={() => setEditingCourse(null)}>
-        <DialogContent className="max-w-lg">
-          {editingCourse && (
-            <CourseForm
-              course={editingCourse}
-              onSuccess={() => {
-                setEditingCourse(null);
-                refresh();
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+     {/* Edit Modal */}
+<Dialog open={!!editingCourse} onOpenChange={() => setEditingCourse(null)}>
+  <DialogContent className="max-w-lg">
+    <DialogHeader>
+      <DialogTitle>Edit Course</DialogTitle>
+    </DialogHeader>
+
+    {editingCourse && (
+      <CourseForm
+        course={editingCourse}
+        onSuccess={() => {
+          setEditingCourse(null);
+          refresh();
+        }}
+      />
+    )}
+  </DialogContent>
+</Dialog>
+
     </div>
   );
 }

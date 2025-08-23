@@ -9,7 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ContentForm from "./ContentForm";
 import ContentTable from "./ContentTable";
-import { ArrowLeft, Plus, BookOpen, Layers } from "lucide-react";
+import { ArrowLeft, Plus, BookOpen, Layers, RotateCcw, BarChart3, FileText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 export default function ContentsPage() {
   const { courseId } = useParams();
@@ -20,6 +22,7 @@ export default function ContentsPage() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [courseLoading, setCourseLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchCourse = async () => {
     try {
@@ -81,6 +84,13 @@ export default function ContentsPage() {
     }
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchCourse(), fetchContents()]);
+    toast.success("Data refreshed successfully");
+    setRefreshing(false);
+  };
+
   useEffect(() => {
     fetchCourse();
     fetchContents();
@@ -92,123 +102,150 @@ export default function ContentsPage() {
   }, 0);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-6xl">
       {/* Header with Back Navigation */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => router.push("/admin/courses")}
-          className="rounded-full"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-primary" />
-            Course Contents
-          </h1>
-          {courseLoading ? (
-            <Skeleton className="h-5 w-48 mt-1" />
-          ) : (
-            <p className="text-muted-foreground">
-              Managing contents for: <span className="font-medium text-primary">{course?.title || "Unknown Course"}</span>
-            </p>
-          )}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-3">
+        
+          
+          <div className="flex flex-col">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              Course Contents
+            </h1>
+            {courseLoading ? (
+              <Skeleton className="h-5 w-64 mt-1" />
+            ) : (
+              <p className="text-muted-foreground mt-1">
+                Managing contents for: <span className="font-medium text-amber-600 dark:text-amber-400">{course?.title || "Unknown Course"}</span>
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+
+            <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/admin/courses")}
+            className="flex items-center mt-1 gap-2 shadow-sm border-gray-200 dark:border-gray-700"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to Courses</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2 shadow-sm"
+          >
+            <RotateCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2 shadow-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                <Plus className="h-4 w-4" />
+                <span>New Content</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <ContentForm
+                courseId={courseId as string}
+                onSuccess={() => {
+                  setOpen(false);
+                  fetchContents();
+                  toast.success("Content created successfully");
+                }}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      {/* Stats Card */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-  <Card className="bg-gray-900/50 backdrop-blur-md border border-gray-700/30 shadow-2xl hover:shadow-2xl transition-all duration-300 hover:border-gray-600/50">
-  <CardHeader className="pb-2">
-    <CardTitle className="text-sm font-medium text-gray-200 flex items-center gap-2">
-      <div className="p-1.5 bg-blue-500/20 rounded-lg backdrop-blur-sm">
-        <Layers className="h-4 w-4 text-blue-400" />
-      </div>
-      Total Contents
-    </CardTitle>
-  </CardHeader>
-  <CardContent>
-    <div className="flex items-end gap-2">
-      <span className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent drop-shadow-md">
-        {contents.length}
-      </span>
-      <span className="text-sm text-gray-400 mb-1">modules</span>
-    </div>
-    <p className="text-xs text-gray-500 mt-2">Content modules in this course</p>
-  </CardContent>
-</Card>
+      <Separator className="my-2" />
 
-<Card className="bg-gray-900/50 backdrop-blur-md border border-gray-700/30 shadow-2xl hover:shadow-2xl transition-all duration-300 hover:border-gray-600/50">
-  <CardHeader className="pb-2">
-    <CardTitle className="text-sm font-medium text-gray-200 flex items-center gap-2">
-      <div className="p-1.5 bg-green-500/20 rounded-lg backdrop-blur-sm">
-        <BookOpen className="h-4 w-4 text-green-400" />
-      </div>
-      Total Lectures
-    </CardTitle>
-  </CardHeader>
-  <CardContent>
-    <div className="flex items-end gap-2">
-      <span className="text-3xl font-bold bg-gradient-to-r from-green-400 to-green-300 bg-clip-text text-transparent drop-shadow-md">
-        {totalLectures}
-      </span>
-      <span className="text-sm text-gray-400 mb-1">lectures</span>
-    </div>
-    <p className="text-xs text-gray-500 mt-2">Learning sessions across all content</p>
-  </CardContent>
-</Card>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Total Contents</p>
+              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{contents.length}</p>
+            </div>
+            <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/40">
+              <Layers className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            </div>
+          </CardContent>
+        </Card>
         
-        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button className="w-full bg-primary hover:bg-primary/90">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Content
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-lg bg-gray-900 border-gray-700">
-                <ContentForm
-                  courseId={courseId as string}
-                  onSuccess={() => {
-                    setOpen(false);
-                    fetchContents();
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
+        <Card className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30 border-emerald-200 dark:border-emerald-800">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Total Lectures</p>
+              <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">{totalLectures}</p>
+            </div>
+            <div className="p-3 rounded-full bg-emerald-100 dark:bg-emerald-900/40">
+              <BookOpen className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-800">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">Average per Content</p>
+              <p className="text-2xl font-bold text-amber-900 dark:text-amber-100">
+                {contents.length > 0 ? Math.round(totalLectures / contents.length) : 0}
+              </p>
+            </div>
+            <div className="p-3 rounded-full bg-amber-100 dark:bg-amber-900/40">
+              <BarChart3 className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Content Table */}
-      <Card className="bg-gray-900 border-gray-700">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Layers className="h-5 w-5 text-primary" />
-            Content Modules
-          </CardTitle>
-          <CardDescription>
-            Manage all content modules for this course
-          </CardDescription>
+      <Card className="shadow-sm border-gray-200 dark:border-gray-700 overflow-hidden px-4 ">
+        <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 border-b">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle className="text-xl flex items-center gap-2 my-2">
+                <Layers className="w-5 h-5 text-primary" />
+                Content Modules
+              </CardTitle>
+              <CardDescription>
+                {contents.length > 0 
+                  ? `Manage all content modules for ${course?.title || "this course"}`
+                  : `No content modules created yet for ${course?.title || "this course"}`
+                }
+              </CardDescription>
+            </div>
+            {contents.length > 0 && (
+              <Badge variant="outline" className="w-fit">
+                {contents.length} {contents.length === 1 ? 'module' : 'modules'}
+              </Badge>
+            )}
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
-            <div className="space-y-4">
+            <div className="space-y-4 p-6">
               <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
             </div>
           ) : (
             <ContentTable 
               courseId={courseId as string} 
               contents={contents} 
               refresh={fetchContents} 
+              lectureCounts={lectureCounts}
             />
           )}
         </CardContent>

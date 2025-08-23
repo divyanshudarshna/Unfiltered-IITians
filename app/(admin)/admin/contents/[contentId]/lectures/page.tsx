@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import LectureTable from "./LectureTable";
 import Link from "next/link";
 import { Plus, ArrowLeft, BookOpen, FileText, GraduationCap } from "lucide-react";
+import { RotateCcw } from 'lucide-react';
 
 interface ContentInfo {
   id: string;
@@ -109,7 +110,7 @@ export default function LecturesPage({ params }: { params: Promise<{ contentId: 
                 <GraduationCap className="h-3 w-3" />
                 Course
               </Badge>
-              <span className="text-sm font-medium text-muted-foreground">
+              <span className="text-sm font-medium text-amber-600 dark:text-amber-600">
                 {contentInfo?.course.title}
               </span>
             </div>
@@ -123,13 +124,35 @@ export default function LecturesPage({ params }: { params: Promise<{ contentId: 
           </div>
         </div>
 
-        {/* Add Lecture Button */}
-        <Link href={`/admin/contents/${contentId}/lectures/add`}>
-          <Button className="gap-2 h-11 px-6">
-            <Plus className="h-4 w-4" />
-            Add New Lecture
-          </Button>
-        </Link>
+      
+      
+
+        {/* Add Lecture + Refresh Buttons */}
+<div className="flex gap-2">
+
+    {/* Refresh Lectures */}
+<Button
+  variant="outline"
+  onClick={fetchLectures}
+  disabled={loading}
+  className="flex items-center gap-2 shadow-sm "
+>
+  <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+  <span>Refresh</span>
+</Button>
+
+
+  {/* Add New Lecture */}
+  <Link href={`/admin/contents/${contentId}/lectures/add`}>
+    <Button className="gap-2 h-9 px-6">
+      <Plus className="h-4 w-4" />
+      Add New Lecture
+    </Button>
+  </Link>
+
+
+</div>
+
       </div>
 
       <Separator />
@@ -190,15 +213,7 @@ export default function LecturesPage({ params }: { params: Promise<{ contentId: 
 
       {/* Lectures Table Section */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            Lecture Management
-          </CardTitle>
-          <CardDescription>
-            Manage all lectures for "{contentInfo?.title}". You can edit, delete, or preview lectures.
-          </CardDescription>
-        </CardHeader>
+    
         <CardContent>
           <LectureTable
             lectures={lectures}

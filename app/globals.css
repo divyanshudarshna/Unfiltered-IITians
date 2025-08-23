@@ -183,14 +183,13 @@
 }
 
 /*CUSTOM PROPERTIES DEFINED: FONTS  */
-
 :root {
   --font-heading: 'Zilla Slab', serif;
   --font-body: 'Poppins', sans-serif;
   --font-pricing: 'Helvetica', sans-serif;
 }
 
-/* Default body font */
+/* Default body font for frontend */
 body {
   font-family: var(--font-body);
 }
@@ -202,17 +201,39 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.25;
 }
 
-/* Optional: Ensure paragraph spacing */
-p {
-  margin-bottom: 1rem;
-}
-
 /* Use explicitly for pricing areas */
 .font-pricing {
   font-family: var(--font-pricing);
 }
 
+/* Optional: Ensure paragraph spacing */
+p {
+  margin-bottom: 1rem;
+}
 
+/* ADMIN-SPECIFIC FONT STYLES */
+.admin-fonts {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+.admin-fonts body {
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+.admin-fonts h1,
+.admin-fonts h2,
+.admin-fonts h3,
+.admin-fonts h4,
+.admin-fonts h5,
+.admin-fonts h6 {
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+.admin-fonts code,
+.admin-fonts pre {
+  font-family: var(--font-geist-mono), monospace;
+}
 
 @layer base {
   * {
