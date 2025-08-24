@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
+import MenuBar from "@/components/rich-text-editor/menu-bar";
 import { 
   FileText, 
   Video, 
@@ -21,19 +22,8 @@ import {
   FileUp,
   VideoIcon,
   Type,
-  Heading1,
-  Heading2,
-  Heading3,
-  Quote,
-  Undo,
-  Redo,
-  ImageIcon,
-  LinkIcon,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  List,
-  ListOrdered
+  Download,
+
 } from "lucide-react";
 import Link from "next/link";
 
@@ -91,7 +81,14 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
     video: false,
     pdf: false
   });
-  const [showPdfPreview, setShowPdfPreview] = useState<boolean>(false);
+// PDF related states
+
+const [pdfFileName, setPdfFileName] = useState<string | null>(null);
+
+const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+const [showPdfPreview, setShowPdfPreview] = useState(false);
+
+
 
   // Text editor setup
   const editor = useEditor({
@@ -156,54 +153,63 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
     }
   }, [action, lectureId, editor]);
 
-  const handleUpload = async (file: File, type: "video" | "pdf") => {
-    try {
-      setUploading(prev => ({ ...prev, [type]: true }));
-      setUploadProgress(prev => ({ ...prev, [type]: 0 }));
+ const handleUpload = async (file: File, type: "video" | "pdf") => {
+  try {
+    setUploading(prev => ({ ...prev, [type]: true }));
+    setUploadProgress(prev => ({ ...prev, [type]: 0 }));
 
-      const formData = new FormData();
-      formData.append("file", file);
+    const formData = new FormData();
+    formData.append("file", file);
 
-      const xhr = new XMLHttpRequest();
-      
-      // Track upload progress
-      xhr.upload.addEventListener("progress", (event) => {
-        if (event.lengthComputable) {
-          const progress = Math.round((event.loaded / event.total) * 100);
-          setUploadProgress(prev => ({ ...prev, [type]: progress }));
-        }
-      });
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
 
-      const uploadPromise = new Promise((resolve, reject) => {
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            const data = JSON.parse(xhr.responseText);
-            resolve(data);
-          } else {
-            reject(new Error("Upload failed"));
-          }
-        });
-        
-        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-        xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
-      });
-
-      xhr.open("POST", "/api/upload");
-      xhr.send(formData);
-
-      const data: any = await uploadPromise;
-      
-      if (type === "video") setVideoUrl(data.url);
-      if (type === "pdf") setPdfUrl(data.url);
-
-      toast.success(`${type.toUpperCase()} uploaded successfully`);
-    } catch (err) {
-      console.error(err);
-      toast.error(`Failed to upload ${type}`);
-    } finally {
-      setUploading(prev => ({ ...prev, [type]: false }));
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Upload failed with status ${response.status}`);
     }
-  };
+
+    const data = await response.json();
+    console.log("Upload response:", data);
+
+    let finalUrl = data.url;
+    if (type === "pdf" && !finalUrl.toLowerCase().endsWith(".pdf")) {
+      finalUrl = `${finalUrl}.pdf`;
+    }
+
+    if (type === "video") {
+      setVideoUrl(finalUrl);
+    }
+
+    if (type === "pdf") {
+     setPdfUrl(data.url);
+    setPdfFileName(data.originalFileName || "document.pdf");
+    }
+
+    console.log(`${type} uploaded to:`, finalUrl);
+    toast.success(`${type.toUpperCase()} uploaded successfully`);
+  } catch (err: any) {
+    console.error("Upload error:", err);
+    toast.error(err.message || `Failed to upload ${type}`);
+  } finally {
+    setUploading(prev => ({ ...prev, [type]: false }));
+  }
+};
+
+// ---------------- PDF Preview ----------------
+const handlePreviewPdf = () => {
+  if (pdfUrl) {
+    setPdfPreviewUrl(pdfUrl);
+    setShowPdfPreview(true);
+  }
+};
+
+console.log("PDF Preview URL:", pdfPreviewUrl);
+
+
+
 
   const removeFile = (type: "video" | "pdf") => {
     if (type === "video") setVideoUrl("");
@@ -256,20 +262,6 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
     }
   };
 
-  const addImage = () => {
-    const url = window.prompt('Enter image URL:');
-    if (url) {
-      editor?.chain().focus().setImage({ src: url }).run();
-    }
-  };
-
-  const setLink = () => {
-    const url = window.prompt('Enter URL:');
-    if (url) {
-      editor?.chain().focus().setLink({ href: url }).run();
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -307,8 +299,8 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
         {/* Title */}
         <Card className="border-border/40 bg-card/50 backdrop-blur-sm">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Type className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg text-blue-500 flex items-center gap-2">
+              {/* <Type className="h-5 w-5 text-primary" /> */}
               Lecture Title
             </CardTitle>
             <CardDescription>
@@ -422,15 +414,14 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowPdfPreview(true)}
-                      className="h-8 gap-1"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Preview
-                    </Button>
+                   <Button
+  variant="outline"
+  onClick={handlePreviewPdf}
+  disabled={!pdfUrl && !pdfPublicId}
+>
+  Preview PDF
+</Button>
+
                     <Button
                       variant="ghost"
                       size="sm"
@@ -481,217 +472,31 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
           </CardContent>
         </Card>
 
-        {/* Summary (Tiptap Editor) */}
-        <Card className="border-border/40 bg-card/50 backdrop-blur-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5 text-purple-500" />
-              Lecture Summary
-            </CardTitle>
-            <CardDescription>
-              Add a detailed summary of the lecture content
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            {editor && (
-              <div className="border-b border-border/30">
-                <div className="flex flex-wrap items-center gap-1 p-3">
-                  {/* Headings */}
-                  <Button
-                    type="button"
-                    variant={editor.isActive('heading', { level: 1 }) ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                    className="h-8 w-8 p-0"
-                    title="Heading 1"
-                  >
-                    <Heading1 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={editor.isActive('heading', { level: 2 }) ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                    className="h-8 w-8 p-0"
-                    title="Heading 2"
-                  >
-                    <Heading2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={editor.isActive('heading', { level: 3 }) ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                    className="h-8 w-8 p-0"
-                    title="Heading 3"
-                  >
-                    <Heading3 className="h-4 w-4" />
-                  </Button>
-                  
-                  <div className="h-5 w-px bg-border/50 mx-1"></div>
-                  
-                  {/* Text formatting */}
-                  <Button
-                    type="button"
-                    variant={editor.isActive('bold') ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleBold().run()}
-                    className="h-8 w-8 p-0"
-                    title="Bold"
-                  >
-                    <Type className="h-4 w-4" weight="bold" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={editor.isActive('italic') ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleItalic().run()}
-                    className="h-8 w-8 p-0"
-                    title="Italic"
-                  >
-                    <Type className="h-4 w-4" style={{ fontStyle: 'italic' }} />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={editor.isActive('underline') ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleUnderline().run()}
-                    className="h-8 w-8 p-0"
-                    title="Underline"
-                  >
-                    <Type className="h-4 w-4" style={{ textDecoration: 'underline' }} />
-                  </Button>
-                  
-                  <div className="h-5 w-px bg-border/50 mx-1"></div>
-                  
-                  {/* Alignment */}
-                  <Button
-                    type="button"
-                    variant={editor.isActive({ textAlign: 'left' }) ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().setTextAlign('left').run()}
-                    className="h-8 w-8 p-0"
-                    title="Align Left"
-                  >
-                    <AlignLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={editor.isActive({ textAlign: 'center' }) ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().setTextAlign('center').run()}
-                    className="h-8 w-8 p-0"
-                    title="Align Center"
-                  >
-                    <AlignCenter className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={editor.isActive({ textAlign: 'right' }) ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().setTextAlign('right').run()}
-                    className="h-8 w-8 p-0"
-                    title="Align Right"
-                  >
-                    <AlignRight className="h-4 w-4" />
-                  </Button>
-                  
-                  <div className="h-5 w-px bg-border/50 mx-1"></div>
-                  
-                  {/* Lists */}
-                  <Button
-                    type="button"
-                    variant={editor.isActive('bulletList') ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleBulletList().run()}
-                    className="h-8 w-8 p-0"
-                    title="Bullet List"
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={editor.isActive('orderedList') ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                    className="h-8 w-8 p-0"
-                    title="Numbered List"
-                  >
-                    <ListOrdered className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={editor.isActive('blockquote') ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                    className="h-8 w-8 p-0"
-                    title="Blockquote"
-                  >
-                    <Quote className="h-4 w-4" />
-                  </Button>
-                  
-                  <div className="h-5 w-px bg-border/50 mx-1"></div>
-                  
-                  {/* Links & Images */}
-                  <Button
-                    type="button"
-                    variant={editor.isActive('link') ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={setLink}
-                    className="h-8 w-8 p-0"
-                    title="Add Link"
-                  >
-                    <LinkIcon className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={addImage}
-                    className="h-8 w-8 p-0"
-                    title="Add Image"
-                  >
-                    <ImageIcon className="h-4 w-4" />
-                  </Button>
-                  
-                  <div className="h-5 w-px bg-border/50 mx-1"></div>
-                  
-                  {/* Undo/Redo */}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().undo().run()}
-                    disabled={!editor.can().undo()}
-                    className="h-8 w-8 p-0"
-                    title="Undo"
-                  >
-                    <Undo className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().redo().run()}
-                    disabled={!editor.can().redo()}
-                    className="h-8 w-8 p-0"
-                    title="Redo"
-                  >
-                    <Redo className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-            <div className="p-4 min-h-[250px] max-h-[500px] overflow-y-auto">
-              <EditorContent editor={editor} />
-              {editor && !editor.getText() && (
-                <p className="text-muted-foreground text-sm mt-2">
-                  Write a summary of this lecture... You can use headings, lists, quotes, and more.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+   {/* Summary (Tiptap Editor) */}
+    <Card className="border-border/40 bg-card/50 backdrop-blur-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <FileText className="h-5 w-5 text-purple-500" />
+          Lecture Summary
+        </CardTitle>
+        <CardDescription>
+          Add a detailed summary of the lecture content
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        {/* Replace your custom toolbar with the MenuBar component */}
+        <MenuBar editor={editor} />
+        
+        <div className="p-4 min-h-[250px] max-h-[500px] overflow-y-auto">
+          <EditorContent editor={editor} />
+          {editor && !editor.getText() && (
+            <p className="text-muted-foreground text-sm mt-2">
+              Write a summary of this lecture... You can use headings, lists, quotes, and more.
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
 
         {/* Save button */}
         <Button 
@@ -713,34 +518,48 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
           )}
         </Button>
       </div>
+<Dialog open={showPdfPreview} onOpenChange={setShowPdfPreview}>
+  <DialogContent className="max-w-5xl w-full h-[85vh] p-0 overflow-hidden rounded-lg">
+    {/* Add DialogTitle for accessibility (visually hidden) */}
+    <DialogTitle className="sr-only">PDF Preview</DialogTitle>
+    
+    {/* Simple header with close button */}
+   
 
-      {/* PDF Preview Modal */}
-      <Dialog open={showPdfPreview} onOpenChange={setShowPdfPreview}>
-        <DialogContent className="max-w-4xl h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>PDF Preview</DialogTitle>
-          </DialogHeader>
-          <div className="h-full w-full flex items-center justify-center">
-            {pdfUrl ? (
-              <iframe 
-                src={`https://docs.google.com/gview?url=${encodeURIComponent(pdfUrl)}&embedded=true`} 
-                className="w-full h-full rounded-md border border-border"
-                frameBorder="0"
-                onError={(e) => {
-                  console.error("Failed to load PDF");
-                  // Fallback to direct URL if Google viewer fails
-                  (e.target as HTMLIFrameElement).src = pdfUrl;
-                }}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                <FileText className="h-12 w-12 mb-4" />
-                <p>No PDF available for preview</p>
-              </div>
-            )}
+    <div className="h-full bg-gray-100 flex items-center justify-center">
+      {pdfPreviewUrl ? (
+        <div className="w-full h-full">
+          <iframe
+            src={pdfPreviewUrl}
+            className="w-full h-full border-0"
+            title="PDF Preview"
+            onError={(e) => {
+              console.error("PDF failed to load", e);
+            }}
+          />
+        </div>
+      ) : (
+        <div className="text-center space-y-4 p-8 bg-white rounded-lg border border-gray-200 max-w-md">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
           </div>
-        </DialogContent>
-      </Dialog>
+          <div className="space-y-2">
+            <h3 className="text-lg font-medium text-gray-900">No PDF available</h3>
+            <p className="text-sm text-gray-500">There's no PDF document available for preview at this time.</p>
+          </div>
+          <Button
+            onClick={() => setShowPdfPreview(false)}
+            className="bg-gray-800 hover:bg-gray-900 text-white"
+          >
+            Close Preview
+          </Button>
+        </div>
+      )}
+    </div>
+  </DialogContent>
+</Dialog>
     </div>
   );
 }
