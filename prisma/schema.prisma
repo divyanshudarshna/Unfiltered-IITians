@@ -101,7 +101,7 @@ model Subscription {
   userId          String     @db.ObjectId
   mockTestId      String?    @db.ObjectId
   courseId        String?    @db.ObjectId
-  razorpayOrderId String
+  razorpayOrderId String    
   paid            Boolean    @default(false)
   createdAt       DateTime   @default(now())
 
