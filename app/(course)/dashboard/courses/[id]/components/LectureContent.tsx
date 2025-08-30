@@ -1,3 +1,4 @@
+/* --- Modernized UI (mono theme), logic intact --- */
 "use client";
 
 import { useState } from "react";
@@ -15,8 +16,14 @@ import {
   ChevronRight,
   Clock,
   X,
+  Bookmark,
+  Lightbulb,
+  Sparkles,
+  FlaskConical,
+  ClipboardCheck,
 } from "lucide-react";
 import VideoContent from "./VideoContent";
+import { cn } from "@/lib/utils";
 
 interface Lecture {
   id: string;
@@ -48,38 +55,34 @@ export default function LectureContent({
 }: LectureContentProps) {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(lecture.completed || false);
 
-  const handlePlaybackChange = (playing: boolean) => {
-    setIsVideoPlaying(playing);
-  };
-
-  const handleVideoEnd = () => {
-    setIsVideoPlaying(false);
-  };
+  const handlePlaybackChange = (playing: boolean) => setIsVideoPlaying(playing);
+  const handleVideoEnd = () => setIsVideoPlaying(false);
 
   const handleDownloadPdf = () => {
     if (lecture.pdfUrl) {
-      // Create a temporary anchor element to trigger download
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = lecture.pdfUrl;
-      link.download = `${lecture.title.replace(/\s+/g, '_')}_materials.pdf`;
+      link.download = `${lecture.title.replace(/\s+/g, "_")}_materials.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
   };
 
-  const handlePreviewPdf = () => {
-    setShowPdfPreview(true);
-  };
+  const handlePreviewPdf = () => setShowPdfPreview(true);
+  const closePdfPreview = () => setShowPdfPreview(false);
 
-  const closePdfPreview = () => {
-    setShowPdfPreview(false);
-  };
+const handleMarkComplete = () => {
+  if (!lecture.completed) {
+    onMarkComplete(lecture.id);
+  }
+};
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Video Player Section */}
+    <div className="mx-auto p-4 md:p-6 space-y-8">
+      {/* Video Section */}
       {lecture.videoUrl && (
         <VideoContent
           videoUrl={lecture.videoUrl}
@@ -88,165 +91,222 @@ export default function LectureContent({
           onEnded={handleVideoEnd}
         />
       )}
-      
-      {/* Lecture Title and Navigation */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-100">{lecture.title}</h1>
+
+      {/* Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 rounded-2xl border bg-card/70 backdrop-blur shadow-sm">
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold tracking-tight">{lecture.title}</h1>
           {lecture.duration && (
-            <div className="flex items-center text-slate-400 mt-1">
-              <Clock className="h-4 w-4 mr-1" />
-              <span className="text-sm">{Math.floor(lecture.duration / 60)}m {lecture.duration % 60}s</span>
+            <div className="flex items-center text-muted-foreground mt-2">
+              <Clock className="h-4 w-4 mr-1 text-indigo-500" />
+              <span className="text-sm">
+                {Math.floor(lecture.duration / 60)}m {lecture.duration % 60}s
+              </span>
             </div>
           )}
         </div>
-        
-        <div className="flex space-x-2">
+        <div className="flex gap-2">
           <Button
             variant="outline"
-            className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
+            className="gap-1 rounded-full shadow-sm"
             onClick={onPrevious}
             disabled={!hasPrevious}
           >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Previous
+            <ChevronLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Previous</span>
           </Button>
           <Button
             variant="outline"
-            className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
+            className="gap-1 rounded-full shadow-sm"
             onClick={onNext}
             disabled={!hasNext}
           >
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
-      
-      {/* Summary Content */}
+
+      {/* Summary */}
       {lecture.summary && (
-        <Card className="bg-slate-800 border-slate-700">
-          <CardContent className="p-6">
-            <div className="flex items-center mb-4">
-              <BookOpen className="h-5 w-5 text-blue-400 mr-2" />
-              <h2 className="text-lg font-semibold text-slate-100">Lecture Summary</h2>
+        <Card className="overflow-hidden border-none shadow-lg relative group rounded-2xl bg-card/80 backdrop-blur-md">
+          <div className="absolute inset-0 rounded-2xl border border-indigo-500/10 group-hover:border-indigo-400/40 transition-all duration-500 pointer-events-none" />
+          <CardContent className="p-0 relative z-10">
+            {/* Header */}
+            <div className="flex items-center px-6 py-4 bg-indigo-950/80 dark:bg-indigo-900/70 text-white shadow-inner relative">
+              <div className="p-2 rounded-xl bg-white/10 backdrop-blur-sm">
+                <Sparkles className="h-7 w-7 text-indigo-300 drop-shadow-[0_0_6px_rgba(99,102,241,0.8)]" />
+              </div>
+              <div className="ml-4">
+                <h2 className="text-lg md:text-xl font-semibold tracking-tight">
+                  Lecture Summary
+                </h2>
+                <p className="text-sm opacity-80">
+                  Key insights from this lesson
+                </p>
+              </div>
             </div>
-            <div 
-              className="prose prose-invert prose-lg max-w-none text-slate-300"
-              dangerouslySetInnerHTML={{ __html: lecture.summary }}
-            />
+            {/* Content */}
+            <div className="p-6">
+              <div
+                className="prose prose-lg dark:prose-invert max-w-none leading-relaxed space-y-4"
+                dangerouslySetInnerHTML={{ __html: lecture.summary }}
+              />
+            </div>
           </CardContent>
         </Card>
       )}
-      
-      {/* PDF Resource */}
+
+      {/* PDF */}
       {lecture.pdfUrl && (
-        <Card className="bg-slate-800 border-slate-700">
-          <CardContent className="p-6">
-            <div className="flex items-center mb-4">
-              <FileText className="h-5 w-5 text-purple-400 mr-2" />
-              <h2 className="text-lg font-semibold text-slate-100">Lecture Materials</h2>
+        <Card className="overflow-hidden shadow-md border bg-card/70 backdrop-blur-md rounded-2xl">
+          <CardContent className="p-0">
+            <div className="flex items-center p-4 bg-muted/50 border-b">
+              <FileText className="h-6 w-6 text-indigo-500 mr-2" />
+              <h2 className="text-lg font-semibold">Lecture Materials</h2>
             </div>
-            <div className="flex items-center justify-between p-4 bg-slate-900 rounded-lg">
-              <div className="flex items-center">
-                <div className="bg-purple-500/10 p-3 rounded-lg mr-4">
-                  <FileText className="h-8 w-8 text-purple-400" />
+            <div className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-indigo-600 text-white">
+                  <FileText className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-slate-100">Supplementary Materials</h3>
-                  <p className="text-sm text-slate-400">PDF Document</p>
+                  <h3 className="font-medium">Supplementary Materials</h3>
+                  <p className="text-sm text-muted-foreground">
+                    PDF • {(lecture.duration || 10) * 2} pages
+                  </p>
                 </div>
               </div>
-              <div className="flex space-x-2">
-                <Button 
-                  variant="outline" 
-                  className="border-purple-600 text-purple-400 hover:bg-purple-600/20 hover:text-purple-300"
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="rounded-full hover:scale-105 transition"
                   onClick={handlePreviewPdf}
                 >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Preview
+                  <Eye className="h-4 w-4 mr-1" /> Preview
                 </Button>
-                <Button 
-                  className="bg-purple-600 hover:bg-purple-700"
+                <Button
+                  className="rounded-full bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105 transition"
                   onClick={handleDownloadPdf}
                 >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
+                  <Download className="h-4 w-4 mr-1" /> Download
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
-      
-      {/* PDF Preview Modal */}
+
+      {/* Study Tips */}
+      <Card className="relative shadow-lg border-none rounded-2xl overflow-hidden bg-card/70 backdrop-blur-md">
+        <CardContent className="relative p-6 space-y-5">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <Lightbulb className="h-7 w-7 text-indigo-500 drop-shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+            <h2 className="text-lg md:text-xl font-semibold tracking-tight text-foreground">
+              Study Tips
+            </h2>
+          </div>
+          {/* Tips List */}
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            {[
+              {
+                icon: BookOpen,
+                text: "Summarize biotechnology concepts in your own words after each lecture.",
+              },
+              {
+                icon: FlaskConical,
+                text: "Practice with diagrams and flowcharts to remember molecular pathways.",
+              },
+              {
+                icon: ClipboardCheck,
+                text: "Solve past competitive exam questions regularly to test recall and timing.",
+              },
+              {
+                icon: Clock,
+                text: "Break study sessions into focused 45-minute blocks with short reviews.",
+              },
+            ].map((tip, i) => (
+              <li
+                key={i}
+                className="p-4 rounded-lg border border-border bg-background/50 shadow-sm flex gap-3 hover:border-indigo-400/40 hover:shadow-indigo-500/20 hover:scale-[1.02] transition"
+              >
+                <tip.icon className="h-5 w-5 text-indigo-500 shrink-0" />
+                <span className="text-muted-foreground">{tip.text}</span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+
+      {/* Completion Footer */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-xl border bg-card/70 backdrop-blur shadow-sm">
+        <Button
+          variant="outline"
+          className="rounded-full gap-2 w-full sm:w-auto"
+          onClick={onPrevious}
+          disabled={!hasPrevious}
+        >
+          <ArrowLeft className="h-4 w-4" /> Previous
+        </Button>
+<Button
+  className={cn(
+    "rounded-full px-6 py-2 gap-2 shadow-md hover:scale-105 transition",
+    lecture.completed
+      ? "bg-green-600 text-white hover:bg-green-700"
+      : "bg-indigo-600 text-white hover:bg-indigo-700"
+  )}
+  onClick={handleMarkComplete}
+>
+  {lecture.completed ? (
+    <>
+      <CheckCircle className="h-4 w-4" /> Completed
+    </>
+  ) : (
+    <>
+      <Bookmark className="h-4 w-4" /> Mark Complete
+    </>
+  )}
+</Button>
+
+        <Button
+          variant="outline"
+          className="rounded-full gap-2 w-full sm:w-auto"
+          onClick={onNext}
+          disabled={!hasNext}
+        >
+          Next <ArrowRight className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* PDF Modal */}
       {showPdfPreview && lecture.pdfUrl && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 rounded-lg w-full max-w-4xl h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-700">
-              <h3 className="text-lg font-semibold text-slate-100">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col border shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/50">
+              <h3 className="text-lg font-semibold">
                 Preview: {lecture.title} Materials
               </h3>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={closePdfPreview}
-                className="text-slate-400 hover:text-slate-100 hover:bg-slate-800"
-              >
+              <Button variant="ghost" size="icon" onClick={closePdfPreview}>
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            <div className="flex-1 p-4">
-              <iframe
-                src={lecture.pdfUrl}
-                className="w-full h-full rounded-md bg-white"
-                title="PDF Preview"
-                frameBorder="0"
-              />
-            </div>
-            <div className="p-4 border-t border-slate-700 flex justify-end">
-              <Button 
-                className="bg-purple-600 hover:bg-purple-700"
+            <iframe
+              src={lecture.pdfUrl}
+              className="flex-1 w-full bg-white"
+              title="PDF Preview"
+            />
+            <div className="p-4 border-t flex justify-end">
+              <Button
+                className="rounded-full bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105 transition"
                 onClick={handleDownloadPdf}
               >
-                <Download className="h-4 w-4 mr-2" />
-                Download PDF
+                <Download className="h-4 w-4 mr-1" /> Download PDF
               </Button>
             </div>
           </div>
         </div>
       )}
-      
-      {/* Completion and Navigation Footer */}
-      <div className="flex items-center justify-between pt-6 border-t border-slate-700">
-        <Button 
-          variant="outline" 
-          className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
-          onClick={onPrevious}
-          disabled={!hasPrevious}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Previous Lecture
-        </Button>
-        
-        <Button 
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => onMarkComplete(lecture.id)}
-        >
-          <CheckCircle className="h-4 w-4 mr-2" />
-          Mark as Complete
-        </Button>
-        
-        <Button 
-          variant="outline" 
-          className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
-          onClick={onNext}
-          disabled={!hasNext}
-        >
-          Next Lecture
-          <ArrowRight className="h-4 w-4 ml-2" />
-        </Button>
-      </div>
     </div>
   );
 }

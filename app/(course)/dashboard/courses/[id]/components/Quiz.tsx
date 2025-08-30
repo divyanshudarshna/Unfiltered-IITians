@@ -1,375 +1,614 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ArrowLeft, 
-  CheckCircle2, 
-  XCircle, 
-  Trophy,
-  Clock,
-  HelpCircle
-} from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, ChevronLeft, ChevronRight, BookOpen, Trophy, Brain, AlertCircle, BarChart3, RotateCcw } from "lucide-react";
 
 interface QuizProps {
-  quizId: string;
-  onComplete: (score: number, total: number) => void;
+  contentId: string;
+  courseId: string;
+  onComplete: (score: number, total: number, attemptedQuestions: AttemptedQuestion[]) => void;
   onCancel: () => void;
 }
 
 interface Question {
-  id: string;
+  type: "MCQ" | "MSQ" | "NAT";
   question: string;
-  options: string[];
-  correctAnswer: number;
+  options?: string[];
+  answer: string | string[];
   explanation?: string;
 }
 
-// Mock quiz data - in a real app, this would come from an API
-const mockQuizzes: Record<string, { title: string; questions: Question[] }> = {
-  "quiz-1": {
-    title: "Introduction to React",
-    questions: [
-      {
-        id: "q1",
-        question: "What is React?",
-        options: [
-          "A programming language",
-          "A JavaScript library for building user interfaces",
-          "A database management system",
-          "A design framework"
-        ],
-        correctAnswer: 1,
-        explanation: "React is a JavaScript library for building user interfaces, particularly web applications."
-      },
-      {
-        id: "q2",
-        question: "Which company maintains React?",
-        options: [
-          "Google",
-          "Microsoft",
-          "Facebook (Meta)",
-          "Twitter"
-        ],
-        correctAnswer: 2,
-        explanation: "React is maintained by Facebook (now Meta)."
-      },
-      {
-        id: "q3",
-        question: "What is JSX?",
-        options: [
-          "A JavaScript extension for XML",
-          "A new programming language",
-          "A database query language",
-          "A CSS framework"
-        ],
-        correctAnswer: 0,
-        explanation: "JSX is a JavaScript syntax extension that allows you to write HTML-like code in JavaScript."
-      },
-      {
-        id: "q4",
-        question: "Which hook is used for side effects in functional components?",
-        options: [
-          "useState",
-          "useEffect",
-          "useContext",
-          "useReducer"
-        ],
-        correctAnswer: 1,
-        explanation: "The useEffect hook is used for side effects in functional components."
-      },
-      {
-        id: "q5",
-        question: "What is the virtual DOM?",
-        options: [
-          "A lightweight copy of the real DOM",
-          "A 3D rendering engine",
-          "A browser extension",
-          "A server-side rendering technique"
-        ],
-        correctAnswer: 0,
-        explanation: "The virtual DOM is a lightweight copy of the real DOM that React uses to optimize updates."
-      }
-    ]
-  },
-  "quiz-2": {
-    title: "Advanced React Concepts",
-    questions: [
-      {
-        id: "q1",
-        question: "What is the purpose of React.memo?",
-        options: [
-          "To memoize component rendering",
-          "To manage state",
-          "To handle routing",
-          "To create context"
-        ],
-        correctAnswer: 0,
-        explanation: "React.memo is a higher-order component that memoizes the rendering of a component to prevent unnecessary re-renders."
-      },
-      {
-        id: "q2",
-        question: "Which method is used to update state in a class component?",
-        options: [
-          "this.updateState()",
-          "this.setState()",
-          "this.modifyState()",
-          "this.changeState()"
-        ],
-        correctAnswer: 1,
-        explanation: "In class components, state is updated using the this.setState() method."
-      },
-      {
-        id: "q3",
-        question: "What is the Context API used for?",
-        options: [
-          "Managing global state without prop drilling",
-          "Handling form validation",
-          "Creating animations",
-          "Making API calls"
-        ],
-        correctAnswer: 0,
-        explanation: "The Context API is used for managing global state without having to pass props through multiple levels of components."
-      },
-      {
-        id: "q4",
-        question: "Which hook should be used for performance optimization?",
-        options: [
-          "useMemo",
-          "useState",
-          "useEffect",
-          "useContext"
-        ],
-        correctAnswer: 0,
-        explanation: "useMemo is used to memoize expensive calculations and optimize performance."
-      }
-    ]
-  }
-};
+interface AttemptedQuestion {
+  questionIndex: number;
+  userAnswer: string | string[];
+  isCorrect: boolean;
+  correctAnswer: string | string[];
+  explanation?: string;
+  type: "MCQ" | "MSQ" | "NAT";
+  questionText: string;
+}
 
-export default function Quiz({ quizId, onComplete, onCancel }: QuizProps) {
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [showResult, setShowResult] = useState(false);
+export default function Quiz({ contentId, courseId, onComplete, onCancel }: QuizProps) {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers] = useState<(string | string[] | null)[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [feedback, setFeedback] = useState<null | "correct" | "wrong">(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
   const [score, setScore] = useState(0);
-  const [quizCompleted, setQuizCompleted] = useState(false);
+  const [attemptedQuestions, setAttemptedQuestions] = useState<AttemptedQuestion[]>([]);
+  const [existingProgress, setExistingProgress] = useState<any>(null);
+useEffect(() => {
+  const fetchQuizAndProgress = async () => {
+    try {
+      setLoading(true);
 
-  // Get quiz data - in a real app, this would be fetched from an API
-  const quizData = mockQuizzes[quizId] || mockQuizzes["quiz-1"];
-  const questions = quizData.questions;
-  const currentQ = questions[currentQuestion];
+      // Fetch quiz questions
+      const res = await fetch(`/api/courses/quiz/${contentId}`);
+      const quizJson = await res.json();
+      if (res.ok) {
+        setQuestions(quizJson.questions || []);
+        setAnswers(new Array((quizJson.questions || []).length).fill(null));
+      }
 
-  const handleAnswerSelect = (index: number) => {
-    if (showResult || quizCompleted) return;
-    setSelectedAnswer(index);
+      // Fetch existing progress
+      const progressRes = await fetch(
+        `/api/courses/progress?courseId=${courseId}&contentId=${contentId}`
+      );
+
+      if (progressRes.ok) {
+        const progressData = await progressRes.json();
+        if (progressData.length > 0) {
+          const progress = progressData[0]; // already filtered by contentId
+
+          // If quiz was completed previously
+          if (progress.quizScore !== null) {
+            setExistingProgress(progress);
+            setShowSummary(true);
+            setScore(progress.quizScore);
+
+            // Parse attempted questions if they exist
+            if (progress.attemptedQuestions) {
+              try {
+                const parsedQuestions = JSON.parse(progress.attemptedQuestions);
+                setAttemptedQuestions(parsedQuestions);
+
+                // Map previously attempted answers
+                const resumedAnswers = parsedQuestions.map(q => q.userAnswer);
+                setAnswers(resumedAnswers);
+              } catch (e) {
+                console.error("Failed to parse attempted questions:", e);
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load quiz or progress:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmit = () => {
-    if (selectedAnswer === null) return;
+  fetchQuizAndProgress();
+}, [contentId, courseId]);
 
-    // Check if answer is correct
-    if (selectedAnswer === currentQ.correctAnswer) {
-      setScore(score + 1);
+
+  // Check if current question has been attempted
+  const isQuestionAttempted = (index: number) => {
+    return attemptedQuestions.some(q => q.questionIndex === index);
+  };
+
+  // Get attempted question data
+  const getAttemptedQuestion = (index: number) => {
+    return attemptedQuestions.find(q => q.questionIndex === index);
+  };
+
+  // handle MCQ select
+  const handleMCQ = (option: string) => {
+    if (submitted || isQuestionAttempted(currentIdx)) return;
+    const updated = [...answers];
+    updated[currentIdx] = option;
+    setAnswers(updated);
+  };
+
+  // handle MSQ select
+  const handleMSQ = (option: string) => {
+    if (submitted || isQuestionAttempted(currentIdx)) return;
+    const updated = [...answers];
+    const current = (updated[currentIdx] as string[]) || [];
+    if (current.includes(option)) {
+      updated[currentIdx] = current.filter((o) => o !== option);
+    } else {
+      updated[currentIdx] = [...current, option];
+    }
+    setAnswers(updated);
+  };
+
+  // handle NAT input
+  const handleNAT = (value: string) => {
+    if (submitted || isQuestionAttempted(currentIdx)) return;
+    const updated = [...answers];
+    updated[currentIdx] = value;
+    setAnswers(updated);
+  };
+
+  // check correctness per question
+  const checkAnswer = () => {
+    const q = questions[currentIdx];
+    const ans = answers[currentIdx];
+
+    let isCorrect = false;
+
+    if (q.type === "MCQ" && typeof ans === "string") {
+      isCorrect = ans === q.answer;
+    } else if (q.type === "MSQ" && Array.isArray(ans)) {
+      const correct = Array.isArray(q.answer) ? q.answer : [q.answer];
+      isCorrect =
+        ans.length === correct.length && ans.every((a) => correct.includes(a));
+    } else if (q.type === "NAT" && typeof ans === "string") {
+      isCorrect = ans.trim() === String(q.answer).trim();
     }
 
-    setShowResult(true);
+    // Store the attempted question
+    const attemptedQuestion: AttemptedQuestion = {
+      questionIndex: currentIdx,
+      userAnswer: ans || "",
+      isCorrect,
+      correctAnswer: q.answer,
+      explanation: q.explanation,
+      type: q.type,
+      questionText: q.question
+    };
+    
+    setAttemptedQuestions(prev => {
+      // Remove if already exists and add updated one
+      const filtered = prev.filter(q => q.questionIndex !== currentIdx);
+      return [...filtered, attemptedQuestion];
+    });
+    
+    setFeedback(isCorrect ? "correct" : "wrong");
+    
+    if (isCorrect) {
+      setScore((s) => s + 1);
+    }
   };
 
   const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setSelectedAnswer(null);
-      setShowResult(false);
+    setFeedback(null);
+    if (currentIdx + 1 < questions.length) {
+      setCurrentIdx((i) => i + 1);
     } else {
-      // Quiz completed
-      setQuizCompleted(true);
-      onComplete(score, questions.length);
+      // Show summary instead of immediately completing
+      setShowSummary(true);
     }
   };
 
-  const progress = ((currentQuestion + 1) / questions.length) * 100;
+  const handlePrevious = () => {
+    setFeedback(null);
+    if (currentIdx > 0) {
+      setCurrentIdx((i) => i - 1);
+    }
+  };
 
-  if (quizCompleted) {
+  const handleQuestionNav = (index: number) => {
+    setFeedback(null);
+    setCurrentIdx(index);
+  };
+const handleFinishQuiz = async () => {
+  setSubmitted(true);
+
+  // Call parent callback
+  onComplete(score, questions.length, attemptedQuestions);
+
+  try {
+    const res = await fetch("/api/courses/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        courseId,
+        contentId,
+        completed: true, // quiz considered completed
+        progress: Math.round((score / questions.length) * 100),
+        quizScore: score,
+        totalQuizQuestions: questions.length,
+        attemptedQuestions, // backend will stringify
+      }),
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => ({}));
+      console.error("Failed to save quiz progress:", errorBody);
+      return;
+    }
+
+    console.log("✅ Quiz progress saved successfully!");
+  } catch (error) {
+    console.error("Error saving quiz progress:", error);
+  }
+};
+
+
+  const handleRestartQuiz = () => {
+    setAnswers(new Array(questions.length).fill(null));
+    setAttemptedQuestions([]);
+    setScore(0);
+    setCurrentIdx(0);
+    setFeedback(null);
+    setShowSummary(false);
+    setExistingProgress(null);
+    
+    // Delete existing progress from server
+    fetch("/api/courses/progress", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        courseId: courseId,
+        contentId: contentId,
+      }),
+    }).catch(error => {
+      console.error("Error deleting progress:", error);
+    });
+  };
+
+  if (loading) {
     return (
-      <div className="max-w-2xl mx-auto p-6">
-        <Card className="bg-slate-800 border-slate-700">
-          <CardContent className="p-6 text-center">
-            <div className="flex justify-center mb-6">
-              <div className="bg-green-500/10 p-4 rounded-full">
-                <Trophy className="h-12 w-12 text-green-500" />
-              </div>
-            </div>
-            
-            <h2 className="text-2xl font-bold text-white mb-2">Quiz Completed!</h2>
-            <p className="text-slate-300 mb-6">
-              You scored {score} out of {questions.length} questions correctly.
-            </p>
-            
-            <div className="bg-slate-900 rounded-lg p-4 mb-6">
-              <div className="text-4xl font-bold text-white mb-2">
-                {Math.round((score / questions.length) * 100)}%
-              </div>
-              <Progress value={(score / questions.length) * 100} className="h-2" />
-            </div>
-            
-            <div className="flex gap-4 justify-center">
-              <Button 
-                variant="outline" 
-                className="border-slate-700 text-slate-300 hover:bg-slate-700"
-                onClick={onCancel}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Course
-              </Button>
-              
-              {score < questions.length / 2 && (
-                <Button 
-                  className="bg-blue-600 hover:bg-blue-700"
-                  onClick={() => {
-                    setCurrentQuestion(0);
-                    setSelectedAnswer(null);
-                    setShowResult(false);
-                    setScore(0);
-                    setQuizCompleted(false);
-                  }}
-                >
-                  Try Again
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col items-center justify-center h-full space-y-4 p-6">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading quiz questions...</p>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-2xl mx-auto p-6">
-      {/* Quiz Header */}
-      <div className="flex items-center justify-between mb-6">
-        <Button 
-          variant="ghost" 
-          className="text-slate-400 hover:text-white hover:bg-slate-800"
-          onClick={onCancel}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Course
-        </Button>
-        
-        <div className="flex items-center text-slate-400">
-          <Clock className="h-4 w-4 mr-1" />
-          <span className="text-sm">No time limit</span>
+  if (showSummary) {
+    const percentage = Math.round((score / questions.length) * 100);
+    
+    return (
+      <div className="space-y-6 p-4 max-w-4xl mx-auto">
+        <div className="text-center p-6 bg-gray-900 rounded-xl border">
+          <Trophy className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-3xl font-bold text-primary mb-2">Quiz Summary</h2>
+          <div className="flex justify-center items-baseline gap-2 mb-6">
+            <span className="text-4xl font-bold">{score}</span>
+            <span className="text-xl text-muted-foreground">/ {questions.length}</span>
+            <span className="text-xl font-semibold">({percentage}%)</span>
+          </div>
+          
+          <div className="w-full bg-secondary rounded-full h-4 mb-6 mx-auto max-w-md">
+            <div 
+              className="h-4 rounded-full transition-all duration-700" 
+              style={{ 
+                width: `${percentage}%`,
+                background: percentage < 33 ? 'linear-gradient(to right, #ef4444, #f97316)' : 
+                           percentage < 66 ? 'linear-gradient(to right, #f59e0b, #eab308)' : 
+                           'linear-gradient(to right, #10b981, #22c55e)'
+              }}
+            ></div>
+          </div>
+          
+          <div className={`p-4 rounded-lg mt-6 text-left ${
+            percentage < 33 ? 'bg-red-50 text-red-800 border border-red-200' :
+            percentage < 66 ? 'bg-yellow-50 text-yellow-800 border border-yellow-200' :
+            'bg-green-50 text-green-800 border border-green-200'
+          }`}>
+            <div className="flex items-start gap-3">
+              {percentage < 33 ? (
+                <>
+                  <AlertCircle className="h-6 w-6 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-semibold mb-2">Needs Improvement</h3>
+                    <p>Review the course materials regularly and focus on understanding the core concepts. Consider taking notes and revisiting challenging topics.</p>
+                    <ul className="mt-2 list-disc list-inside text-sm">
+                      <li>Spend more time on each lesson</li>
+                      <li>Take detailed notes</li>
+                      <li>Review materials before attempting the quiz again</li>
+                    </ul>
+                  </div>
+                </>
+              ) : percentage < 66 ? (
+                <>
+                  <Brain className="h-6 w-6 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-semibold mb-2">Good Effort</h3>
+                    <p>You're on the right track! With a bit more practice and review, you'll master this material. Focus on the questions you missed.</p>
+                    <ul className="mt-2 list-disc list-inside text-sm">
+                      <li>Review incorrect answers</li>
+                      <li>Practice similar questions</li>
+                      <li>Focus on weak areas</li>
+                    </ul>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Trophy className="h-6 w-6 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-semibold mb-2">Excellent Work!</h3>
+                    <p>You've demonstrated a strong understanding of this material. Keep up the great work and consider challenging yourself with more advanced topics.</p>
+                    <ul className="mt-2 list-disc list-inside text-sm">
+                      <li>Continue to the next lesson</li>
+                      <li>Try bonus challenges if available</li>
+                      <li>Help others who might be struggling</li>
+                    </ul>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Progress */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-slate-400">
-            Question {currentQuestion + 1} of {questions.length}
-          </span>
-          <Badge variant="outline" className="bg-slate-800 text-slate-300">
-            <HelpCircle className="h-3 w-3 mr-1" />
-            {quizData.title}
-          </Badge>
-        </div>
-        <Progress value={progress} className="h-2" />
-      </div>
-
-      {/* Question Card */}
-      <Card className="bg-slate-800 border-slate-700 mb-6">
-        <CardHeader>
-          <CardTitle className="text-xl text-white">
-            {currentQ.question}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {currentQ.options.map((option, index) => (
-              <button
-                key={index}
-                className={cn(
-                  "w-full text-left p-4 rounded-lg border transition-all",
-                  selectedAnswer === index
-                    ? showResult
-                      ? index === currentQ.correctAnswer
-                        ? "bg-green-500/10 border-green-500 text-green-300"
-                        : "bg-red-500/10 border-red-500 text-red-300"
-                      : "bg-blue-500/10 border-blue-500 text-blue-300"
-                    : "bg-slate-900/50 border-slate-700 text-slate-300 hover:bg-slate-700/50"
-                )}
-                onClick={() => handleAnswerSelect(index)}
-                disabled={showResult || quizCompleted}
-              >
-                <div className="flex items-center">
-                  {showResult && (
-                    <>
-                      {index === currentQ.correctAnswer ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500 mr-3" />
-                      ) : selectedAnswer === index ? (
-                        <XCircle className="h-5 w-5 text-red-500 mr-3" />
-                      ) : (
-                        <div className="w-5 h-5 mr-3 rounded-full border border-slate-600" />
-                      )}
-                    </>
+        {/* Question Review */}
+        <div className="mt-8">
+          <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Question Review
+          </h3>
+          <div className="space-y-4">
+            {attemptedQuestions.sort((a, b) => a.questionIndex - b.questionIndex).map((attempt, index) => (
+              <Card key={index} className={attempt.isCorrect ? "border-green-200" : "border-red-200"}>
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-base">Question {attempt.questionIndex + 1}</CardTitle>
+                    <Badge variant={attempt.isCorrect ? "default" : "destructive"} className="ml-2">
+                      {attempt.isCorrect ? "Correct" : "Incorrect"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{attempt.questionText}</p>
+                </CardHeader>
+                <CardContent className="pb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="font-medium">Your answer:</p>
+                      <p className={attempt.isCorrect ? "text-green-700" : "text-red-700"}>
+                        {Array.isArray(attempt.userAnswer) ? attempt.userAnswer.join(", ") : attempt.userAnswer}
+                      </p>
+                    </div>
+                    {!attempt.isCorrect && (
+                      <div>
+                        <p className="font-medium">Correct answer:</p>
+                        <p className="text-green-700">
+                          {Array.isArray(attempt.correctAnswer) ? attempt.correctAnswer.join(", ") : attempt.correctAnswer}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {attempt.explanation && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded-md">
+                      <p className="text-sm font-medium text-blue-800">Explanation:</p>
+                      <p className="text-sm text-blue-700">{attempt.explanation}</p>
+                    </div>
                   )}
-                  {!showResult && selectedAnswer === index && (
-                    <div className="w-5 h-5 mr-3 rounded-full bg-blue-500" />
-                  )}
-                  {!showResult && selectedAnswer !== index && (
-                    <div className="w-5 h-5 mr-3 rounded-full border border-slate-600" />
-                  )}
-                  {option}
-                </div>
-              </button>
+                </CardContent>
+              </Card>
             ))}
           </div>
+        </div>
 
-          {showResult && currentQ.explanation && (
-            <div className="mt-4 p-4 bg-slate-900/50 rounded-lg">
-              <p className="text-sm text-slate-300">{currentQ.explanation}</p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
+          <Button variant="outline" onClick={handleRestartQuiz} className="flex items-center gap-2">
+            <RotateCcw className="h-4 w-4" /> Retry Quiz
+          </Button>
+          <Button variant="outline" onClick={onCancel} className="flex items-center gap-2">
+            <ChevronLeft className="h-4 w-4" /> Back to Course
+          </Button>
+          <Button onClick={handleFinishQuiz} className="flex items-center gap-2">
+            Continue to Next Content <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (submitted) {
+    // This state should not be reached anymore since we're using showSummary
+    return (
+      <div className="flex flex-col items-center justify-center h-full space-y-4 p-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Completing quiz...</p>
+      </div>
+    );
+  }
+
+  if (!questions.length) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full space-y-4 p-4">
+        <BookOpen className="h-12 w-12 text-muted-foreground" />
+        <p className="text-muted-foreground text-center">No quiz questions available for this content.</p>
+        <Button onClick={onCancel}>Return to Course</Button>
+      </div>
+    );
+  }
+
+  const q = questions[currentIdx];
+  const ans = answers[currentIdx];
+  const progress = ((currentIdx + 1) / questions.length) * 100;
+  const isAttempted = isQuestionAttempted(currentIdx);
+  const attemptedQuestion = getAttemptedQuestion(currentIdx);
+
+  return (
+    <div className="space-y-6 p-4 max-w-3xl mx-auto">
+      {/* Header with progress and question navigation */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center flex-wrap gap-2">
+          <h2 className="text-xl font-semibold">Quiz: Question {currentIdx + 1} of {questions.length}</h2>
+          <div className="flex items-center gap-2">
+            <Badge variant={q.type === "MCQ" ? "default" : q.type === "MSQ" ? "secondary" : "outline"} className="capitalize">
+              {q.type}
+            </Badge>
+            <Badge variant={isAttempted ? "default" : "outline"}>
+              {isAttempted ? "Attempted" : "Not Attempted"}
+            </Badge>
+          </div>
+        </div>
+        
+        <Progress value={progress} className="h-2" />
+        
+        {/* Question navigation dots */}
+        <div className="flex flex-wrap gap-2 justify-center">
+          {questions.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => handleQuestionNav(index)}
+              className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                currentIdx === index 
+                  ? 'bg-primary text-primary-foreground' 
+                  : isQuestionAttempted(index)
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-800'
+              }`}
+            >
+              {index + 1}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">{q.question}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {q.type === "MCQ" && q.options?.map((opt, idx) => {
+            const isSelected = ans === opt;
+            const isCorrectAnswer = opt === q.answer;
+            const showFeedback = (feedback || isAttempted) && (isSelected || isCorrectAnswer);
+            
+            return (
+              <Button
+                key={idx}
+                variant={isSelected ? "default" : "outline"}
+                className={`w-full justify-start h-auto py-3 px-4 whitespace-normal text-left ${
+                  showFeedback ? 
+                    (isCorrectAnswer ? "bg-green-100 text-green-800 border-green-300 hover:bg-green-100" : 
+                     isSelected ? "bg-red-100 text-red-800 border-red-300 hover:bg-red-100" : "") 
+                    : ""
+                } ${isAttempted ? "cursor-default" : ""}`}
+                onClick={() => handleMCQ(opt)}
+                disabled={isAttempted}
+              >
+                <div className="flex items-center w-full">
+                  {showFeedback && (
+                    <span className="mr-2">
+                      {isCorrectAnswer ? 
+                        <CheckCircle2 className="h-5 w-5 text-green-600" /> : 
+                        (isSelected ? <XCircle className="h-5 w-5 text-red-600" /> : null)
+                      }
+                    </span>
+                  )}
+                  <span className="flex-1">{opt}</span>
+                </div>
+              </Button>
+            );
+          })}
+
+          {q.type === "MSQ" && q.options?.map((opt, idx) => {
+            const selected = Array.isArray(ans) && ans.includes(opt);
+            const isCorrectAnswer = Array.isArray(q.answer) ? 
+              q.answer.includes(opt) : q.answer === opt;
+            const showFeedback = (feedback || isAttempted) && (selected || isCorrectAnswer);
+            
+            return (
+              <Button
+                key={idx}
+                variant={selected ? "default" : "outline"}
+                className={`w-full justify-start h-auto py-3 px-4 whitespace-normal text-left ${
+                  showFeedback ? 
+                    (isCorrectAnswer ? "bg-green-100 text-green-800 border-green-300 hover:bg-green-100" : 
+                     selected ? "bg-red-100 text-red-800 border-red-300 hover:bg-red-100" : "") 
+                    : ""
+                } ${isAttempted ? "cursor-default" : ""}`}
+                onClick={() => handleMSQ(opt)}
+                disabled={isAttempted}
+              >
+                <div className="flex items-center w-full">
+                  {showFeedback && (
+                    <span className="mr-2">
+                      {isCorrectAnswer ? 
+                        <CheckCircle2 className="h-5 w-5 text-green-600" /> : 
+                        (selected ? <XCircle className="h-5 w-5 text-red-600" /> : null)
+                      }
+                    </span>
+                  )}
+                  <span className="flex-1">{opt}</span>
+                </div>
+              </Button>
+            );
+          })}
+
+          {q.type === "NAT" && (
+            <Input
+              type="text"
+              value={typeof ans === "string" ? ans : ""}
+              onChange={(e) => handleNAT(e.target.value)}
+              disabled={isAttempted}
+              placeholder="Enter your answer"
+              className={`py-3 px-4 text-lg ${
+                feedback || isAttempted ? 
+                  (attemptedQuestion?.isCorrect ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50") 
+                  : ""
+              }`}
+            />
+          )}
+
+          {/* feedback */}
+          {(feedback || isAttempted) && (
+            <div
+              className={`p-4 rounded-lg ${
+                attemptedQuestion?.isCorrect
+                  ? "bg-green-100 text-green-800 border border-green-200"
+                  : "bg-red-100 text-red-800 border border-red-200"
+              }`}
+            >
+              <div className="flex items-center font-semibold mb-2">
+                {attemptedQuestion?.isCorrect ? 
+                  <CheckCircle2 className="h-5 w-5 mr-2" /> : 
+                  <XCircle className="h-5 w-5 mr-2" />
+                }
+                {attemptedQuestion?.isCorrect ? "Correct!" : "Incorrect!"}
+                {!attemptedQuestion?.isCorrect && (
+                  <span className="ml-2 text-sm font-normal">
+                    Correct answer: {Array.isArray(attemptedQuestion?.correctAnswer) 
+                      ? attemptedQuestion.correctAnswer.join(", ") 
+                      : attemptedQuestion?.correctAnswer}
+                  </span>
+                )}
+              </div>
+              {attemptedQuestion?.explanation && (
+                <p className="mt-2 text-sm">
+                  💡 {attemptedQuestion.explanation}
+                </p>
+              )}
             </div>
           )}
         </CardContent>
+        
+        <CardFooter className="flex justify-between">
+          <Button 
+            variant="outline" 
+            onClick={handlePrevious}
+            disabled={currentIdx === 0}
+          >
+            <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+          </Button>
+
+          {isAttempted ? (
+            <Button onClick={handleNext}>
+              {currentIdx + 1 === questions.length ? "Finish Quiz" : "Next Question"}
+              {currentIdx + 1 < questions.length && <ChevronRight className="ml-2 h-4 w-4" />}
+            </Button>
+          ) : (
+            <Button onClick={checkAnswer} disabled={ans === null}>
+              Check Answer
+            </Button>
+          )}
+        </CardFooter>
       </Card>
-
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <Button
-          variant="outline"
-          className="border-slate-700 text-slate-300 hover:bg-slate-800"
-          onClick={() => {
-            if (currentQuestion > 0) {
-              setCurrentQuestion(currentQuestion - 1);
-              setSelectedAnswer(null);
-              setShowResult(false);
-            }
-          }}
-          disabled={currentQuestion === 0}
-        >
-          Previous
-        </Button>
-
-        {!showResult ? (
-          <Button
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={handleSubmit}
-            disabled={selectedAnswer === null}
-          >
-            Check Answer
-          </Button>
-        ) : (
-          <Button
-            className="bg-green-600 hover:bg-green-700"
-            onClick={handleNext}
-          >
-            {currentQuestion < questions.length - 1 ? "Next Question" : "Finish Quiz"}
-          </Button>
-        )}
-      </div>
     </div>
   );
 }

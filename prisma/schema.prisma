@@ -57,6 +57,7 @@ model User {
   mockAttempts     MockAttempt[]
   enrollments      Enrollment[]
   subscriptions    Subscription[]
+  courseProgress   CourseProgress[]
 }
 
 // ================== MOCKS ==================
@@ -128,6 +129,7 @@ model Course {
   contents       Content[]
   subscriptions  Subscription[]
   coupons        Coupon[]
+  courseProgress CourseProgress[]
 }
 
 model Enrollment {
@@ -160,6 +162,7 @@ model Content {
   course      Course     @relation(fields: [courseId], references: [id])
   lectures    Lecture[]
   quiz        Quiz?      @relation("ContentQuiz")
+  courseProgress CourseProgress[]
 }
 
 model Lecture {
@@ -180,6 +183,29 @@ model Quiz {
   questions   Json      // store MCQs, options, correct answers, explanations
 
   content     Content   @relation("ContentQuiz", fields: [contentId], references: [id])
+}
+
+// ================== COURSE PROGRESS ==================
+model CourseProgress {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String   @db.ObjectId
+  courseId            String   @db.ObjectId
+  contentId           String   @db.ObjectId
+  completed           Boolean  @default(false)
+  progress            Int      @default(0) // 0-100 percentage
+  quizScore           Int?     // Score for quiz if content has one
+  totalQuizQuestions  Int?
+  attemptedQuestions  Json?    // Store the attempted quiz data
+  lastAccessed        DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  user                User     @relation(fields: [userId], references: [id])
+  course              Course   @relation(fields: [courseId], references: [id])
+  content             Content  @relation(fields: [contentId], references: [id])
+
+  @@unique([userId, courseId, contentId])
 }
 
 // ================== TESTIMONIALS & CONTACT ==================
@@ -205,8 +231,6 @@ model ContactUs {
   updatedAt DateTime      @updatedAt
 }
 
-
-// TO MAKE THE MAKESURE TO UPDATE THE PRISMA MODEL FILES AND RUN THE COMMANDS IN ORDER
 // npx prisma db push
 // npx prisma generate
 // npx prisma studio

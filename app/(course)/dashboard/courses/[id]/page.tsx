@@ -2,41 +2,35 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, BookOpen, PlayCircle, GraduationCap ,ChevronLeft,ChevronRight,ChevronDown} from "lucide-react";
+import { AlertCircle, BookOpen, PlayCircle } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import CourseSidebar from "./components/CourseSidebar";
 import LectureContent from "./components/LectureContent";
 import Quiz from "./components/Quiz";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+
+// Interfaces
 interface Lecture {
   id: string;
   title: string;
-  summary?: string;
-  videoUrl?: string;
-  pdfUrl?: string;
-  order: number;
-  duration?: number;
-  completed?: boolean;
+  completed: boolean;
 }
-
-interface Content {
+interface CourseContent {
   id: string;
   title: string;
   order: number;
   lectures: Lecture[];
   hasQuiz: boolean;
-  quizId: string | null;
   quizCompleted?: boolean;
+  quizId?: string;
 }
-
 interface CourseResponse {
   id: string;
   title: string;
-  description: string;
-  contents: Content[];
+  contents: CourseContent[];
   progress?: number;
 }
 
@@ -45,37 +39,65 @@ export default function CourseDetailPage() {
   const courseId = params.id;
   const { theme } = useTheme();
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [course, setCourse] = useState<CourseResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [activeContent, setActiveContent] = useState<string>("");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [currentQuizId, setCurrentQuizId] = useState<string | null>(null);
 
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [currentQuizContentId, setCurrentQuizContentId] = useState<string | null>(null);
+
+  // Fetch course contents & progress
   useEffect(() => {
     if (!courseId) return;
 
     const fetchCourse = async () => {
       try {
         setLoading(true);
+
+        // Fetch course structure
         const res = await fetch(`/api/courses/${courseId}/contents`, {
           credentials: "include",
         });
-        const json = await res.json();
+        const courseJson = await res.json();
 
-        if (res.ok) {
-          setCourse(json);
-          if (json.contents?.[0]?.lectures?.[0]) {
-            setSelectedLecture(json.contents[0].lectures[0]);
-            setActiveContent(json.contents[0].id);
-          }
-          setError(null);
-        } else {
-          console.error("Error:", json.error);
-          setError(json.error || "Failed to load course");
+        if (!res.ok) {
+          setError(courseJson.error || "Failed to load course");
+          return;
         }
+
+        // Fetch saved progress
+        const progressRes = await fetch(`/api/courses/progress?courseId=${courseId}`, {
+          credentials: "include",
+        });
+        const progressJson = await progressRes.json();
+
+        if (progressRes.ok) {
+          // merge progress into course
+          courseJson.contents.forEach((content: CourseContent) => {
+            content.lectures.forEach((lecture) => {
+              const match = progressJson.find(
+                (p: any) => p.contentId === content.id && p.completed
+              );
+              if (match) {
+                lecture.completed = true;
+              }
+            });
+            if (progressJson.some((p: any) => p.contentId === content.id && p.quizScore)) {
+              content.quizCompleted = true;
+            }
+          });
+        }
+
+        setCourse(courseJson);
+        if (courseJson.contents?.[0]?.lectures?.[0]) {
+          setSelectedLecture(courseJson.contents[0].lectures[0]);
+          setActiveContent(courseJson.contents[0].id);
+        }
+        setError(null);
       } catch (err) {
         console.error("Network error:", err);
         setError("Network error");
@@ -87,285 +109,276 @@ export default function CourseDetailPage() {
     fetchCourse();
   }, [courseId]);
 
-  // Mark lecture as completed
-  const markAsComplete = async (lectureId: string) => {
-    // In a real app, you would make an API call here
-    console.log("Marking lecture as complete:", lectureId);
-    
-    // Update local state for demo purposes
-    if (course && selectedLecture) {
-      const updatedCourse = { ...course };
-      const lecture = updatedCourse.contents
-        .flatMap(c => c.lectures)
-        .find(l => l.id === lectureId);
-      
-      if (lecture) {
-        lecture.completed = true;
-        setCourse(updatedCourse);
-        
-        // Update progress
-        const completedLectures = updatedCourse.contents
-          .flatMap(c => c.lectures)
-          .filter(l => l.completed).length;
-        
-        const totalLectures = updatedCourse.contents.reduce(
-          (total, content) => total + content.lectures.length,
-          0
-        );
-        
-        updatedCourse.progress = Math.round(
-          (completedLectures / totalLectures) * 100
-        );
-        
-        setCourse(updatedCourse);
-      }
+  // Save progress to API
+  const saveProgress = async (contentId: string, completed: boolean, quizScore?: number, totalQuizQuestions?: number) => {
+    try {
+      await fetch(`/api/courses/progress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          courseId,
+          contentId,
+          completed,
+          quizScore,
+          totalQuizQuestions,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save progress:", err);
     }
   };
 
-  // Navigation functions
-  const goToNextLecture = () => {
+const handleMarkComplete = async (lectureId: string) => {
+  if (!course) return;
+
+  try {
+    const res = await fetch("/api/courses/progress", {   // ✅ correct endpoint
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        courseId: course.id,
+        contentId: activeContent,   // the module/chapter id
+        completed: true,
+      }),
+      credentials: "include",       // important if Clerk needs cookies
+    });
+
+    if (!res.ok) {
+      console.error("Failed to save progress:", await res.json());
+      return;
+    }
+
+    // Optimistically update UI
+    const updatedCourse = { ...course };
+    updatedCourse.contents = updatedCourse.contents.map((c) => {
+      if (c.id === activeContent) {
+        return {
+          ...c,
+          lectures: c.lectures.map((l) =>
+            l.id === lectureId ? { ...l, completed: true } : l
+          ),
+        };
+      }
+      return c;
+    });
+
+    setCourse(updatedCourse);
+  } catch (error) {
+    console.error("Error saving progress:", error);
+  }
+};
+
+
+
+  // Helpers
+  const findLecturePosition = () => {
+    if (!course || !selectedLecture) return null;
+    for (let ci = 0; ci < course.contents.length; ci++) {
+      const content = course.contents[ci];
+      const li = content.lectures.findIndex((l) => l.id === selectedLecture.id);
+      if (li !== -1) {
+        return { ci, li };
+      }
+    }
+    return null;
+  };
+
+  // Next lecture/quiz handler
+  const handleNext = () => {
     if (!course || !selectedLecture) return;
-    
-    // Find the current lecture index
-    let nextLecture: Lecture | null = null;
-    let foundCurrent = false;
-    
-    for (const content of course.contents) {
-      for (const lecture of content.lectures) {
-        if (foundCurrent) {
-          nextLecture = lecture;
-          break;
-        }
-        if (lecture.id === selectedLecture.id) {
-          foundCurrent = true;
-        }
-      }
-      if (nextLecture) break;
+    const pos = findLecturePosition();
+    if (!pos) return;
+    const { ci, li } = pos;
+    const currentContent = course.contents[ci];
+
+    if (li + 1 < currentContent.lectures.length) {
+      setSelectedLecture(currentContent.lectures[li + 1]);
+      return;
     }
-    
-    if (nextLecture) {
-      setSelectedLecture(nextLecture);
-      setShowQuiz(false);
+
+    if (currentContent.hasQuiz && !currentContent.quizCompleted) {
+      setCurrentQuizContentId(currentContent.id);
+      setShowQuiz(true);
+      return;
+    }
+
+    if (ci + 1 < course.contents.length) {
+      const nextContent = course.contents[ci + 1];
+      if (nextContent.lectures.length > 0) {
+        setSelectedLecture(nextContent.lectures[0]);
+        setActiveContent(nextContent.id);
+      }
     }
   };
 
-  const goToPreviousLecture = () => {
+  // Previous lecture/quiz handler
+  const handlePrevious = () => {
     if (!course || !selectedLecture) return;
-    
-    // Find the previous lecture
-    let prevLecture: Lecture | null = null;
-    let lastLecture: Lecture | null = null;
-    
-    for (const content of course.contents) {
-      for (const lecture of content.lectures) {
-        if (lecture.id === selectedLecture.id) {
-          if (lastLecture) {
-            setSelectedLecture(lastLecture);
-            setShowQuiz(false);
-          }
-          return;
-        }
-        lastLecture = lecture;
+    const pos = findLecturePosition();
+    if (!pos) return;
+    const { ci, li } = pos;
+
+    if (li > 0) {
+      setSelectedLecture(course.contents[ci].lectures[li - 1]);
+      return;
+    }
+
+    if (ci > 0) {
+      const prevContent = course.contents[ci - 1];
+      if (prevContent.hasQuiz && !prevContent.quizCompleted) {
+        setCurrentQuizContentId(prevContent.id);
+        setShowQuiz(true);
+        return;
+      }
+      if (prevContent.lectures.length > 0) {
+        setSelectedLecture(prevContent.lectures[prevContent.lectures.length - 1]);
+        setActiveContent(prevContent.id);
       }
     }
   };
 
-  // Check if next/previous lectures exist
-  const hasNextLecture = () => {
-    if (!course || !selectedLecture) return false;
-    
-    let foundCurrent = false;
-    
-    for (const content of course.contents) {
-      for (const lecture of content.lectures) {
-        if (foundCurrent) return true;
-        if (lecture.id === selectedLecture.id) {
-          foundCurrent = true;
-        }
-      }
-    }
-    
-    return false;
-  };
-
-  const hasPreviousLecture = () => {
-    if (!course || !selectedLecture) return false;
-    
-    let lastLecture: Lecture | null = null;
-    
-    for (const content of course.contents) {
-      for (const lecture of content.lectures) {
-        if (lecture.id === selectedLecture.id) {
-          return lastLecture !== null;
-        }
-        lastLecture = lecture;
-      }
-    }
-    
-    return false;
-  };
-
-  // Handle quiz start
-  const startQuiz = (quizId: string) => {
-    setCurrentQuizId(quizId);
-    setShowQuiz(true);
-  };
-
-  // Handle quiz completion
+  // Quiz handlers
   const handleQuizComplete = (score: number, total: number) => {
-    console.log(`Quiz completed! Score: ${score}/${total}`);
-    
-    // Update quiz completion status in the course data
-    if (course && currentQuizId) {
+    if (course && currentQuizContentId) {
       const updatedCourse = { ...course };
-      
-      // Find the content that has this quiz
-      for (const content of updatedCourse.contents) {
-        if (content.quizId === currentQuizId) {
-          content.quizCompleted = true;
-          break;
-        }
-      }
-      
+      updatedCourse.contents.forEach((c) => {
+        if (c.id === currentQuizContentId) c.quizCompleted = true;
+      });
       setCourse(updatedCourse);
+
+      saveProgress(currentQuizContentId, true, score, total);
     }
-    
-    // Return to lecture view
     setShowQuiz(false);
-    setCurrentQuizId(null);
+    setCurrentQuizContentId(null);
   };
 
-  // Handle quiz cancel
   const handleQuizCancel = () => {
     setShowQuiz(false);
-    setCurrentQuizId(null);
+    setCurrentQuizContentId(null);
   };
 
-  // ⏳ Loading state
+  // Loading skeleton
   if (loading) {
     return (
-      <div className="flex h-screen bg-background">
-        <aside className="w-80 border-r p-4 bg-muted/20">
-          <Skeleton className="h-8 w-3/4 mb-6" />
-          <Skeleton className="h-4 w-full mb-4" />
-          <Skeleton className="h-4 w-2/3 mb-2" />
-          <Skeleton className="h-4 w-3/4 mb-2" />
-          <Skeleton className="h-4 w-1/2 mb-6" />
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="mb-4">
-              <Skeleton className="h-6 w-2/3 mb-2" />
-              {Array.from({ length: 3 }).map((_, j) => (
-                <Skeleton key={j} className="h-10 w-full mb-2 rounded-lg" />
-              ))}
-            </div>
-          ))}
-        </aside>
-        <main className="flex-1 p-6">
-          <Skeleton className="h-10 w-1/2 mb-6" />
-          <Skeleton className="h-64 w-full rounded-xl" />
-        </main>
+      <div className="flex h-screen">
+        <div className="w-80 border-r p-4">
+          <Skeleton className="h-8 w-32 mb-6" />
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        </div>
+        <div className="flex-1 p-6">
+          <Skeleton className="h-8 w-1/2 mb-4" />
+          <Skeleton className="h-64 w-full" />
+        </div>
       </div>
     );
   }
 
-  // ❌ Error state
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto bg-destructive/10 p-3 rounded-full">
-              <AlertCircle className="h-8 w-8 text-destructive" />
-            </div>
-            <CardTitle className="text-xl">Error Loading Course</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Try Again</Button>
-          </CardContent>
-        </Card>
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Error Loading Course</h2>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
+        </div>
       </div>
     );
   }
 
-  // 🛑 No course found
   if (!course) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle>Course Not Found</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-muted-foreground mb-4">
-              The requested course could not be found.
-            </p>
-            <Button onClick={() => (window.location.href = "/courses")}>
-              Browse Courses
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Course Not Found</h2>
+          <p className="text-muted-foreground">
+            The requested course could not be found.
+          </p>
+        </div>
       </div>
     );
   }
 
-  // ✅ Loaded
+  // Main render
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar Toggle Button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed left-4 top-4 z-40 rounded-md p-2 bg-primary text-primary-foreground shadow-md lg:hidden"
-      >
-        {sidebarOpen ? <ChevronDown /> : <ChevronRight />}
-      </button>
-
+    <div className="flex h-screen w-full overflow-hidden">
       {/* Sidebar */}
-      <CourseSidebar
-        course={course}
-        selectedLecture={selectedLecture}
-        setSelectedLecture={setSelectedLecture}
-        activeContent={activeContent}
-        setActiveContent={setActiveContent}
-        sidebarOpen={sidebarOpen}
-      />
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative bg-gradient-to-b from-slate-900 to-slate-800">
-        {showQuiz && currentQuizId ? (
-          <Quiz 
-            quizId={currentQuizId}
-            onComplete={handleQuizComplete}
-            onCancel={handleQuizCancel}
-          />
-        ) : selectedLecture ? (
-          <LectureContent 
-            lecture={selectedLecture}
-            onNext={goToNextLecture}
-            onPrevious={goToPreviousLecture}
-            hasNext={hasNextLecture()}
-            hasPrevious={hasPreviousLecture()}
-            onMarkComplete={markAsComplete}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center p-6 text-white">
-            <div className="bg-slate-700 p-6 rounded-full mb-4">
-              <BookOpen className="h-12 w-12 text-white" />
-            </div>
-            <h2 className="text-xl font-semibold mb-2">Welcome to {course.title}</h2>
-            <p className="text-slate-300 max-w-md mb-6">
-              Select a lecture from the sidebar to begin your learning journey.
-            </p>
-            <Button 
-              onClick={() => setSelectedLecture(course.contents[0]?.lectures[0])}
-              className="gap-2 bg-blue-600 hover:bg-blue-700"
-            >
-              <PlayCircle className="h-4 w-4" />
-              Start First Lesson
-            </Button>
-          </div>
+      <div
+        className={cn(
+          "h-full border-r overflow-hidden transition-[width,opacity] duration-300 ease-in-out",
+          isSidebarCollapsed
+            ? "w-0 opacity-0 pointer-events-none"
+            : "w-[350px] opacity-100"
         )}
-      </main>
+      >
+        <CourseSidebar
+          course={course}
+          selectedLecture={selectedLecture}
+          setSelectedLecture={setSelectedLecture}
+          activeContent={activeContent}
+          setActiveContent={setActiveContent}
+          onStartQuiz={(quizId) => {
+            setCurrentQuizContentId(quizId);
+            setShowQuiz(true);
+          }}
+        />
+      </div>
+
+      {/* Main content */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <header className="flex items-center h-16 px-6 border-b gap-4 shrink-0">
+          <SidebarTrigger onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
+          <h1 className="text-xl font-semibold">{course.title}</h1>
+        </header>
+
+        <main className="flex-1 overflow-auto p-6">
+          {showQuiz && currentQuizContentId ? (
+            <Quiz
+  courseId={course.id}           // ✅ Pass the course ID
+  contentId={currentQuizContentId}
+  onComplete={handleQuizComplete}
+  onCancel={handleQuizCancel}
+/>
+          ) : selectedLecture ? (
+            <LectureContent
+              lecture={selectedLecture}
+              onNext={handleNext}
+              onPrevious={handlePrevious}
+              hasNext
+              hasPrevious
+              onMarkComplete={handleMarkComplete}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center p-6">
+              <div className="bg-primary/10 p-6 rounded-full mb-4">
+                <BookOpen className="h-12 w-12 text-primary" />
+              </div>
+              <h2 className="text-xl font-semibold mb-2">
+                Welcome to {course.title}
+              </h2>
+              <p className="text-muted-foreground max-w-md mb-6">
+                Select a lecture from the sidebar to begin your learning journey.
+              </p>
+              <Button
+                onClick={() => {
+                  setSelectedLecture(course.contents[0]?.lectures[0]);
+                  setActiveContent(course.contents[0]?.id || "");
+                }}
+                className="gap-2"
+              >
+                <PlayCircle className="h-4 w-4" />
+                Start First Lesson
+              </Button>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

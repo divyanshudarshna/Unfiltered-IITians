@@ -68,8 +68,8 @@ const Navbar = () => {
               <NavigationMenuTrigger>Courses</NavigationMenuTrigger>
               <NavigationMenuContent className="p-4">
                 <ul className="flex flex-col gap-2 min-w-[200px]">
-                  <li><Link href="/courses/react" className="hover:underline">IIT JAM</Link></li>
-                  <li><Link href="/courses/nextjs" className="hover:underline">JNET</Link></li>
+                  <li><Link href="/courses" className="hover:underline">All Courses</Link></li>
+                  <li><Link href="/courses/nextjs" className="hover:underline">IIT JAM</Link></li>
                   <li><Link href="/courses/uiux" className="hover:underline">GATE</Link></li>
                 </ul>
               </NavigationMenuContent>
