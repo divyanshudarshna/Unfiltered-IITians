@@ -1,42 +1,30 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-// import { auth } from "@clerk/nextjs/server"
 
 export async function GET() {
   try {
-    // Verify admin authentication
-    // const { userId } = auth().protect()
-    
-    // const adminUser = await prisma.user.findUnique({
-    //   where: { clerkUserId: userId, role: 'ADMIN' }
-    // })
-    
-    // if (!adminUser) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    // }
-
-    // Get all mocks with optional query params
- const mocks = await prisma.mockTest.findMany({
-  orderBy: { createdAt: "desc" },
-  select: {
-    id: true,
-    title: true,
-    description: true,
-    price: true,
-    difficulty: true,
-    status: true,
-    createdAt: true,
-    updatedAt: true,
-    questions: true,  // <-- Add this
-    _count: {
+    const mocks = await prisma.mockTest.findMany({
+      orderBy: { createdAt: "desc" },
       select: {
-        attempts: true,
-        subscriptions: true
-      }
-    }
-  }
-})
-
+        id: true,
+        title: true,
+        description: true,
+        price: true,
+        actualPrice: true,   // ✅ added
+        duration: true,      // ✅ added
+        difficulty: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        questions: true,
+        _count: {
+          select: {
+            attempts: true,
+            subscriptions: true,
+          },
+        },
+      },
+    })
 
     return NextResponse.json({ mocks })
   } catch (error: any) {
@@ -50,23 +38,24 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    // Verify admin authentication
-    // const { userId } = auth().protect()
-    
-    // const adminUser = await prisma.user.findUnique({
-    //   where: { clerkUserId: userId, role: 'ADMIN' }
-    // })
-    
-    // if (!adminUser) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    // }
-
     const data = await req.json()
 
     // Validate required fields
     if (!data.title) {
       return NextResponse.json(
         { error: "Title is required" },
+        { status: 400 }
+      )
+    }
+    if (data.actualPrice == null) {
+      return NextResponse.json(
+        { error: "Actual price is required" },
+        { status: 400 }
+      )
+    }
+    if (data.duration == null) {
+      return NextResponse.json(
+        { error: "Duration is required" },
         { status: 400 }
       )
     }
@@ -77,17 +66,22 @@ export async function POST(req: Request) {
         title: data.title,
         description: data.description || null,
         price: data.price || 0,
+        actualPrice: data.actualPrice,
+        duration: data.duration,
         difficulty: data.difficulty || "EASY",
         status: data.status || "DRAFT",
         questions: data.questions || [],
-        tags: data.tags || []
+        tags: data.tags || [],
       },
       select: {
         id: true,
         title: true,
+        price: true,
+        actualPrice: true,
+        duration: true,
         status: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     })
 
     return NextResponse.json({ mock: newMock })
@@ -99,73 +93,58 @@ export async function POST(req: Request) {
     )
   }
 }
-
-// Add this new endpoint for status updates
 export async function PUT(req: Request) {
   try {
-    // Verify admin authentication
-    // const { userId } = auth().protect()
-    
-    // const adminUser = await prisma.user.findUnique({
-    //   where: { clerkUserId: userId, role: 'ADMIN' }
-    // })
-    
-    // if (!adminUser) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    // }
-
     const { searchParams } = new URL(req.url)
-    const id = searchParams.get('id')
-    const action = searchParams.get('action')
+    const id = searchParams.get("id")
+    const action = searchParams.get("action")
 
-    if (!id || !action) {
-      return NextResponse.json(
-        { error: "Missing ID or action parameter" },
-        { status: 400 }
-      )
+    if (!id) {
+      return NextResponse.json({ error: "Missing ID" }, { status: 400 })
     }
 
-    // Validate action
-    if (!['publish', 'unpublish', 'archive'].includes(action)) {
-      return NextResponse.json(
-        { error: "Invalid action" },
-        { status: 400 }
-      )
-    }
+    const data = await req.json().catch(() => ({}))
 
-    // Determine new status
-    let newStatus
-    switch (action) {
-      case 'publish':
-        newStatus = 'PUBLISHED'
-        break
-      case 'unpublish':
-        newStatus = 'DRAFT'
-        break
-      case 'archive':
-        newStatus = 'ARCHIVED'
-        break
-      default:
-        newStatus = 'DRAFT'
-    }
-
-    // Update mock status
-    const updatedMock = await prisma.mockTest.update({
-      where: { id },
-      data: { status: newStatus },
-      select: {
-        id: true,
-        title: true,
-        status: true
+    if (action) {
+      // status-only updates
+      let newStatus
+      switch (action) {
+        case "publish": newStatus = "PUBLISHED"; break
+        case "unpublish": newStatus = "DRAFT"; break
+        case "archive": newStatus = "ARCHIVED"; break
+        default: newStatus = "DRAFT"
       }
-    })
 
-    return NextResponse.json({ mock: updatedMock })
+      const updated = await prisma.mockTest.update({
+        where: { id },
+        data: { status: newStatus },
+        select: { id: true, title: true, status: true }
+      })
+
+      return NextResponse.json({ mock: updated })
+    } else {
+      // full data update
+      const updated = await prisma.mockTest.update({
+        where: { id },
+        data: {
+          title: data.title,
+          description: data.description || null,
+          price: data.price ?? 0,
+          actualPrice: data.actualPrice ?? null,
+          duration: data.duration ?? null,
+          difficulty: data.difficulty ?? "EASY",
+          status: data.status ?? "DRAFT",
+        },
+      })
+
+      return NextResponse.json({ mock: updated })
+    }
   } catch (error: any) {
-    console.error("Error updating mock status:", error)
+    console.error("Error updating mock:", error)
     return NextResponse.json(
       { error: error.message || "Internal Server Error" },
-      { status: error.message === "Unauthorized" ? 401 : 500 }
+      { status: 500 }
     )
   }
 }
+

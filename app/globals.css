@@ -209,9 +209,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Optional: Ensure paragraph spacing */
-p {
-  margin-bottom: 1rem;
-}
+
 
 /* ADMIN-SPECIFIC FONT STYLES */
 .admin-fonts {
@@ -309,4 +307,18 @@ p {
   border-left: 3px solid rgba(13, 13, 13, 0.1);
   padding-left: 1rem;
   margin: 1rem 0;
+}
+
+@keyframes glow {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  }
+  50% { 
+    box-shadow: 0 0 40px rgba(139, 92, 246, 0.5),
+                0 0 60px rgba(139, 92, 246, 0.3);
+  }
+}
+
+.glow-effect {
+  animation: glow 2s ease-in-out infinite alternate;
 }

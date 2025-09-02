@@ -34,14 +34,18 @@ import {
   Star,
   Award,
   AlertCircle,
+  Clock,
 } from "lucide-react";
 import { EditMockModal } from "@/components/admin/mocks/EditMockModal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type MockTest = {
   id: string;
   title: string;
   description?: string;
   price: number;
+  actualPrice?: number;
+  duration?: number;
   difficulty: string;
   questions: Array<any>;
   createdAt: string;
@@ -109,8 +113,6 @@ export default function AdminMocksPage() {
     );
   };
 
-
-
   // Columns
   const columns: ColumnDef<MockTest>[] = [
     {
@@ -118,61 +120,79 @@ export default function AdminMocksPage() {
       header: "Title",
       cell: (info) => <span className="font-medium">{info.getValue() as string}</span>,
     },
-   {
-  accessorKey: "description",
-  header: "Description",
-  cell: (info) => {
-    const value = info.getValue() as string;
-    const maxLength = 30; // truncate after 30 characters
-    const displayText = value?.length > maxLength ? value.slice(0, maxLength) + "..." : value || "-";
+    {
+      accessorKey: "description",
+      header: "Description",
+      cell: (info) => {
+        const value = info.getValue() as string;
+        const maxLength = 30;
+        const displayText = value?.length > maxLength ? value.slice(0, maxLength) + "..." : value || "-";
 
-    return (
-      <span
-        className="text-muted-foreground"
-        title={value || "-"} // tooltip shows full text
-      >
-        {displayText}
-      </span>
-    );
-  },
-}
-,
+        return (
+          <span className="text-muted-foreground" title={value || "-"}>
+            {displayText}
+          </span>
+        );
+      },
+    },
     {
       id: "questions",
       header: () => (
         <div className="flex items-center">
-          <BookOpen className="w-4 h-4 mr-1" /> Questions
+          <BookOpen className="w-4 h-4 mr-1" /> Qns
         </div>
       ),
-       cell: (info) => {
-      // Ensure questions is always an array
-      
-      const questions = Array.isArray(info.row.original.questions) ? info.row.original.questions : [];
-
-      return (
-        <Badge 
-          variant="outline" 
-          className="font-mono hover:bg-gray-50 cursor-pointer"
-          onClick={() => router.push(`/admin/mocks/${info.row.original.id}`)}
-        >
-          {questions.length}
-        </Badge>
-      );
+      cell: (info) => {
+        const questions = Array.isArray(info.row.original.questions) ? info.row.original.questions : [];
+        return (
+          <Badge
+            variant="outline"
+            className="font-mono hover:bg-gray-50 cursor-pointer"
+            onClick={() => router.push(`/admin/mocks/${info.row.original.id}`)}
+          >
+            {questions.length}
+          </Badge>
+        );
       },
     },
     {
       accessorKey: "price",
       header: () => (
         <div className="flex items-center">
-          <DollarSign className="w-4 h-4 mr-1" /> Price
+          ₹ Price
+        </div>
+      ),
+      cell: ({ row }) => {
+        const price = row.original.price;
+        const actualPrice = row.original.actualPrice;
+        return price > 0 ? (
+          <div className="flex flex-col items-start">
+            {actualPrice && actualPrice > price && (
+              <span className="text-sm text-gray-500 line-through">₹{actualPrice}</span>
+            )}
+            <span className="font-bold text-green-600">₹{price}</span>
+          </div>
+        ) : (
+          <Badge variant="secondary" className="text-xs">
+            FREE
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "duration",
+      header: () => (
+        <div className="flex items-center">
+          <Clock className="w-4 h-4 mr-1" /> Duration
         </div>
       ),
       cell: (info) => {
-        const price = info.getValue() as number;
-        return price > 0 ? (
-          <span className="font-bold text-green-600">₹{price}</span>
-        ) : (
-          <Badge variant="secondary" className="text-xs">FREE</Badge>
+        const duration = info.getValue() as number | undefined;
+        return (
+          <span className="text-sm text-amber-500 font-medium flex items-center gap-1">
+            <Clock className="w-4 h-4" />
+            {duration ? `${duration} min` : "-"}
+          </span>
         );
       },
     },
@@ -197,59 +217,57 @@ export default function AdminMocksPage() {
       },
     },
     {
-      accessorKey: "createdAt",
-      header: "Created At",
-      cell: (info) => (
-        <span className="text-sm text-muted-foreground">
-          {new Date(info.getValue() as string).toLocaleDateString("en-IN", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          })}
-        </span>
-      ),
-    },
-    {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => {
         const mock = row.original;
 
         return (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => {
-                setSelectedMock(mock);
-                setEditOpen(true);
-              }}
-            >
-              <Edit2 className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
+          <TooltipProvider>
+            <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      setSelectedMock(mock);
+                      setEditOpen(true);
+                    }}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Edit</TooltipContent>
+              </Tooltip>
 
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => router.push(`/admin/mocks/${mock.id}`)}
-            >
-              <BookOpen className="w-4 h-4 mr-1" />
-              Questions
-            </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => router.push(`/admin/mocks/${mock.id}`)}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Questions</TooltipContent>
+              </Tooltip>
 
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-8"
-              onClick={() => handleDelete(mock.id)}
-            >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Delete
-            </Button>
-          </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => handleDelete(mock.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete</TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         );
       },
     },

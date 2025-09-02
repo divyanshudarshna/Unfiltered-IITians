@@ -15,7 +15,6 @@ import {
   SkipBack,
   SkipForward,
   Shield,
-  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,12 +48,13 @@ export default function VideoContent({
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [controlsTimeout, setControlsTimeout] = useState<number | null>(null);
-  const [securityAlert, setSecurityAlert] = useState(false);
   const [isScreenProtected, setIsScreenProtected] = useState(false);
 
   // settings state
   const [showSettings, setShowSettings] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [qualityOptions, setQualityOptions] = useState<string[]>([]);
+  const [currentQuality, setCurrentQuality] = useState<string>("auto");
 
   // session watermark id (simple randomized, useful for dynamic watermarking)
   const sessionWatermarkId = useRef(`WM-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`);
@@ -99,7 +99,6 @@ export default function VideoContent({
 
   // Handle screen recording detection
   const handleScreenRecordingDetected = () => {
-    setSecurityAlert(true);
     setIsScreenProtected(true);
     
     if (playerRef.current) {
@@ -112,7 +111,6 @@ export default function VideoContent({
     
     // Auto-clear after 5 seconds
     setTimeout(() => {
-      setSecurityAlert(false);
       setIsScreenProtected(false);
       if (playerRef.current) {
         const videoElement = playerRef.current.el();
@@ -121,31 +119,6 @@ export default function VideoContent({
         }
       }
     }, 5000);
-  };
-
-  // Security: Prevent right-click and basic DevTools detection
-  const preventUnauthorizedAccess = () => {
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      setSecurityAlert(true);
-      setTimeout(() => setSecurityAlert(false), 3000);
-    };
-
-    const preventDevTools = () => {
-      const devToolsPattern = /./;
-      devToolsPattern.toString = () => {
-        setSecurityAlert(true);
-        setTimeout(() => setSecurityAlert(false), 3000);
-        return "SecurityViolation";
-      };
-    };
-
-    document.addEventListener("contextmenu", handleContextMenu);
-    preventDevTools();
-
-    return () => {
-      document.removeEventListener("contextmenu", handleContextMenu);
-    };
   };
 
   // Security: Encrypted token-based URL (simplified example)
@@ -157,7 +130,6 @@ export default function VideoContent({
   // Security: Detect iframe embedding
   const detectIframeEmbedding = () => {
     if (window.self !== window.top) {
-      setSecurityAlert(true);
       setIsScreenProtected(true);
       return true;
     }
@@ -169,15 +141,6 @@ export default function VideoContent({
     if (securityCheckRef.current) clearInterval(securityCheckRef.current);
 
     securityCheckRef.current = setInterval(() => {
-      // Check for developer tools
-      const widthThreshold = 200;
-      if (
-        window.outerWidth - window.innerWidth > widthThreshold ||
-        window.outerHeight - window.innerHeight > widthThreshold
-      ) {
-        setSecurityAlert(true);
-      }
-
       // Check for iframe embedding
       detectIframeEmbedding();
       
@@ -240,7 +203,6 @@ export default function VideoContent({
                   await session.update(new Uint8Array(licenseArrayBuffer));
                 } catch (err) {
                   console.error('License request failed', err);
-                  setSecurityAlert(true);
                 }
               });
 
@@ -261,6 +223,58 @@ export default function VideoContent({
       console.error('DRM setup failed', err);
     }
   };
+
+  // Keyboard controls
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!playerRef.current || isScreenProtected) return;
+      
+      switch(e.key) {
+        case ' ':
+        case 'k':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'f':
+          e.preventDefault();
+          toggleFullscreen();
+          break;
+        case 'm':
+          e.preventDefault();
+          toggleMute();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          skip(-5);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          skip(5);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          handleVolumeChange(Math.min(volume + 0.1, 1));
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          handleVolumeChange(Math.max(volume - 0.1, 0));
+          break;
+        case '>':
+        case '.':
+          e.preventDefault();
+          changeSpeed(Math.min(playbackRate + 0.25, 2));
+          break;
+        case '<':
+        case ',':
+          e.preventDefault();
+          changeSpeed(Math.max(playbackRate - 0.25, 0.5));
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [playing, volume, playbackRate, isScreenProtected]);
 
   // init player with security & DRM features
   useEffect(() => {
@@ -292,12 +306,6 @@ export default function VideoContent({
     });
 
     playerRef.current = player;
-
-    videoElement.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      setSecurityAlert(true);
-      setTimeout(() => setSecurityAlert(false), 3000);
-    });
 
     // Set watermark overlay
     const watermarkEl = document.createElement('div');
@@ -349,8 +357,9 @@ export default function VideoContent({
 
     player.on('fullscreenchange', () => setIsFullscreen(player.isFullscreen()));
 
-    preventUnauthorizedAccess();
-
+    // Simulate quality options (in a real implementation, these would come from the stream)
+    setQualityOptions(['auto', '1080p', '720p', '480p', '360p']);
+    
     try {
       const mediaEl = player.tech?.().el ? (player.tech().el() as HTMLMediaElement) : (videoElement as HTMLMediaElement);
       if (mediaEl) setupDRM(mediaEl).catch(() => {});
@@ -429,15 +438,16 @@ export default function VideoContent({
     setShowSettings(false);
   };
 
+  // change quality
+  const changeQuality = (quality: string) => {
+    setCurrentQuality(quality);
+    setShowSettings(false);
+    // In a real implementation, you would switch the video source here
+    console.log(`Quality changed to: ${quality}`);
+  };
+
   return (
     <Card className="bg-black border-slate-700 overflow-hidden shadow-lg relative">
-      {securityAlert && (
-        <div className="absolute top-0 left-0 right-0 bg-red-600 text-white p-2 text-center z-50 flex items-center justify-center">
-          <AlertTriangle className="h-5 w-5 mr-2" />
-          <span>Security alert: Screen recording detected</span>
-        </div>
-      )}
-
       <div className="absolute top-2 right-2 z-40 bg-black/70 rounded-full p-2">
         <Shield className="h-5 w-5 text-green-400" />
       </div>
@@ -447,17 +457,11 @@ export default function VideoContent({
           className="relative aspect-video bg-black"
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setShowControls(false)}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            setSecurityAlert(true);
-            setTimeout(() => setSecurityAlert(false), 3000);
-          }}
         >
           {isScreenProtected && (
             <div className="absolute inset-0 bg-black z-30 flex items-center justify-center">
               <div className="text-center text-white p-4">
-                <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-                <h3 className="text-xl font-bold mb-2">Screen Recording Detected</h3>
+                <h3 className="text-xl font-bold mb-2">Content Protected</h3>
                 <p className="text-gray-300">
                   Screen recording or sharing has been detected. 
                   Video playback has been paused for security reasons.
@@ -512,11 +516,20 @@ export default function VideoContent({
                   </button>
 
                   {showSettings && (
-                    <div className="absolute bottom-10 right-0 bg-black/90 border border-purple-500 rounded-md p-2 text-white text-sm w-36">
+                    <div className="absolute bottom-10 right-0 bg-black/90 border border-purple-500 rounded-md p-2 text-white text-sm w-36 z-50">
                       <p className="mb-1 font-semibold text-purple-400">Speed</p>
                       {[0.5, 1, 1.25, 1.5, 2].map((rate) => (
                         <button key={rate} onClick={() => changeSpeed(rate)} className={cn("block w-full text-left px-2 py-1 rounded hover:bg-purple-600/30", playbackRate === rate && "bg-purple-600/50")}>
                           {rate}x
+                        </button>
+                      ))}
+                      
+                      <div className="border-t border-slate-600 my-2"></div>
+                      
+                      <p className="mb-1 font-semibold text-purple-400">Quality</p>
+                      {qualityOptions.map((quality) => (
+                        <button key={quality} onClick={() => changeQuality(quality)} className={cn("block w-full text-left px-2 py-1 rounded hover:bg-purple-600/30", currentQuality === quality && "bg-purple-600/50")}>
+                          {quality}
                         </button>
                       ))}
                     </div>

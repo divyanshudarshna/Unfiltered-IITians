@@ -32,6 +32,8 @@ export function CreateMockModal() {
     title: "",
     description: "",
     price: 0,
+    actualPrice: 0,
+    duration: 0,
     difficulty: "EASY" as DifficultyLevel,
     status: "DRAFT" as "DRAFT" | "PUBLISHED",
   })
@@ -39,7 +41,6 @@ export function CreateMockModal() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // 🚨 instant guard: disable button DOM-level
     if (submitBtnRef.current) {
       submitBtnRef.current.disabled = true
     }
@@ -67,7 +68,6 @@ export function CreateMockModal() {
       console.error("Error creating mock:", error)
     } finally {
       setLoading(false)
-      // re-enable after done
       if (submitBtnRef.current) {
         submitBtnRef.current.disabled = false
       }
@@ -110,7 +110,7 @@ export function CreateMockModal() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="price">Price (₹)</Label>
+                <Label htmlFor="price">Discounted Price (₹)</Label>
                 <Input
                   id="price"
                   type="number"
@@ -122,30 +122,65 @@ export function CreateMockModal() {
                     })
                   }
                   min="0"
+                  required
                 />
               </div>
 
               <div>
-                <Label htmlFor="difficulty">Difficulty</Label>
-                <Select
-                  value={formData.difficulty}
-                  onValueChange={(value) =>
+                <Label htmlFor="actualPrice">Actual Price (₹)</Label>
+                <Input
+                  id="actualPrice"
+                  type="number"
+                  value={formData.actualPrice}
+                  onChange={(e) =>
                     setFormData({
                       ...formData,
-                      difficulty: value as DifficultyLevel,
+                      actualPrice: parseInt(e.target.value) || 0,
                     })
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select difficulty" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="EASY">Easy</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HARD">Hard</SelectItem>
-                  </SelectContent>
-                </Select>
+                  min="0"
+                  required
+                />
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="duration">Duration (minutes)</Label>
+              <Input
+                id="duration"
+                type="number"
+                value={formData.duration}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    duration: parseInt(e.target.value) || 0,
+                  })
+                }
+                min="1"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="difficulty">Difficulty</Label>
+              <Select
+                value={formData.difficulty}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    difficulty: value as DifficultyLevel,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EASY">Easy</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HARD">Hard</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

@@ -1,76 +1,24 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { AlertCircle, Plus, Upload, Trash2 } from "lucide-react";
+import QuestionTable from "./questionTable";
+import FormModal from "./formModal";
+import { MockTestDetail, Question } from "./types";
+import CsvUploadModal from "./CsvUploadModal";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Edit2,
-  Trash2,
-  // ChevronUp,
-  // ChevronDown,
-  Plus,
-  Search,
-  List,
-  CheckCircle,
-  Type,
-  FileText,
-  AlertCircle,
-  // Hash
-} from "lucide-react";
-
-type Question = {
-  id: string;
-  question: string;
-  type: "MCQ" | "MSQ" | "DESCRIPTIVE";
-  options: string[];
-  answer: string;
-  explanation?: string;
-};
-
-type MockTestDetail = {
-  id: string;
-  title: string;
-  questions: Question[];
-};
-
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { setLazyProp } from "next/dist/server/api-utils";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function MockDetailPage() {
   const router = useRouter();
@@ -84,6 +32,13 @@ export default function MockDetailPage() {
   // For edit modal
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editQuestion, setEditQuestion] = useState<Question | null>(null);
+  
+  // For CSV upload modal
+  const [isCsvUploadOpen, setIsCsvUploadOpen] = useState(false);
+
+  // For clear all confirmation dialog
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   // Fetch mock by id
   const fetchMock = async () => {
@@ -111,6 +66,46 @@ export default function MockDetailPage() {
   useEffect(() => {
     if (mockId) fetchMock();
   }, [mockId]);
+
+  // Handle CSV upload success
+  const handleCsvUploadSuccess = () => {
+    fetchMock(); // Reload the questions
+  };
+
+  // Clear all questions
+  const handleClearAllQuestions = async () => {
+    setIsClearing(true);
+    try {
+      const res = await fetch(
+        `/api/admin/mocks/${mockId}/questions/clear`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+      
+      if (res.ok) {
+        // Update local state to remove all questions
+        setMock((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            questions: [],
+          };
+        });
+        setIsClearDialogOpen(false);
+        alert("All questions have been cleared successfully.");
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to clear questions");
+      }
+    } catch (err) {
+      alert("Error clearing questions");
+      console.error(err);
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   // Delete question
   const handleDeleteQuestion = async (questionId: string) => {
@@ -147,7 +142,6 @@ export default function MockDetailPage() {
   };
 
   // Handle save from edit modal
-
   const handleSaveQuestion = async (updatedQuestion: Question) => {
     try {
       setLoading(true);
@@ -212,196 +206,6 @@ export default function MockDetailPage() {
     setIsEditOpen(true);
   };
 
-  // Get question type icon and color
-  const getQuestionTypeBadge = (type: string) => {
-    const typeMap: Record<string, { icon: JSX.Element; color: string }> = {
-      MCQ: {
-        icon: <List className="w-4 h-4" />,
-        color: "bg-blue-100 text-blue-800",
-      },
-      MSQ: {
-        icon: <CheckCircle className="w-4 h-4" />,
-        color: "bg-purple-100 text-purple-800",
-      },
-      DESCRIPTIVE: {
-        icon: <FileText className="w-4 h-4" />,
-        color: "bg-green-100 text-green-800",
-      },
-    };
-
-    const { icon, color } = typeMap[type] || {
-      icon: <Type className="w-4 h-4" />,
-      color: "bg-gray-100 text-gray-800",
-    };
-
-    return (
-      <Badge className={`${color} flex items-center gap-1`}>
-        {icon}
-        {type}
-      </Badge>
-    );
-  };
-
-
-// Columns for questions table
-const columns: ColumnDef<Question>[] = [
-  {
-    id: "serial",
-    header: "S.No",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground font-mono text-sm">
-        {row.index + 1}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "question",
-    header: "Question",
-    cell: (info) => {
-      const value = info.getValue();
-      const text = typeof value === "string" ? value : "Invalid question";
-      const maxLength = 50; // truncate after 50 chars
-
-      const truncated = text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
-
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="font-medium line-clamp-2 cursor-pointer">{truncated}</span>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-sm whitespace-pre-wrap">
-            {text}
-          </TooltipContent>
-        </Tooltip>
-      );
-    },
-  },
-  {
-    accessorKey: "options",
-    header: "Options",
-    cell: (info) => {
-      const options = info.getValue();
-      if (!Array.isArray(options)) return <span className="text-red-500">No options</span>;
-      const maxLength = 20; // truncate each option
-
-      return (
-        <div className="space-y-1">
-          {options.map((opt, i) => {
-            const text = typeof opt === "string" ? opt || "-" : "Invalid option";
-            const truncated = text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
-
-            return (
-              <Tooltip key={i}>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center cursor-pointer">
-                    <span className="text-muted-foreground text-xs w-6">
-                      {String.fromCharCode(65 + i)}.
-                    </span>
-                    <span className="text-sm">{truncated}</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs whitespace-pre-wrap">{text}</TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "type",
-    header: "Type",
-    cell: (info) => {
-      const value = info.getValue();
-      return getQuestionTypeBadge(typeof value === "string" ? value : "UNKNOWN");
-    },
-  },
-  {
-    accessorKey: "answer",
-    header: "Correct Answer",
-    cell: (info) => {
-      const answer = info.getValue();
-      const question = info.row.original;
-
-      if (typeof answer !== "string") {
-        return <Badge variant="outline" className="font-mono">Invalid</Badge>;
-      }
-
-      const options = Array.isArray(question?.options) ? question.options : [];
-      const optionIndex = options.indexOf(answer);
-      const display = optionIndex >= 0 ? String.fromCharCode(65 + optionIndex) : answer;
-
-      const maxLength = 20;
-      const truncated = display.length > maxLength ? display.slice(0, maxLength) + "..." : display;
-
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge variant="outline" className="font-mono cursor-pointer">{truncated}</Badge>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-xs whitespace-pre-wrap">{display}</TooltipContent>
-        </Tooltip>
-      );
-    },
-  },
-  {
-    id: "actions",
-    header: "Actions",
-    cell: ({ row }) => {
-      const question = row.original;
-      if (!question || typeof question !== "object") return <span className="text-red-500">Invalid</span>;
-
-      return (
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => openEditModal(question)}
-          >
-            <Edit2 className="w-4 h-4 mr-1" /> Edit
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            className="h-8"
-            onClick={() => handleDeleteQuestion(question.id)}
-          >
-            <Trash2 className="w-4 h-4 mr-1" /> Delete
-          </Button>
-        </div>
-      );
-    },
-  },
-];
-
-
-
-  const table = useReactTable({
-    data: mock?.questions ?? [],
-    columns,
-    state: {
-      globalFilter,
-    },
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn: (row, columnId, filterValue) => {
-      const search = filterValue.toLowerCase();
-      const question = row.getValue("question").toString().toLowerCase();
-      const type = row.getValue("type").toString().toLowerCase();
-      const answer = row.getValue("answer").toString().toLowerCase();
-
-      return (
-        question.includes(search) ||
-        type.includes(search) ||
-        answer.includes(search)
-      );
-    },
-  });
-
   if (loading)
     return (
       <div className="p-6 flex justify-center">
@@ -444,318 +248,82 @@ const columns: ColumnDef<Question>[] = [
           <p className="text-muted-foreground">
             ID: <span className="font-mono">{mock.id}</span>
           </p>
-        </div>
-        <Button onClick={handleAddQuestion}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Question
-        </Button>
-      </div>
-
-      <div className="flex items-center justify-between mb-4">
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search questions..."
-            value={globalFilter ?? ""}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} questions
-        </div>
-      </div>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader className="bg-gray-900">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No questions found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between px-2 py-4">
-        <div className="text-sm text-muted-foreground">
-          Page {table.getState().pagination.pageIndex + 1} of{" "}
-          {table.getPageCount()}
-        </div>
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-            <ChevronRight className="w-4 h-4 ml-1" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Edit Question Modal */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editQuestion?.id?.startsWith("temp-") ? "Add New" : "Edit"}{" "}
-              Question
-            </DialogTitle>
-          </DialogHeader>
-          {editQuestion && (
-            <EditQuestionForm
-              question={editQuestion}
-              onSave={handleSaveQuestion}
-              onCancel={() => setIsEditOpen(false)}
-            />
+          {mock.questions.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {mock.questions.length} question{mock.questions.length !== 1 ? 's' : ''}
+            </p>
           )}
-        </DialogContent>
-      </Dialog>
+        </div>
+        <div className="flex gap-2">
+          {mock.questions.length > 0 && (
+            <AlertDialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="text-amber-400 hover:text-amber-800 hover:bg-red-50">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Clear All
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete all{" "}
+                    <strong>{mock.questions.length}</strong> questions from this mock test.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isClearing}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleClearAllQuestions}
+                    disabled={isClearing}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    {isClearing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Clearing...
+                      </>
+                    ) : (
+                      "Clear All Questions"
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          <Button onClick={() => setIsCsvUploadOpen(true)} variant="outline">
+            <Upload className="w-4 h-4 mr-2" />
+            Upload CSV
+          </Button>
+          <Button onClick={handleAddQuestion}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Question
+          </Button>
+        </div>
+      </div>
+
+      <QuestionTable
+        questions={mock.questions}
+        globalFilter={globalFilter}
+        setGlobalFilter={setGlobalFilter}
+        onEditQuestion={openEditModal}
+        onDeleteQuestion={handleDeleteQuestion}
+      />
+
+      <FormModal
+        isOpen={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        question={editQuestion}
+        onSave={handleSaveQuestion}
+        onCancel={() => setIsEditOpen(false)}
+      />
+
+      <CsvUploadModal
+        isOpen={isCsvUploadOpen}
+        onOpenChange={setIsCsvUploadOpen}
+        onUploadSuccess={handleCsvUploadSuccess}
+        mockId={mockId as string}
+      />
     </div>
-  );
-}
-
-// Edit Question Form component
-function EditQuestionForm({
-  question,
-  onSave,
-  onCancel,
-}: {
-  question: Question;
-  onSave: (q: Question) => void;
-  onCancel: () => void;
-}) {
-  const [formData, setFormData] = useState<Question>(question);
-  const [answerOption, setAnswerOption] = useState(
-    question.options.indexOf(question.answer).toString()
-  );
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const updatedQuestion = {
-      ...formData,
-      answer:
-        formData.type === "DESCRIPTIVE"
-          ? formData.answer
-          : formData.options[parseInt(answerOption)],
-    };
-    onSave(updatedQuestion);
-  };
-
-  const handleOptionChange = (index: number, value: string) => {
-    const newOptions = [...formData.options];
-    newOptions[index] = value;
-    setFormData({ ...formData, options: newOptions });
-  };
-
-  const addOption = () => {
-    if (formData.options.length < 6) {
-      setFormData({
-        ...formData,
-        options: [...formData.options, ""],
-      });
-    }
-  };
-
-  const removeOption = (index: number) => {
-    if (formData.options.length > 2) {
-      const newOptions = formData.options.filter((_, i) => i !== index);
-      setFormData({ ...formData, options: newOptions });
-      if (answerOption === index.toString()) {
-        setAnswerOption("0");
-      }
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="question">Question Text</Label>
-        <Textarea
-          id="question"
-          value={formData.question}
-          onChange={(e) =>
-            setFormData({ ...formData, question: e.target.value })
-          }
-          required
-          className="min-h-[100px]"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="type">Question Type</Label>
-        <Select
-  value={formData.type}
-  onValueChange={(value) => {
-    const newType = value as "MCQ" | "MSQ" | "DESCRIPTIVE";
-
-    setFormData((prev) => ({
-      ...prev,
-      type: newType,
-      options: newType === "DESCRIPTIVE" ? [] : prev.options.length ? prev.options : ["", "", "", ""], // reset options if descriptive
-      answer: newType === "DESCRIPTIVE" ? "" : prev.answer,
-    }));
-
-    // Reset selected answer if switching to DESCRIPTIVE
-    if (newType === "DESCRIPTIVE") {
-      setAnswerOption("0");
-    }
-  }}
->
-  <SelectTrigger>
-    <SelectValue placeholder="Select type" />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectItem value="MCQ">Multiple Choice (MCQ)</SelectItem>
-    <SelectItem value="MSQ">Multiple Select (MSQ)</SelectItem>
-    <SelectItem value="DESCRIPTIVE">Descriptive</SelectItem>
-  </SelectContent>
-</Select>
-        </div>
-
-        {formData.type !== "DESCRIPTIVE" && (
-          <div>
-            <Label htmlFor="answer">Correct Answer</Label>
-            <Select value={answerOption} onValueChange={setAnswerOption}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select answer" />
-              </SelectTrigger>
-              <SelectContent>
-                {formData.options.map((_, index) => (
-                  <SelectItem
-                    key={index}
-                    value={index.toString()}
-                    disabled={!formData.options[index]}
-                  >
-                    Option {String.fromCharCode(65 + index)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </div>
-
-      {formData.type !== "DESCRIPTIVE" && (
-        <div>
-          <Label>Options</Label>
-          <div className="space-y-2">
-            {formData.options.map((option, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <span className="text-muted-foreground w-6">
-                  {String.fromCharCode(65 + index)}.
-                </span>
-                <Input
-                  value={option}
-                  onChange={(e) => handleOptionChange(index, e.target.value)}
-                  required={index < 2}
-                />
-                {formData.options.length > 2 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeOption(index)}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </Button>
-                )}
-              </div>
-            ))}
-            {formData.options.length < 6 && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addOption}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Option
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {formData.type === "DESCRIPTIVE" && (
-        <div>
-          <Label htmlFor="answer">Expected Answer</Label>
-          <Textarea
-            id="answer"
-            value={formData.answer}
-            onChange={(e) =>
-              setFormData({ ...formData, answer: e.target.value })
-            }
-            required
-            className="min-h-[100px]"
-          />
-        </div>
-      )}
-
-      <div>
-        <Label htmlFor="explanation">Explanation (Optional)</Label>
-        <Textarea
-          id="explanation"
-          value={formData.explanation || ""}
-          onChange={(e) =>
-            setFormData({ ...formData, explanation: e.target.value })
-          }
-          className="min-h-[100px]"
-        />
-      </div>
-
-      <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit">Save Question</Button>
-      </div>
-    </form>
   );
 }

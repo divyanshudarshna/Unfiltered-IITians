@@ -16,24 +16,22 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import Image from "next/image";
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  CheckCircle, 
-  PlayCircle, 
-  HelpCircle,
-
+import {
+  ChevronDown,
+  ChevronRight,
+  CheckCircle,
+  PlayCircle,
   BookText,
   Home,
   BookOpen,
   Target,
   Award,
-  Clock
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
@@ -114,60 +112,78 @@ export default function CourseSidebar({
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-background to-muted/30 ">
       {/* USER HEADER */}
-      <SidebarHeader className="p-5 border-b bg-gradient-to-r from-primary/10 to-primary/5">
-        <div className="flex items-center gap-3">
-        {user?.profileImageUrl ? (
-  <div className="relative h-12 w-12">
-    <Image
-      src={user.profileImageUrl}
-      alt="avatar"
-      fill
-      sizes="48px"
-      className="rounded-full object-cover border shadow-sm"
-      priority
-    />
-  </div>
-) : (
+  <SidebarHeader className="p-5 border-b bg-gradient-to-r from-primary/10 to-primary/5">
+  <div className="flex items-center gap-4">
+    {/* Avatar */}
+    {user?.profileImageUrl ? (
+      <div className="relative h-12 w-12 flex-shrink-0">
+        <Image
+          src={user.profileImageUrl}
+          alt="avatar"
+          fill
+          sizes="48px"
+          className="rounded-full object-cover border shadow-sm"
+          priority
+        />
+      </div>
+    ) : (
+      <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0">
+        {user?.name?.[0]}
+      </div>
+    )}
 
-  <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
-    {user?.name?.[0]}
-  </div>
+    {/* Name & Email */}
+ 
+<div className="flex flex-col min-w-0">
+  {/* Full name */}
+  <p className="font-medium uppercase text-sm truncate leading-tight m-0">
+    {user?.name}
+  </p>
+  {/* Email */}
+  <p className="text-xs text-muted-foreground truncate leading-tight m-0">
+    {user?.email}
+  </p>
+</div>
 
-)}
-          <div className="flex-1 min-w-0">
-            <p className="font-medium truncate text-sm">{user?.name}</p>
-            <p className="text-xs text-muted-foreground truncate">
-              {user?.email}
-            </p>
-          </div>
-        </div>
-      </SidebarHeader>
+  </div>
+</SidebarHeader>
+
 
       {/* NAVIGATION */}
-      <SidebarContent className="flex-1 ">
+      <SidebarContent className="flex-1 overflow-hidden ">
         <SidebarGroup className="mt-2">
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1 px-2  flex-row">
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className="rounded-lg hover:bg-primary/10 hover:text-primary transition">
+                <SidebarMenuButton
+                  asChild
+                  className="rounded-lg hover:bg-primary/10 hover:text-primary transition"
+                >
                   <Link href="/" className="flex items-center gap-2">
                     <Home className="h-4 w-4" />
                     <span>Home</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-                  <SidebarMenuItem>
-                <SidebarMenuButton asChild className="rounded-lg hover:bg-primary/10 hover:text-primary transition">
-                  <Link href="/dashboard/courses" className="flex items-center gap-2">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className="rounded-lg hover:bg-primary/10 hover:text-primary transition"
+                >
+                  <Link
+                    href="/dashboard/courses"
+                    className="flex items-center gap-2"
+                  >
                     <Home className="h-4 w-4" />
                     <span>My Courses</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-
-
-                <SidebarMenuButton asChild className="rounded-lg hover:bg-primary/10 hover:text-primary transition">
+                <SidebarMenuButton
+                  asChild
+                  className="rounded-lg hover:bg-primary/10 hover:text-primary transition"
+                >
                   <Link href="/courses" className="flex items-center gap-2">
                     <BookOpen className="h-4 w-4" />
                     <span>All Courses</span>
@@ -192,7 +208,9 @@ export default function CourseSidebar({
             </div>
             <Progress value={progress} className="h-2 bg-muted" />
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{completedItems}/{totalItems} done</span>
+              <span>
+                {completedItems}/{totalItems} done
+              </span>
               <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 <span>{formatDuration(totalDuration)}</span>
@@ -201,49 +219,51 @@ export default function CourseSidebar({
           </div>
         </div>
 
-        {/* COURSE CONTENT */}
-       {/* COURSE CONTENT */}
-<SidebarGroup className="mt-4 ">
-  <SidebarGroupLabel className="flex items-center gap-2 px-3 text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+   {/* COURSE CONTENT */}
+<SidebarGroup className="mt-4 flex h-full min-h-0 flex-col">
+  <SidebarGroupLabel className="flex items-center gap-2 px-3 text-xs uppercase tracking-wide text-muted-foreground font-semibold shrink-0">
     <BookText className="h-4 w-4 text-cyan-500" />
     Course Content
   </SidebarGroupLabel>
-  <SidebarGroupContent>
-    <ScrollArea className="h-[calc(100vh-360px)] px-2">
-      <div className="space-y-3">
+
+  <SidebarGroupContent className="flex-1 min-h-0">
+    {/* IMPORTANT: prevent sideways scroll + ensure viewport can actually scroll */}
+    <ScrollArea className="h-full w-full px-2 overflow-x-hidden">
+      {/* Give content a tiny right padding so text/buttons don't sit under the scrollbar */}
+      <div className="space-y-3 min-w-0 pr-2">
         {course.contents.map((content: any, idx: number) => {
           const contentCompleted =
             content.lectures.every((l: any) => l.completed) &&
-            (!content.hasQuiz || content.quizCompleted);
+            (!content.hasQuiz || content.quizCompleted)
 
           return (
             <Collapsible
               key={content.id}
               open={openSections[content.id] ?? true}
               onOpenChange={() => toggleSection(content.id)}
-              className="rounded-xl border border-border bg-muted/40 dark:bg-zinc-900/60 shadow-md hover:shadow-cyan-500/20 transition-all duration-300"
+              className="w-full rounded-xl border border-border bg-primary/5 shadow-sm hover:shadow-primary/20 transition-all duration-300"
             >
               <CollapsibleTrigger asChild>
                 <Button
                   variant="ghost"
                   className={cn(
-                    "w-full justify-between h-auto p-4 hover:bg-cyan-500/10 hover:scale-[1.01] transition-transform",
+                    "w-full justify-between h-auto p-4 hover:bg-primary/10 transition-transform",
                     activeContent === content.id &&
-                      "bg-cyan-500/20 ring-1 ring-cyan-500/50"
+                      "bg-primary/20 ring-1 ring-primary/50"
                   )}
                 >
-                  <div className="flex items-center gap-3 text-left flex-1">
+                  <div className="flex items-center gap-3 text-left flex-1 min-w-0">
                     <div
                       className={cn(
-                        "h-10 w-10 rounded-full flex items-center justify-center text-xs font-medium border-2 shrink-0 transition-all shadow-sm",
+                        "h-10 w-10 rounded-full flex items-center justify-center text-xs font-medium border-2 shrink-0 transition-all",
                         activeContent === content.id
-                          ? "bg-amber-500 text-white border-amber-400 shadow-amber-500/40"
+                          ? "bg-primary text-primary-foreground border-primary"
                           : contentCompleted
-                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-400/40 shadow-emerald-500/30"
-                          : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                          ? "bg-primary/30 text-white border-primary/40"
+                          : "bg-muted text-muted-foreground border-border"
                       )}
                     >
-                      {`Ch ${idx + 1}`}
+                      {` ${idx + 1}`}
                     </div>
                     <div className="flex flex-col items-start flex-1 min-w-0">
                       <span className="font-medium text-sm truncate">
@@ -270,13 +290,13 @@ export default function CourseSidebar({
                       key={lecture.id}
                       variant="ghost"
                       className={cn(
-                        "w-full justify-start h-auto p-3 rounded-lg transition-all duration-200 hover:bg-cyan-500/10 hover:shadow-cyan-500/20 hover:scale-[1.01]",
+                        "w-full justify-start h-auto p-3 rounded-lg transition-all hover:bg-primary/10",
                         selectedLecture?.id === lecture.id &&
-                          "bg-cyan-500/20 font-medium ring-1 ring-cyan-400"
+                          "bg-primary/10 font-medium ring-1 ring-primary/40"
                       )}
                       onClick={() => {
-                        setSelectedLecture(lecture);
-                        setActiveContent(content.id);
+                        setSelectedLecture(lecture)
+                        setActiveContent(content.id)
                       }}
                     >
                       {lecture.completed ? (
@@ -294,15 +314,21 @@ export default function CourseSidebar({
                  <Button
   variant="ghost"
   className={cn(
-    "w-full justify-start h-auto p-3 rounded-lg border transition-colors hover:bg-amber-500/10 hover:border-amber-400/40 hover:shadow-amber-500/30",
+    "w-full justify-start h-auto p-3 rounded-lg border transition-colors hover:bg-emerald-500/10 hover:border-emerald-400/40 hover:shadow-emerald-500/30",
     content.quizCompleted
       ? "text-emerald-400 bg-emerald-500/10 border-emerald-400/40 shadow-emerald-500/20"
       : "text-muted-foreground border-border"
   )}
-  onClick={() => onStartQuiz(content.id)}   // 👈 FIXED: use content.id not content.quizId
+  onClick={() => onStartQuiz(content.id)}
 >
-  <Award className="h-4 w-4 mr-3 shrink-0" />
+  <Award
+    className={cn(
+      "h-4 w-4 mr-3 shrink-0",
+      content.quizCompleted ? "text-emerald-400" : "text-muted-foreground"
+    )}
+  />
   <span className="text-sm flex-1 text-left">Module Quiz</span>
+
   {content.quizCompleted && (
     <Badge
       variant="secondary"
@@ -317,13 +343,15 @@ export default function CourseSidebar({
                 </div>
               </CollapsibleContent>
             </Collapsible>
-          );
+          )
         })}
       </div>
+
+      {/* Keep default styling; no custom color */}
+      <ScrollBar orientation="vertical" />
     </ScrollArea>
   </SidebarGroupContent>
 </SidebarGroup>
-
 
       </SidebarContent>
 

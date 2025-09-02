@@ -15,9 +15,26 @@ export default function ClientMockList({ mocks, userId, purchasedMockIds }: any)
     setPurchased((prev) => new Set(prev).add(mockId));
   };
 
-  // Calculate discounted price (10% off)
-  const calculateDiscountedPrice = (price: number) => {
-    return Math.round(price * 0.9);
+  // Calculate discount percentage based on actualPrice and price
+  const calculateDiscountPercentage = (price: number, actualPrice: number | null) => {
+    if (!actualPrice || actualPrice <= price) return 0;
+    return Math.round(((actualPrice - price) / actualPrice) * 100);
+  };
+
+  // Format duration from minutes to readable format
+  const formatDuration = (minutes: number | null) => {
+    if (!minutes) return "Flexible Duration";
+    
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (hours > 0 && mins > 0) {
+      return `${hours}h ${mins}m`;
+    } else if (hours > 0) {
+      return `${hours}h`;
+    } else {
+      return `${mins}m`;
+    }
   };
 
   // Get difficulty info
@@ -55,14 +72,15 @@ export default function ClientMockList({ mocks, userId, purchasedMockIds }: any)
       {mocks.map((mock: any) => {
         const isPurchased = purchased.has(mock.id);
         const isFree = mock.price === 0;
-        const discountedPrice = calculateDiscountedPrice(mock.price);
+        const discountPercentage = calculateDiscountPercentage(mock.price, mock.actualPrice);
+        const hasDiscount = discountPercentage > 0;
         const questions = Array.isArray(mock.questions) ? mock.questions : [];
         const difficultyInfo = getDifficultyInfo(mock.difficulty);
         
-        // Mock test features to highlight
+        // Mock test features to highlight - now using dynamic duration
         const features = [
           { text: `${questions.length} Questions`, icon: FileText },
-          { text: "3 Hours Duration", icon: Clock },
+          { text: formatDuration(mock.duration), icon: Clock },
           { text: "Detailed Solutions", icon: Award },
           { text: "Performance Analytics", icon: Zap }
         ];
@@ -75,6 +93,8 @@ export default function ClientMockList({ mocks, userId, purchasedMockIds }: any)
               boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.1)"
             }}
           >
+            
+
             {/* Cyan glow effect on hover */}
             <div className="absolute inset-0 rounded-lg bg-cyan-400/0 group-hover:bg-cyan-400/10 opacity-0 group-hover:opacity-100 transition-all duration-500 -z-10 " />
             
@@ -119,13 +139,19 @@ export default function ClientMockList({ mocks, userId, purchasedMockIds }: any)
               {!isFree && !isPurchased && (
                 <div className="flex items-end gap-2 mb-6">
                   <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground line-through">₹{mock.price}</span>
-                    <span className="text-2xl font-bold text-foreground">₹{discountedPrice}</span>
+                    {hasDiscount && (
+                      <span className="text-xs text-muted-foreground line-through">₹{mock.actualPrice}</span>
+                    )}
+    <span className="text-2xl font-bold bg-gradient-to-r from-amber-500 to-orange-600 bg-clip-text text-transparent">
+  ₹{mock.price}
+</span>
                   </div>
-                  <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 ml-2">
-                  
-                    10% OFF
-                  </Badge>
+                  {hasDiscount && (
+     <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 flex items-center ml-2">
+  <Sparkles className="h-3.5 w-3.5 mr-1" />
+  Save {discountPercentage}% 
+</Badge>
+                  )}
                 </div>
               )}
 

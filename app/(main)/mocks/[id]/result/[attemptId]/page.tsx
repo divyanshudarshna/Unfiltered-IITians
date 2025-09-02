@@ -189,7 +189,7 @@ const attemptCount = await prisma.mockAttempt.count({
 
       {/* Sidebar Navigation */}
       <aside className="lg:w-72 space-y-6">
-        <Card className="sticky top-20">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-lg">Questions Navigation</CardTitle>
           </CardHeader>

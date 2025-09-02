@@ -34,6 +34,8 @@ interface CourseContextType {
   setActiveContent: (id: string) => void;
   setSelectedLecture: (lecture: Lecture | null) => void;
   refreshCourse: () => void;
+  markLectureComplete: (lectureId: string) => void;
+  saveProgress: (contentId: string, completed: boolean, quizScore?: number, totalQuizQuestions?: number) => void;
 }
 
 const CourseContext = createContext<CourseContextType | undefined>(undefined);
@@ -56,15 +58,13 @@ export const CourseProvider = ({ courseId, children }: Props) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch course and merge progress
   const fetchCourse = async () => {
     if (!courseId) return;
     try {
       setLoading(true);
 
-      // Fetch course contents
-      const res = await fetch(`/api/courses/${courseId}/contents`, {
-        credentials: "include",
-      });
+      const res = await fetch(`/api/courses/${courseId}/contents`, { credentials: "include" });
       const courseJson = await res.json();
 
       if (!res.ok) {
@@ -72,13 +72,10 @@ export const CourseProvider = ({ courseId, children }: Props) => {
         return;
       }
 
-      // Fetch saved progress
-      const progressRes = await fetch(`/api/courses/progress?courseId=${courseId}`, {
-        credentials: "include",
-      });
+      const progressRes = await fetch(`/api/courses/progress?courseId=${courseId}`, { credentials: "include" });
       const progressJson = progressRes.ok ? await progressRes.json() : [];
 
-      // Merge progress into course contents
+      // Merge progress into course
       courseJson.contents.forEach((content: CourseContent) => {
         content.lectures.forEach((lecture) => {
           const match = progressJson.find((p: any) => p.contentId === content.id && p.completed);
@@ -103,6 +100,59 @@ export const CourseProvider = ({ courseId, children }: Props) => {
     }
   };
 
+  // Save progress
+  const saveProgress = async (contentId: string, completed: boolean, quizScore?: number, totalQuizQuestions?: number) => {
+    if (!course) return;
+    try {
+      await fetch(`/api/courses/progress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          courseId,
+          contentId,
+          completed,
+          quizScore,
+          totalQuizQuestions,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save progress:", err);
+    }
+  };
+
+  // Mark lecture complete and optimistically update UI
+  const markLectureComplete = async (lectureId: string) => {
+    if (!course) return;
+    try {
+      await fetch(`/api/courses/progress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          courseId,
+          contentId: activeContent,
+          completed: true,
+        }),
+      });
+
+      const updatedCourse = { ...course };
+      updatedCourse.contents = updatedCourse.contents.map((c) => {
+        if (c.id === activeContent) {
+          return {
+            ...c,
+            lectures: c.lectures.map((l) => (l.id === lectureId ? { ...l, completed: true } : l)),
+          };
+        }
+        return c;
+      });
+
+      setCourse(updatedCourse);
+    } catch (err) {
+      console.error("Error marking lecture complete:", err);
+    }
+  };
+
   useEffect(() => {
     fetchCourse();
   }, [courseId]);
@@ -118,6 +168,8 @@ export const CourseProvider = ({ courseId, children }: Props) => {
         setActiveContent,
         setSelectedLecture,
         refreshCourse: fetchCourse,
+        markLectureComplete,
+        saveProgress,
       }}
     >
       {children}

@@ -66,6 +66,8 @@ model MockTest {
   title          String
   description    String?
   price          Int              @default(0)
+  actualPrice    Int?             // optional field for showing original price
+  duration       Int?             // optional field for test duration (minutes, etc.)
   questions      Json             // include type, options, explanation, etc.
   tags           String[]         @default([])
   difficulty     DifficultyLevel  @default(EASY)
