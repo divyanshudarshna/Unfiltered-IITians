@@ -51,7 +51,7 @@ export default function DashboardClient({
   }), [profile, safeUser]);
 
   return (
-    <main className="p-6 md:p-10 bg-background min-h-screen">
+    <main className="p-6 md:p-10  min-h-screen">
       <div className="max-w-7xl mx-auto">
     <h1 className="text-3xl md:text-4xl font-bold text-center mb-10 bg-gradient-to-r from-indigo-800 via-purple-700 to-pink-800 bg-clip-text text-transparent drop-shadow-lg">
   Student Dashboard

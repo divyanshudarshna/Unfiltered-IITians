@@ -11,23 +11,29 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 🔑 Resolve DB user (may or may not exist)
+    // 🔑 Resolve DB user
     const dbUser = await prisma.user.findUnique({
       where: { clerkUserId: user.id },
     });
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-    // 🔑 Decide which ID to use in Enrollment lookups
-    const enrollmentUserId = dbUser ? dbUser.id : user.id;
-
-    // ✅ Fetch enrollments
+    // ✅ Fetch enrollments with course + contents + user’s course progress
     const enrollments = await prisma.enrollment.findMany({
-      where: { userId: enrollmentUserId },
+      where: { userId: dbUser.id },
       include: {
         course: {
           include: {
             contents: {
-              include: { lectures: true, quiz: true },
+              include: {
+                lectures: true,
+                quiz: true,
+              },
               orderBy: { order: "asc" },
+            },
+            courseProgress: {
+              where: { userId: dbUser.id },
             },
           },
         },
@@ -35,26 +41,51 @@ export async function GET() {
       orderBy: { enrolledAt: "desc" },
     });
 
-    // ✅ Shape response
-    const result = enrollments.map((e) => {
-      const totalContents = e.course.contents?.length ?? 0;
-      const completedContents = 0; // TODO: hook up progress tracking
-      const progress =
-        totalContents > 0
-          ? Math.floor((completedContents / totalContents) * 100)
-          : 0;
+    // ✅ Shape response (calculate progress exactly like inside course page)
+    const result = enrollments.map((enroll) => {
+      let completed = 0;
+      let total = 0;
+
+      enroll.course.contents.forEach((content) => {
+        // Count lectures
+        content.lectures.forEach((lecture) => {
+          total++;
+          const lectureCompleted = enroll.course.courseProgress?.some(
+            (cp) => cp.contentId === content.id && cp.completed
+          );
+          if (lectureCompleted) completed++;
+        });
+
+        // Count quiz
+        if (content.quiz) {
+          total++;
+          const quizCompleted = enroll.course.courseProgress?.some(
+            (cp) => cp.contentId === content.id && cp.completed
+          );
+          if (quizCompleted) completed++;
+        }
+      });
+
+      const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      // ✅ Valid till calculation
+      const validTillDate = new Date(enroll.enrolledAt);
+      validTillDate.setMonth(
+        validTillDate.getMonth() + (enroll.course.durationMonths || 0)
+      );
 
       return {
-        id: e.course.id,
-        title: e.course.title,
-        description: e.course.description,
-        price: e.course.price,
-        actualPrice: e.course.actualPrice,
-        status: e.course.status,
-        enrolledAt: e.enrolledAt,
+        id: enroll.course.id,
+        title: enroll.course.title,
+        description: enroll.course.description,
+        price: enroll.course.price,
+        actualPrice: enroll.course.actualPrice,
+        status: enroll.course.status,
+        enrolledAt: enroll.enrolledAt,
         progress,
-        totalContents,
-        completedContents,
+        totalContents: total,
+        completedContents: completed,
+        validTill: validTillDate.toISOString(),
       };
     });
 

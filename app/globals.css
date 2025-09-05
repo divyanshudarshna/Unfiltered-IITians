@@ -318,7 +318,9 @@ h1, h2, h3, h4, h5, h6 {
                 0 0 60px rgba(139, 92, 246, 0.3);
   }
 }
-
+body {
+  overflow-x: hidden;
+}
 .glow-effect {
   animation: glow 2s ease-in-out infinite alternate;
 }

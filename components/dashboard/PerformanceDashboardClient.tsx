@@ -188,7 +188,7 @@ export default function PerformanceDashboardClient({
 }
 
   return (
-    <main className="p-4 md:p-8 bg-background min-h-screen">
+    <main className="p-4 md:p-8 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         

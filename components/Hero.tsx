@@ -1,92 +1,17 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Star, Users, Eye, Target } from "lucide-react";
-import { motion, useMotionValue, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-
+import { FaYoutube } from 'react-icons/fa';
 const stats = [
-  { number: "05+", label: "Years Experience", icon: Star, color: "from-purple-400 to-purple-600" },
-  { number: "100+", label: "Students Mentored", icon: Users, color: "from-purple-400 to-purple-600" },
-  { number: "65K+", label: "YouTube Views", icon: Eye, color: "from-purple-400 to-purple-600" },
-  { number: "100%", label: "Success Rate", icon: Target, color: "from-purple-400 to-purple-600" },
+  { number: "05+", label: "Years Experience", icon: Star, color: "from-purple-400 to-purple-600", accent: "text-purple-400" },
+  { number: "100+", label: "Students Mentored", icon: Users, color: "from-emerald-400 to-emerald-600", accent: "text-emerald-400" },
+ { number: "65K+", label: "YouTube Views", icon: FaYoutube, color: "from-red-500 to-red-600", accent: "text-red-400" },
+  { number: "100%", label: "Success Rate", icon: Target, color: "from-blue-400 to-blue-600", accent: "text-blue-400" },
 ];
 
-// 🌟 Spotlight background
-function SpotlightBackground() {
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-
-  const background = useTransform(
-    [mouseX, mouseY],
-    ([x, y]) =>
-      `radial-gradient(600px at ${x}px ${y}px, rgba(168,85,247,0.15), transparent 80%)`
-  );
-
-  return (
-    <motion.div
-      className="absolute inset-0 -z-0 opacity-50"
-      style={{ background }}
-      onMouseMove={(e) => {
-        mouseX.set(e.clientX);
-        mouseY.set(e.clientY);
-      }}
-    />
-  );
-}
-
-// ✨ Floating particles (hydration-safe)
-function FloatingParticles() {
-  const [particles, setParticles] = useState<
-    { width: number; height: number; top: string; left: string; delay: number; duration: number; x: number }[]
-  >([]);
-
-  useEffect(() => {
-    // generate random positions only on client
-    const newParticles = Array.from({ length: 15 }).map(() => ({
-      width: Math.random() * 20 + 5,
-      height: Math.random() * 20 + 5,
-      top: `${Math.random() * 100}%`,
-      left: `${Math.random() * 100}%`,
-      delay: Math.random() * 2,
-      duration: Math.random() * 6 + 6,
-      x: Math.random() * 25 - 12,
-    }));
-
-    setParticles(newParticles);
-  }, []);
-
-  return (
-    <>
-      {particles.map((p, i) => (
-        <motion.div
-          key={i}
-          className="absolute rounded-full bg-purple-400/20"
-          style={{
-            width: p.width,
-            height: p.height,
-            top: p.top,
-            left: p.left,
-          }}
-          animate={{
-            y: [0, -25, 0],
-            x: [0, p.x, 0],
-            opacity: [0, 0.8, 0],
-            scale: [0, 1.2, 0],
-          }}
-          transition={{
-            duration: p.duration,
-            repeat: Infinity,
-            delay: p.delay,
-          }}
-        />
-      ))}
-    </>
-  );
-}
-
-// 🚀 Hero section
 export default function Hero() {
   const [countedStats, setCountedStats] = useState(
     stats.map((stat) => ({ ...stat, displayedNumber: "0" }))
@@ -125,12 +50,8 @@ export default function Hero() {
   }, []);
 
   return (
-    <section className="relative min-h-screen py-20 px-6 md:px-12 overflow-hidden bg-gradient-to-br from-slate-900 via-slate-950 to-black">
-      {/* Background Effects */}
-      <SpotlightBackground />
-      <FloatingParticles />
-
-      {/* Animated orbs */}
+    <section className="relative min-h-screen py-20 px-6 md:px-12 overflow-hidden">
+      {/* Animated orbs (keep these for depth, subtle) */}
       <motion.div
         className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
         animate={{ x: [0, 50, 0], y: [0, -30, 0], scale: [1, 1.2, 1] }}
@@ -184,69 +105,73 @@ export default function Hero() {
           </motion.p>
         </motion.div>
 
-        {/* Stats */}
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-5xl"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: { opacity: 0 },
-            visible: { opacity: 1, transition: { delayChildren: 1.2, staggerChildren: 0.2 } },
-          }}
-        >
-          {countedStats.map((stat, index) => {
-            const IconComponent = stat.icon;
-            return (
+     {/* Stats */}
+<motion.div
+  className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-5xl"
+  initial="hidden"
+  animate="visible"
+  variants={{
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { delayChildren: 1.2, staggerChildren: 0.2 } },
+  }}
+>
+  {countedStats.map((stat, index) => {
+    const IconComponent = stat.icon;
+    return (
+      <motion.div
+        key={index}
+        variants={{
+          hidden: { y: 30, opacity: 0 },
+          visible: { y: 0, opacity: 1 },
+        }}
+        whileHover={{ y: -6, transition: { duration: 0.3 } }}
+      >
+        <Card className="relative bg-slate-900/50 backdrop-blur-xl border border-slate-700/40 rounded-xl overflow-hidden group hover:bg-slate-800/70 transition-all duration-300 shadow-sm hover:shadow-md">
+          {/* Glow */}
+          <div
+            className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-5 group-hover:opacity-10 transition-all duration-500`}
+          />
+
+          <CardContent className="p-4 text-center relative z-10">
+            {/* Icon */}
+            <motion.div
+              className={`inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r ${stat.color} rounded-xl mb-3 shadow-md`}
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <IconComponent className="w-6 h-6 text-white" />
+            </motion.div>
+
+            {/* Number */}
+            <motion.div
+              className={`text-2xl font-bold ${stat.accent} mb-1`}
+              key={stat.displayedNumber}
+              initial={{ scale: 0.9, opacity: 0.5 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              {stat.displayedNumber}
+            </motion.div>
+
+            {/* Label */}
+            <div className="text-xs text-slate-300 font-medium">{stat.label}</div>
+
+            {/* Progress Bar */}
+            <div className="mt-3 h-1 bg-slate-700 rounded-full overflow-hidden">
               <motion.div
-                key={index}
-                variants={{
-                  hidden: { y: 40, opacity: 0 },
-                  visible: { y: 0, opacity: 1 },
-                }}
-                whileHover={{ y: -10, transition: { duration: 0.3 } }}
-              >
-                <Card className="relative bg-slate-800/40 backdrop-blur-xl border border-purple-400/20 rounded-2xl overflow-hidden group hover:bg-slate-800/70 transition-all duration-300 shadow-lg hover:shadow-purple-500/20">
-                  {/* Glow */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-400/5 to-transparent rounded-2xl group-hover:from-purple-400/10 transition-all duration-500" />
+                className={`h-full bg-gradient-to-r ${stat.color} rounded-full`}
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 2, delay: index * 0.3 + 1.5 }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  })}
+</motion.div>
 
-                  <CardContent className="p-6 text-center relative z-10">
-                    <motion.div
-                      className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r ${stat.color} rounded-2xl mb-4 shadow-lg shadow-purple-400/20`}
-                      whileHover={{ scale: 1.1, rotate: 5 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                    >
-                      <IconComponent className="w-8 h-8 text-white" />
-                    </motion.div>
-
-                    <motion.div
-                      className="text-4xl font-extrabold text-purple-400 mb-2"
-                      key={stat.displayedNumber}
-                      initial={{ scale: 0.8, opacity: 0.5 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      {stat.displayedNumber}
-                    </motion.div>
-
-                    <div className="border-r">
-
-                    </div>
-                    <div className="text-sm text-slate-300 font-medium">{stat.label}</div>
-
-                    <div className="mt-4 h-1 bg-slate-700 rounded-full overflow-hidden">
-                      <motion.div
-                        className={`h-full bg-gradient-to-r ${stat.color} rounded-full`}
-                        initial={{ width: 0 }}
-                        animate={{ width: "100%" }}
-                        transition={{ duration: 2, delay: index * 0.3 + 1.5 }}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </motion.div>
       </div>
     </section>
   );

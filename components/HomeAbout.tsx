@@ -96,7 +96,7 @@ const highlights = [
 
 export default function HowICanHelp() {
   return (
-    <section className="bg-background text-foreground py-16 px-6 sm:px-10 lg:px-20">
+    <section className="py-16 px-6 sm:px-10 lg:px-20">
       <div className="max-w-6xl mx-auto text-center">
         <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent mb-8 font-heading">
           How I Can Help You Succeed

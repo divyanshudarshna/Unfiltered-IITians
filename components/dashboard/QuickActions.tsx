@@ -1,11 +1,13 @@
 // components/dashboard/QuickActions.tsx
-import { Card,CardHeader,CardTitle,CardContent } from "../ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
+import Link from "next/link";
+
 const actions = [
-  { label: "My Courses", icon: "📘" },
-  { label: "Book Session", icon: "👨‍🏫" },
-  { label: "Resources", icon: "📂" },
-  { label: "Progress", icon: "🏆" },
+  { label: "My Courses", icon: "📘", href: "/dashboard/courses" },
+  { label: "Book Session", icon: "👨‍🏫", href: "/book-session" },
+  { label: "Resources", icon: "📂", href: "/resources" },
+  { label: "Mocks", icon: "🏆", href: "/mocks" },
 ];
 
 export function QuickActions() {
@@ -18,11 +20,14 @@ export function QuickActions() {
         {actions.map((action) => (
           <Button
             key={action.label}
+            asChild
             variant="outline"
             className="flex flex-col items-center justify-center gap-2 py-8 px-6 text-sm rounded-lg border-muted transition-all duration-300 ease-in-out hover:scale-105 hover:bg-primary/10 hover:border-primary hover:shadow-md hover:text-primary cursor-pointer"
           >
-            <span className="text-2xl">{action.icon}</span>
-            <span className="font-medium">{action.label}</span>
+            <Link href={action.href}>
+              <span className="text-2xl">{action.icon}</span>
+              <span className="font-medium">{action.label}</span>
+            </Link>
           </Button>
         ))}
       </CardContent>

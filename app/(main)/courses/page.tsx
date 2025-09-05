@@ -223,10 +223,11 @@ export default function CoursesPage() {
   return (
     <div className="container mx-auto p-6">
       {/* Header */}
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
+      <div className="mb-8 text-center my-4">
+        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
           Master Your Skills with Our Courses
         </h1>
+        
         <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
           Discover comprehensive courses designed by industry experts to boost
           your career.

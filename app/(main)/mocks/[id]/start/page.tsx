@@ -139,7 +139,7 @@ export default function StartMockPage({ params }: { params: Promise<{ id: string
   const totalTime = mock.duration || Math.round(totalQuestions * 3); // Use actual duration or fallback
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 py-12 px-4">
+    <main className="min-h-screen  py-12 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Header Section */}
         <div className="text-center mb-12 relative">
