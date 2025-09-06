@@ -21,6 +21,7 @@ import {
   Info,
   Youtube,
   Phone,
+  HelpCircle,
 } from "lucide-react"
 
 import {
@@ -148,6 +149,14 @@ const Navbar = () => {
                       className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
                     >
                       <Phone size={16} /> Contact
+                    </Link>
+                  </li>
+                    <li>
+                    <Link
+                      href="/faqs"
+                      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
+                    >
+                      <HelpCircle size={16} /> Faqs
                     </Link>
                   </li>
                 </ul>

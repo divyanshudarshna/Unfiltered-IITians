@@ -233,6 +233,17 @@ model ContactUs {
   updatedAt DateTime      @updatedAt
 }
 
+model FAQ {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  question  String
+  answer    String
+  category  String?   // free text category
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  visible   Boolean   @default(true)
+}
+
+
 // npx prisma db push
 // npx prisma generate
 // npx prisma studio
