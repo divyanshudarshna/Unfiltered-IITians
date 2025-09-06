@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, BookOpen, PlayCircle } from "lucide-react";
+import { AlertCircle, BookOpen, PlayCircle, Bell } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import CourseSidebar from "./components/CourseSidebar";
@@ -11,6 +12,44 @@ import LectureContent from "./components/LectureContent";
 import Quiz from "./components/Quiz";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useCourse } from "@/app/contexts/CourseContext";
+import { Announcements } from "./components/Announcements";
+import { useAuth } from "@clerk/nextjs";
+
+// Custom hook to fetch unread announcements
+const useUnreadAnnouncements = (courseId?: string, dependencies: any[] = []) => {
+  const { getToken } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = async () => {
+    if (!courseId) return;
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      const res = await fetch(`/api/announcements?courseId=${courseId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        setUnreadCount(0);
+        return;
+      }
+
+      const data = await res.json();
+      const announcementsArray = Array.isArray(data.announcements) ? data.announcements : [];
+      setUnreadCount(announcementsArray.filter((a) => !a.read).length);
+    } catch (err) {
+      console.error("Failed to fetch unread count:", err);
+      setUnreadCount(0);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnreadCount();
+  }, [courseId, ...dependencies]);
+
+  return { unreadCount, refresh: fetchUnreadCount };
+};
 
 export default function CourseDetailPageContent() {
   const {
@@ -29,8 +68,15 @@ export default function CourseDetailPageContent() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [currentQuizContentId, setCurrentQuizContentId] = useState<string | null>(null);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
 
-  // Helpers
+  // Automatically refresh unread count when selectedLecture or activeContent changes
+  const { unreadCount, refresh: refreshAnnouncements } = useUnreadAnnouncements(
+    course?.id,
+    [selectedLecture?.id, activeContent]
+  );
+
+  // Helper to find lecture position in course.contents
   const findLecturePosition = () => {
     if (!course || !selectedLecture) return null;
     for (let ci = 0; ci < course.contents.length; ci++) {
@@ -41,7 +87,7 @@ export default function CourseDetailPageContent() {
     return null;
   };
 
-  // Next lecture/quiz handler
+  // Navigation handlers
   const handleNext = () => {
     if (!course || !selectedLecture) return;
     const pos = findLecturePosition();
@@ -70,7 +116,6 @@ export default function CourseDetailPageContent() {
     }
   };
 
-  // Previous lecture/quiz handler
   const handlePrevious = () => {
     if (!course || !selectedLecture) return;
     const pos = findLecturePosition();
@@ -111,7 +156,7 @@ export default function CourseDetailPageContent() {
     setCurrentQuizContentId(null);
   };
 
-  // Loading skeleton
+  // Render loading skeleton
   if (loading) {
     return (
       <div className="flex h-screen">
@@ -131,7 +176,7 @@ export default function CourseDetailPageContent() {
     );
   }
 
-  // Error state
+  // Render error or empty states
   if (error) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -159,18 +204,17 @@ export default function CourseDetailPageContent() {
     );
   }
 
-  // Main render
   return (
     <div className="flex h-screen w-full overflow-hidden">
       {/* Sidebar */}
-  <div
-  className={cn(
-    "h-full border-r overflow-hidden transition-[width,opacity] duration-300 ease-in-out",
-    isSidebarCollapsed
-      ? "w-0 opacity-0 pointer-events-none"
-      : "w-[350px] opacity-100"
-  )}
->
+      <div
+        className={cn(
+          "h-full border-r overflow-hidden transition-[width,opacity] duration-300 ease-in-out",
+          isSidebarCollapsed
+            ? "w-0 opacity-0 pointer-events-none"
+            : "w-[350px] opacity-100"
+        )}
+      >
         <CourseSidebar
           course={course}
           selectedLecture={selectedLecture}
@@ -186,9 +230,32 @@ export default function CourseDetailPageContent() {
 
       {/* Main content */}
       <div className="flex flex-col flex-1 overflow-hidden">
-        <header className="flex items-center h-16 px-6 border-b gap-4 shrink-0">
-          <SidebarTrigger onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
-          <h1 className="text-xl font-semibold">{course.title}</h1>
+        <header className="flex items-center h-16 px-6 border-b gap-4 justify-between">
+          <div className="flex items-center gap-4">
+            <SidebarTrigger onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
+            <h1 className="text-xl font-semibold">{course?.title}</h1>
+          </div>
+
+       <div className="flex items-center gap-2">
+  <Button
+    variant="ghost"
+    onClick={() => setShowAnnouncements(true)}
+    className="relative flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+               shadow-sm hover:shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 ease-in-out"
+  >
+    <Bell className="h-5 w-5" />
+    <span className="font-medium text-sm md:text-base">Announcements</span>
+    
+    {unreadCount > 0 && (
+      <Badge 
+        className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-red-500 text-white shadow-md"
+      >
+        {unreadCount > 9 ? '9+' : unreadCount}
+      </Badge>
+    )}
+  </Button>
+</div>
+
         </header>
 
         <main className="flex-1 overflow-auto p-6">
@@ -233,6 +300,14 @@ export default function CourseDetailPageContent() {
           )}
         </main>
       </div>
+
+      {/* Announcements dialog */}
+      <Announcements
+        courseId={course?.id || ""}
+        open={showAnnouncements}
+        onOpenChange={setShowAnnouncements}
+        onMarkAsRead={refreshAnnouncements} // Refresh count when marked as read
+      />
     </div>
   );
 }

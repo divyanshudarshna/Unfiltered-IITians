@@ -58,6 +58,10 @@ model User {
   enrollments      Enrollment[]
   subscriptions    Subscription[]
   courseProgress   CourseProgress[]
+
+   // Added relations for announcements & feedback
+  announcementsReceived AnnouncementRecipient[]
+  feedbacks             CourseFeedback[]
 }
 
 // ================== MOCKS ==================
@@ -66,16 +70,15 @@ model MockTest {
   title          String
   description    String?
   price          Int              @default(0)
-  actualPrice    Int?             // optional field for showing original price
-  duration       Int?             // optional field for test duration (minutes, etc.)
-  questions      Json             // include type, options, explanation, etc.
+  actualPrice    Int?
+  duration       Int?
+  questions      Json
   tags           String[]         @default([])
   difficulty     DifficultyLevel  @default(EASY)
   status         PublishStatus    @default(DRAFT)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  // Relations
   attempts       MockAttempt[]
   subscriptions  Subscription[]
 }
@@ -94,7 +97,6 @@ model MockAttempt {
   startedAt      DateTime  @default(now())
   submittedAt    DateTime?
 
-  // Relations
   user           User      @relation(fields: [userId], references: [id])
   mockTest       MockTest  @relation(fields: [mockTestId], references: [id])
 }
@@ -108,7 +110,6 @@ model Subscription {
   paid            Boolean    @default(false)
   createdAt       DateTime   @default(now())
 
-  // Relations
   user     User      @relation(fields: [userId], references: [id])
   mockTest MockTest? @relation(fields: [mockTestId], references: [id])
   course   Course?   @relation(fields: [courseId], references: [id])
@@ -119,19 +120,22 @@ model Course {
   id             String       @id @default(auto()) @map("_id") @db.ObjectId
   title          String
   description    String?
-  price          Int          // Set price
-  actualPrice    Int?         // Discounted price
+  price          Int
+  actualPrice    Int?
   durationMonths Int
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   status         PublishStatus @default(DRAFT)
 
-  // Relations
   enrollments    Enrollment[]
   contents       Content[]
   subscriptions  Subscription[]
   coupons        Coupon[]
   courseProgress CourseProgress[]
+  announcements  CourseAnnouncement[]
+
+  
+  feedbacks      CourseFeedback[]
 }
 
 model Enrollment {
@@ -147,7 +151,7 @@ model Enrollment {
 model Coupon {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   code        String   @unique
-  discountPct Int      // % discount
+  discountPct Int
   validTill   DateTime
   courseId    String   @db.ObjectId
 
@@ -172,7 +176,7 @@ model Lecture {
   title       String
   videoUrl    String?
   pdfUrl      String?
-  summary     String?   // Rich text/markdown
+  summary     String?
   order       Int
   contentId   String    @db.ObjectId
 
@@ -181,8 +185,8 @@ model Lecture {
 
 model Quiz {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  contentId   String    @unique @db.ObjectId   // 👈 unique for 1–1 relation
-  questions   Json      // store MCQs, options, correct answers, explanations
+  contentId   String    @unique @db.ObjectId
+  questions   Json
 
   content     Content   @relation("ContentQuiz", fields: [contentId], references: [id])
 }
@@ -194,15 +198,14 @@ model CourseProgress {
   courseId            String   @db.ObjectId
   contentId           String   @db.ObjectId
   completed           Boolean  @default(false)
-  progress            Int      @default(0) // 0-100 percentage
-  quizScore           Int?     // Score for quiz if content has one
+  progress            Int      @default(0)
+  quizScore           Int?
   totalQuizQuestions  Int?
-  attemptedQuestions  Json?    // Store the attempted quiz data
+  attemptedQuestions  Json?
   lastAccessed        DateTime @default(now())
   createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime @default(now())
 
-  // Relations
   user                User     @relation(fields: [userId], references: [id])
   course              Course   @relation(fields: [courseId], references: [id])
   content             Content  @relation(fields: [contentId], references: [id])
@@ -233,14 +236,64 @@ model ContactUs {
   updatedAt DateTime      @updatedAt
 }
 
+// ================== FAQ ==================
 model FAQ {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   question  String
   answer    String
-  category  String?   // free text category
+  category  String?   // free text
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   visible   Boolean   @default(true)
+}
+
+// ================== ANNOUNCEMENTS ==================
+model CourseAnnouncement {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  courseId    String    @db.ObjectId
+  title       String
+  message     String
+  sendEmail   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+
+  course      Course    @relation(fields: [courseId], references: [id])
+  recipients  AnnouncementRecipient[]
+}
+
+model AnnouncementRecipient {
+  id             String             @id @default(auto()) @map("_id") @db.ObjectId
+  announcementId String             @db.ObjectId
+  userId         String             @db.ObjectId
+  read           Boolean            @default(false)
+  deliveredEmail Boolean            @default(false)
+  readAt         DateTime?
+
+  announcement   CourseAnnouncement @relation(fields: [announcementId], references: [id])
+  user           User               @relation(fields: [userId], references: [id])
+
+  @@unique([announcementId, userId], name: "announcementId_userId")
+}
+
+
+// ================== FEEDBACK ==================
+enum FeedbackStatus {
+  PENDING
+  RESOLVED
+  DELETED
+}
+
+model CourseFeedback {
+  id         String        @id @default(auto()) @map("_id") @db.ObjectId
+  courseId   String        @db.ObjectId
+  userId     String        @db.ObjectId
+  content    String
+  status     FeedbackStatus @default(PENDING)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @default(now())
+
+  course     Course        @relation(fields: [courseId], references: [id])
+  user       User          @relation(fields: [userId], references: [id])
 }
 
 
