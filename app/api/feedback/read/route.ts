@@ -1,4 +1,4 @@
-// app/api/announcements/read/route.ts
+// app/api/feedback/read/route.ts
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
@@ -10,28 +10,28 @@ export async function PATCH(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { announcementId } = await req.json();
-    if (!announcementId) {
-      return new NextResponse("Missing announcementId", { status: 400 });
+    const { replyId } = await req.json();
+    if (!replyId) {
+      return new NextResponse("Missing replyId", { status: 400 });
     }
 
     // Map Clerk ID → internal User ID
     const dbUser = await prisma.user.findUnique({
-      where: { clerkUserId: clerkUser.id }, // ✅ correct field
+      where: { clerkUserId: clerkUser.id },
       select: { id: true },
     });
 
     if (!dbUser) return new NextResponse("User not found", { status: 404 });
 
-    // Mark announcement as read for this user
-    await prisma.announcementRecipient.updateMany({
-      where: { announcementId, userId: dbUser.id },
+    // Mark feedback reply as read
+    await prisma.feedbackReplyRecipient.updateMany({
+      where: { replyId, userId: dbUser.id },
       data: { read: true, readAt: new Date() },
     });
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("PATCH /api/announcements/read error:", err);
+    console.error("PATCH /api/feedback/read error:", err);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

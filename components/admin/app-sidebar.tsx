@@ -2,24 +2,23 @@
 
 import * as React from "react"
 import {
-//   IconCamera,
-//   IconChartBar,
   IconDashboard,
-//   IconDatabase,
-//   IconFileAi,
-//   IconFileDescription,
-//   IconFileWord,
+  IconUsers,
   IconFolder,
   IconHelp,
   IconInnerShadowTop,
-//   IconListDetails,
   IconReport,
   IconSearch,
   IconSettings,
-  IconUsers,
+  IconSpeakerphone,
+  IconMessage,
+  IconStar,
+  IconAddressBook,
+  IconHelpCircle,
+  IconBook,
+  IconTestPipe,
 } from "@tabler/icons-react"
 import Link from "next/link"
-// import { NavDocuments } from "@/components/admin/nav-documents"
 import { NavMain } from "@/components/admin/nav-main"
 import { NavSecondary } from "@/components/admin/nav-secondary"
 import { NavUser } from "@/components/admin/nav-user"
@@ -33,7 +32,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-
 const data = {
   user: {
     name: "Raj Rabidas",
@@ -43,10 +41,13 @@ const data = {
   navMain: [
     { title: "Dashboard", url: "/admin/dashboard", icon: IconDashboard },
     { title: "Users", url: "/admin/users", icon: IconUsers },
-    { title: "Mocks", url: "/admin/mocks", icon: IconFolder },
-    { title: "Courses", url: "/admin/courses", icon: IconFolder },
-    { title: "Testimonials", url: "/admin/testimonials", icon: IconReport },
-    { title: "Contacts", url: "/admin/contact-us", icon: IconReport },
+    { title: "Mocks", url: "/admin/mocks", icon: IconTestPipe },
+    { title: "Courses", url: "/admin/courses", icon: IconBook },
+    { title: "Announcements", url: "/admin/announcement", icon: IconSpeakerphone },
+    { title: "Feedbacks", url: "/admin/feedbacks", icon: IconMessage },
+    { title: "Testimonials", url: "/admin/testimonials", icon: IconStar },
+    { title: "Contacts", url: "/admin/contact-us", icon: IconAddressBook },
+    { title: "FAQ", url: "/admin/faq", icon: IconHelpCircle },
   ],
   navSecondary: [
     { title: "Settings", url: "/admin/settings", icon: IconSettings },
@@ -54,7 +55,6 @@ const data = {
     { title: "Search", url: "/admin/search", icon: IconSearch },
   ],
 }
-
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -66,20 +66,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >  
-          
-          
-                  <Link href="/admin/dashboard" className="flex items-center gap-2">
-                {/* <IconInnerShadowTop className="!size-5" /> */}
+              <Link href="/admin/dashboard" className="flex items-center gap-2">
+                <IconInnerShadowTop className="!size-5" />
                 <span className="text-base font-semibold">Admin Dashboard</span>
               </Link>
-
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        {/* <NavDocuments items={data.documents} /> */}
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
