@@ -22,6 +22,7 @@ import {
   Youtube,
   Phone,
   HelpCircle,
+  Calendar,Download
 } from "lucide-react"
 
 import {
@@ -91,32 +92,40 @@ const Navbar = () => {
                 Courses
               </NavigationMenuTrigger>
               <NavigationMenuContent className="p-4 rounded-lg shadow-lg">
-                <ul className="flex flex-col gap-2 min-w-[200px]">
-                  <li>
-                    <Link
-                      href="/courses"
-                      className="flex items-center gap-2 hover:bg-accent hover:text-blue-400 px-3 py-2 rounded-md transition-colors"
-                    >
-                      <BookOpen size={16} /> All Courses
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/mocks"
-                      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
-                    >
-                      <FileText size={16} /> Mocks
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/resources"
-                      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
-                    >
-                      📂 Free Resources
-                    </Link>
-                  </li>
-                </ul>
+              <ul className="flex flex-col gap-2 min-w-[200px]">
+  <li>
+    <Link
+      href="/courses"
+      className="flex items-center gap-2 hover:bg-accent hover:text-blue-400 px-3 py-2 rounded-md transition-colors"
+    >
+      <BookOpen size={16} /> All Courses
+    </Link>
+  </li>
+  <li>
+    <Link
+      href="/mocks"
+      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
+    >
+      <FileText size={16} /> Mocks
+    </Link>
+  </li>
+  <li>
+    <Link
+      href="/resources"
+      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
+    >
+      <Download size={16} /> Free Resources
+    </Link>
+  </li>
+  <li>
+    <Link
+      href="/guidance"
+      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
+    >
+      <Calendar size={16} /> Book Sessions
+    </Link>
+  </li>
+</ul>
               </NavigationMenuContent>
             </NavigationMenuItem>
 
@@ -335,6 +344,7 @@ const Navbar = () => {
           <Link href="/courses" className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>All Courses</Link>
           <Link href="/mocks" className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Mocks</Link>
           <Link href="/resources" className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Free Resources</Link>
+          <Link href="/guidance" className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Guidance</Link>
         </div>
       </details>
 

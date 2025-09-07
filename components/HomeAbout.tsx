@@ -98,29 +98,37 @@ export default function HowICanHelp() {
   return (
     <section className="py-16 px-6 sm:px-10 lg:px-20">
       <div className="max-w-6xl mx-auto text-center">
-        <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent mb-8 font-heading">
-          How I Can Help You Succeed
-        </h2>
+        <div className="text-center px-4 md:px-0">
+  {/* Title with gradient */}
+  <h2 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-purple-600 via-cyan-400 to-blue-500 bg-clip-text text-transparent mb-3">
+    How I Can Help You Succeed ?
+  </h2>
+  {/* Subtitle / designation */}
+  <p className="text-lg sm:text-xl text-gray-600 mb-12">
+   Divyanshu Darshana | PhD Scholar, IIT Roorkee – Biotechnology Department
+  </p>
 
-        <div className="flex justify-center mb-12">
-          <Tilt
-            className="w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 border-4 border-primary rounded-full overflow-hidden shadow-lg transition-transform"
-            tiltMaxAngleX={25}
-            tiltMaxAngleY={25}
-            scale={1.05}
-            perspective={900}
-            gyroscope={true}
-          >
-            <Image
-              src="/about.jpg"
-              alt="Divyanshu Darshna"
-              width={300}
-              height={300}
-              className="object-cover w-full h-full"
-              priority
-            />
-          </Tilt>
-        </div>
+  {/* Circular profile with hover glow */}
+  <div className="flex justify-center mb-8">
+    <Tilt
+      className="w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full overflow-hidden transition-transform duration-500 hover:scale-105 hover:shadow-[0_0_30px_rgba(0,255,255,0.6)]"
+      tiltMaxAngleX={25}
+      tiltMaxAngleY={25}
+      perspective={900}
+      gyroscope={true}
+    >
+      <Image
+        src="/about.jpg"
+        alt="Divyanshu Darshna"
+        width={300}
+        height={300}
+        className="object-cover w-full h-full rounded-full border-4 border-cyan-400"
+        priority
+      />
+    </Tilt>
+  </div>
+</div>
+
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {highlights.map((item, index) => (

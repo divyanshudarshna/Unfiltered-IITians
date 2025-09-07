@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import ClientMockList from "@/components/ClientMockList";
+import FAQPage from "@/components/faq";
 export default async function MockListPage() {
   const { userId } = await auth();
 
@@ -64,6 +65,8 @@ export default async function MockListPage() {
             userId={userId}
             purchasedMockIds={userSubscriptions.map((sub) => sub.mockTestId)}
           />
+
+          <FAQPage categories={["mocks"]}/>
         </div>
       </main>
     </div>

@@ -11,7 +11,16 @@ type Faq = {
   category?: string;
 };
 
-export default function FAQPage() {
+type FAQPageProps = {
+  /**
+   * List of categories to display FAQs for.
+   * Example: ["courses", "getting started"]
+   * Defaults to ["getting started"] if not provided.
+   */
+  categories?: string[];
+};
+
+export default function FAQPage({ categories }: FAQPageProps) {
   const [faqData, setFaqData] = useState<
     { category: string; questions: Faq[] }[]
   >([]);
@@ -21,12 +30,20 @@ export default function FAQPage() {
     setActiveItem(activeItem === index ? null : index);
   };
 
-  // Badge color styles per category
+  // 🔥 Badge color styles for different categories
   const categoryColors: Record<string, string> = {
     "getting started":
       "text-emerald-700 bg-slate-700 border-emerald-500 dark:text-amber-400 dark:border-amber-200/20",
     courses:
       "text-violet-700 bg-slate-700 border-violet-500 dark:text-pink-400 dark:border-pink-200/20",
+    mocks:
+      "text-cyan-700 bg-slate-700 border-cyan-500 dark:text-cyan-400 dark:border-cyan-200/20",
+    sessions:
+      "text-orange-700 bg-slate-700 border-orange-500 dark:text-orange-400 dark:border-orange-200/20",
+    materials:
+      "text-pink-700 bg-slate-700 border-pink-500 dark:text-pink-400 dark:border-pink-200/20",
+    general:
+      "text-light-300 bg-slate-700 border-light-400 dark:text-light-200 dark:border-light-300/30",
   };
 
   useEffect(() => {
@@ -35,12 +52,11 @@ export default function FAQPage() {
         const res = await fetch("/api/faq");
         const json = await res.json();
 
-        // Always resolve to an array
         const data: Faq[] = Array.isArray(json)
           ? json
           : json.faqs || json.data || [];
 
-        // Group by category
+        // Group FAQs by category
         const grouped: Record<string, Faq[]> = {};
         data.forEach((faq) => {
           const cat = faq.category?.toLowerCase() ?? "general";
@@ -48,12 +64,15 @@ export default function FAQPage() {
           grouped[cat].push(faq);
         });
 
-        // Select only Getting Started & Courses
-        const selectedCats = ["getting started", "courses"];
+        // Use passed categories or fallback
+        const selectedCats = categories?.map((c) => c.toLowerCase()) || [
+          "getting started",
+        ];
+
         const sections = selectedCats
           .map((cat) => ({
             category: cat,
-            questions: grouped[cat]?.slice(0, 3) ?? [], // limit 3 per category
+            questions: grouped[cat]?.slice(0, 3) ?? [], // show max 3
           }))
           .filter((s) => s.questions.length > 0);
 
@@ -64,7 +83,7 @@ export default function FAQPage() {
     };
 
     fetchFaqs();
-  }, []);
+  }, [categories]);
 
   return (
     <div className="min-h-screen bg-dark-900 text-light-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -85,7 +104,7 @@ export default function FAQPage() {
             {/* More FAQs button */}
             <Link
               href="/faqs"
-              className="mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-400 px-6 py-2 text-cyan-400  hover:bg-slate-600 transition"
+              className="mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-400 px-6 py-2 text-cyan-400 hover:bg-slate-600 transition"
             >
               More FAQs <ArrowRight className="w-4 h-4" />
             </Link>
@@ -95,7 +114,7 @@ export default function FAQPage() {
           <ul className="flex w-full flex-col gap-12 xl:max-w-[70%]">
             {faqData.map((section, sectionIndex) => (
               <li key={sectionIndex} className="flex flex-col gap-6">
-                {/* Category badge */}
+                {/* Category Badge */}
                 <div className="flex items-center justify-center w-fit rounded-full bg-dark-700 px-3 py-1">
                   <p
                     className={`text-sm font-medium capitalize border rounded-full p-2 ${

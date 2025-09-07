@@ -5,7 +5,7 @@ import Link from "next/link";
 
 const actions = [
   { label: "My Courses", icon: "📘", href: "/dashboard/courses" },
-  { label: "Book Session", icon: "👨‍🏫", href: "/book-session" },
+  { label: "Book Session", icon: "👨‍🏫", href: "/guidance" },
   { label: "Resources", icon: "📂", href: "/resources" },
   { label: "Mocks", icon: "🏆", href: "/mocks" },
 ];

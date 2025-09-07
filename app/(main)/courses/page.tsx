@@ -16,7 +16,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import {
   Clock,
-  
   BookOpen,
   ArrowRight,
   CheckCircle,
@@ -26,12 +25,11 @@ import {
   Award,
   Bookmark,
   Zap,
-  
   Rocket,
   Search,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-
+import FAQPage from "@/components/faq";
 interface Course {
   id: string;
   title: string;
@@ -121,7 +119,6 @@ export default function CoursesPage() {
     }
   }, [searchQuery, courses]);
 
-  
   useEffect(() => {
     if (isUserLoaded && user && courses.length > 0) {
       const checkEnrollments = async () => {
@@ -221,13 +218,14 @@ export default function CoursesPage() {
   }
 
   return (
+    <>
     <div className="container mx-auto p-6">
       {/* Header */}
       <div className="mb-8 text-center my-4">
         <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
           Master Your Skills with Our Courses
         </h1>
-        
+
         <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
           Discover comprehensive courses designed by industry experts to boost
           your career.
@@ -400,14 +398,17 @@ export default function CoursesPage() {
 
                 <CardFooter>
                   {isEnrolled ? (
-                  <Button
-  asChild
-  className="w-full bg-gradient-to-r from-amber-800 to-amber-700 hover:from-amber-700 hover:to-amber-600 text-white transition-all duration-200"
->
-  <Link href={`/dashboard/courses/${course.id}`} className="flex items-center justify-center gap-2">
-    Start Learning <Rocket className="h-4 w-4" />
-  </Link>
-</Button>
+                    <Button
+                      asChild
+                      className="w-full bg-gradient-to-r from-amber-800 to-amber-700 hover:from-amber-700 hover:to-amber-600 text-white transition-all duration-200"
+                    >
+                      <Link
+                        href={`/dashboard/courses/${course.id}`}
+                        className="flex items-center justify-center gap-2"
+                      >
+                        Start Learning <Rocket className="h-4 w-4" />
+                      </Link>
+                    </Button>
                   ) : (
                     <Button
                       asChild
@@ -440,6 +441,9 @@ export default function CoursesPage() {
           )}
         </div>
       )}
+    
     </div>
+    <FAQPage categories={["courses"]}/>
+    </>
   );
 }
