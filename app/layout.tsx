@@ -1,14 +1,13 @@
-import type { Metadata } from "next"
-import { ClerkProvider } from "@clerk/nextjs"
-import { ThemeProvider } from "@/components/ThemeProvider"
-import { AuthSync } from "@/components/AuthSync"
+import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { AuthSync } from "@/components/AuthSync";
+import { Toaster } from "@/components/ui/sonner";
+import { dark } from "@clerk/themes";
+import TopProgress from "@/components/TopProgress";
 
-import "./globals.css"
-import { Toaster } from "@/components/ui/sonner"
-import { dark } from "@clerk/themes"
-import { RouteLoaderProvider, RouteLoaderOverlay } from "@/components/RouteLoader"
-import Script from "next/script"
-import { Suspense } from "react"
+import Script from "next/script";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Unfiltered IITIans",
@@ -16,7 +15,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/logo.jpeg",
   },
-}
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -29,16 +28,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             enableSystem
             disableTransitionOnChange
           >
-            <RouteLoaderProvider>
+        
               <AuthSync />
-
-              {/* 🔥 Suspense fallback reuses the same loader */}
-              <Suspense fallback={<RouteLoaderOverlay active={true} />}>
-                {children}
-              </Suspense>
-
+              <TopProgress/>
+              {children}
               <Toaster />
-            </RouteLoaderProvider>
+           
           </ThemeProvider>
         </ClerkProvider>
 
@@ -48,5 +43,5 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </body>
     </html>
-  )
+  );
 }

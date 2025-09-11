@@ -1,4 +1,5 @@
 "use client"
+
 import { useClerk } from "@clerk/nextjs"
 import Link from "next/link"
 import { useTheme } from "next-themes"
@@ -18,23 +19,19 @@ import {
   Palette,
   ChevronRight,
   BookOpen,
-  Info,
-  Youtube,
-  Phone,
-  HelpCircle,
-  Calendar,Download
+  Download
 } from "lucide-react"
 
 import {
   NavigationMenu,
   NavigationMenuContent,
   NavigationMenuItem,
-  NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu"
 import { Button } from "@/components/ui/button"
 import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
 
 const Navbar = () => {
   const { signOut } = useClerk()
@@ -44,149 +41,93 @@ const Navbar = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [themeMenuOpen, setThemeMenuOpen] = useState(false)
   const { user } = useUser()
+  const router = useRouter()
 
+  // ✅ Preload critical routes once
   useEffect(() => {
     setMounted(true)
-  }, [])
+    const prefetchRoutes = ["/courses", "/mocks", "/resources", "/dashboard", "/guidance", "/youtube", "/contact"]
+    prefetchRoutes.forEach((route) => router.prefetch(route))
+  }, [router])
 
   return (
-<nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md shadow-sm">
-        <div className="px-4 sm:px-6 py-3 flex justify-between items-center">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md shadow-sm border-b border-gray-200 dark:border-gray-800">
+      <div className="px-4 sm:px-6 py-3 flex justify-between items-center">
+        
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group ml-2 sm:ml-10">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="w-5 h-5 text-white"
-            >
-              <path d="M12 14l9-5-9-5-9 5 9 5z" />
-              <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"
-              />
-            </svg>
+        <Link href="/" prefetch className="flex items-center gap-4 group ml-2 sm:ml-10">
+          <div className="flex flex-col relative">
+            <span className="font-bold text-2xl text-gray-800 dark:text-white relative inline-block">
+              Divyanshu <span className="text-primary/80">Darshna</span>
+              <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover:w-full"></span>
+            </span>
           </div>
-         <div className="flex flex-col">
-  <span className="font-bold text-lg text-gray-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-    Unfiltered IITians
-  </span>
-  <span className="text-xs text-muted-foreground mt-[-2px]">
-    by Divyanshu Darshana
-  </span>
-</div>
-
         </Link>
 
         {/* Desktop Nav */}
-        <NavigationMenu className="hidden md:flex ml-auto mr-4">
-          <NavigationMenuList className="flex gap-4">
-            {/* Courses */}
-            <NavigationMenuItem>
-              <NavigationMenuTrigger className="font-medium hover:text-blue-400 transition-colors data-[state=open]:text-blue-400">
-                Courses
-              </NavigationMenuTrigger>
-              <NavigationMenuContent className="p-4 rounded-lg shadow-lg">
-              <ul className="flex flex-col gap-2 min-w-[200px]">
-  <li>
-    <Link
-      href="/courses"
-      className="flex items-center gap-2 hover:bg-accent hover:text-blue-400 px-3 py-2 rounded-md transition-colors"
-    >
-      <BookOpen size={16} /> All Courses
-    </Link>
-  </li>
-  <li>
-    <Link
-      href="/mocks"
-      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
-    >
-      <FileText size={16} /> Mocks
-    </Link>
-  </li>
-  <li>
-    <Link
-      href="/resources"
-      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
-    >
-      <Download size={16} /> Free Resources
-    </Link>
-  </li>
-  <li>
-    <Link
-      href="/guidance"
-      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
-    >
-      <Calendar size={16} /> Book Sessions
-    </Link>
-  </li>
-</ul>
-              </NavigationMenuContent>
-            </NavigationMenuItem>
+        <div className="hidden md:flex items-center justify-center flex-grow mx-8">
+          <div className="flex items-center gap-10">
+            {[
+              { href: "/", label: "Home" },
+              { href: "/about", label: "About" },
+              { href: "/youtube", label: "Youtube" },
+              { href: "/guidance", label: "Guidance" },
+              { href: "/contact", label: "Contact" },
+            ].map(({ href, label }) => (
+              <Link key={href} href={href} prefetch className="relative font-medium text-foreground group/navlink">
+                {label}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-500 transition-all duration-300 group-hover/navlink:w-full"></span>
+              </Link>
+            ))}
 
-            {/* Explore */}
-            <NavigationMenuItem>
-              <NavigationMenuTrigger className="font-medium hover:text-blue-400 transition-colors data-[state=open]:text-blue-400">
-                Explore
-              </NavigationMenuTrigger>
-              <NavigationMenuContent className="p-4 rounded-lg shadow-lg">
-                <ul className="flex flex-col gap-2 min-w-[200px]">
-                  <li>
-                    <Link
-                      href="/about"
-                      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
-                    >
-                      <Info size={16} /> About
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/youtube"
-                      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
-                    >
-                      <Youtube size={16} /> YouTube
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/contact"
-                      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
-                    >
-                      <Phone size={16} /> Contact
-                    </Link>
-                  </li>
-                    <li>
-                    <Link
-                      href="/faqs"
-                      className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors"
-                    >
-                      <HelpCircle size={16} /> Faqs
-                    </Link>
-                  </li>
-                </ul>
-              </NavigationMenuContent>
-            </NavigationMenuItem>
-          </NavigationMenuList>
-        </NavigationMenu>
+            {/* Courses Dropdown */}
+            <NavigationMenu>
+              <NavigationMenuList>
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="font-medium hover:text-blue-500 transition-colors data-[state=open]:text-blue-500 flex items-center gap-1 relative group/navlink">
+                    Courses
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-500 transition-all duration-300 group-hover/navlink:w-full"></span>
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent className="rounded-lg shadow-lg">
+                    <ul className="flex flex-col gap-2 min-w-[200px]">
+                      <li>
+                        <Link href="/courses" prefetch className="flex items-center gap-2 hover:bg-accent hover:text-blue-500 px-3 py-2 rounded-md transition-colors">
+                          <BookOpen size={16} /> All Courses
+                        </Link>
+                      </li>
+                      <li>
+                        <Link href="/mocks" prefetch className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors">
+                          <FileText size={16} /> Mocks
+                        </Link>
+                      </li>
+                      <li>
+                        <Link href="/resources" prefetch className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors">
+                          <Download size={16} /> Free Resources
+                        </Link>
+                      </li>
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+              </NavigationMenuList>
+            </NavigationMenu>
+          </div>
+        </div>
 
         {/* Right Side */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4 mr-2 sm:mr-10">
+          {/* Signed Out */}
           <SignedOut>
             <div className="hidden sm:flex items-center gap-2">
-              <Link href="/sign-in">
+              <Link href="/sign-in" prefetch>
                 <Button variant="outline" size="sm">Sign In</Button>
               </Link>
-              <Link href="/sign-up">
+              <Link href="/sign-up" prefetch>
                 <Button size="sm">Sign Up</Button>
               </Link>
             </div>
           </SignedOut>
 
+          {/* Signed In */}
           <SignedIn>
             {/* User Dropdown */}
             <div className="hidden md:relative md:block">
@@ -205,25 +146,23 @@ const Navbar = () => {
                 </div>
               </button>
 
+              {/* Dropdown Menu */}
               {userMenuOpen && (
-                <div className="absolute right-0 top-12 w-56 bg-popover border rounded-lg shadow-lg py-2 z-50">
+                <div className="absolute right-0 top-12 w-56 bg-popover border rounded-lg shadow-lg py-2 z-50 animate-in fade-in-50">
                   <div className="px-4 py-3 border-b">
                     <p className="font-medium text-sm capitalize">{user?.fullName || "User"}</p>
                     <p className="text-xs text-muted-foreground truncate">{user?.primaryEmailAddress?.emailAddress}</p>
                   </div>
 
                   <div className="py-2">
-                    <Link href={`/${user?.firstName || "user"}/dashboard`} className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
-                      <LayoutDashboard size={18} />
-                      <span>Dashboard</span>
+                    <Link href={`/${user?.firstName || "user"}/dashboard`} prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
+                      <LayoutDashboard size={18} /> <span>Dashboard</span>
                     </Link>
-                    <Link href="/dashboard/courses" className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
-                      <User size={18} />
-                      <span>My Courses</span>
+                    <Link href="/dashboard/courses" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
+                      <User size={18} /> <span>My Courses</span>
                     </Link>
-                    <Link href="/mocks" className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
-                      <FileText size={18} />
-                      <span>Mocks</span>
+                    <Link href="/mocks" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
+                      <FileText size={18} /> <span>Mocks</span>
                     </Link>
                   </div>
 
@@ -266,16 +205,18 @@ const Navbar = () => {
 
                   {/* Logout */}
                   <div className="py-2 border-t">
-                    <button onClick={() => signOut()} className="flex items-center gap-3 w-full px-4 py-2 text-destructive hover:bg-destructive/10 transition-colors">
-                      <LogOut size={18} />
-                      <span>Logout</span>
+                    <button
+                      onClick={() => signOut()}
+                      className="flex items-center gap-3 w-full px-4 py-2 text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <LogOut size={18} /> <span>Logout</span>
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Mobile: only avatar */}
+            {/* Mobile avatar */}
             <div className="md:hidden">
               <UserButton appearance={{ elements: { avatarBox: "w-8 h-8" } }} />
             </div>
@@ -289,92 +230,78 @@ const Navbar = () => {
       </div>
 
       {/* Mobile Menu */}
- {/* Mobile Menu */}
-{menuOpen && (
-  <div className="fixed top-16 left-0 right-0 bg-background border-b shadow-md md:hidden z-50 animate-in slide-in-from-top duration-300">
-    <div className="flex flex-col p-4 gap-2">
-      
-      {/* ✅ Signed In User Section */}
-      <SignedIn>
-        <div className="flex flex-col gap-2 border-b pb-3 mb-3">
-          <p className="font-medium text-sm px-3">Hello, {user?.firstName || "User"}</p>
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors"
-            onClick={() => setMenuOpen(false)}
-          >
-            <LayoutDashboard size={18} />
-            <span>Dashboard</span>
-          </Link>
-          <Link
-            href="/dashboard/courses"
-            className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors"
-            onClick={() => setMenuOpen(false)}
-          >
-            <User size={18} />
-            <span>My Courses</span>
-          </Link>
-          <Link
-            href="/mocks"
-            className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors"
-            onClick={() => setMenuOpen(false)}
-          >
-            <FileText size={18} />
-            <span>Mocks</span>
-          </Link>
-          <button
-            onClick={() => {
-              signOut()
-              setMenuOpen(false)
-            }}
-            className="flex items-center gap-3 px-3 py-2 text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-          >
-            <LogOut size={18} />
-            <span>Logout</span>
-          </button>
-        </div>
-      </SignedIn>
+      {menuOpen && (
+        <div className="fixed top-16 left-0 right-0 bg-background border-b shadow-md md:hidden z-50 animate-in slide-in-from-top duration-300">
+          <div className="flex flex-col p-4 gap-2">
+            <SignedIn>
+              <div className="flex flex-col gap-2 border-b pb-3 mb-3">
+                <p className="font-medium text-sm px-3">Hello, {user?.firstName || "User"}</p>
+                <Link href="/dashboard" prefetch className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(false)}>
+                  <LayoutDashboard size={18} /> <span>Dashboard</span>
+                </Link>
+                <Link href="/dashboard/courses" prefetch className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(false)}>
+                  <User size={18} /> <span>My Courses</span>
+                </Link>
+                <Link href="/mocks" prefetch className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(false)}>
+                  <FileText size={18} /> <span>Mocks</span>
+                </Link>
+                <button onClick={() => { signOut(); setMenuOpen(false) }} className="flex items-center gap-3 px-3 py-2 text-destructive hover:bg-destructive/10 rounded-md transition-colors">
+                  <LogOut size={18} /> <span>Logout</span>
+                </button>
+              </div>
+            </SignedIn>
 
-      {/* Courses */}
-      <details className="group">
-        <summary className="flex items-center justify-between cursor-pointer py-2 px-3 font-medium hover:bg-accent rounded-md">
-          Courses
-        </summary>
-        <div className="ml-4 mt-1 flex flex-col gap-2 border-l-2 border-accent pl-2">
-          <Link href="/courses" className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>All Courses</Link>
-          <Link href="/mocks" className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Mocks</Link>
-          <Link href="/resources" className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Free Resources</Link>
-          <Link href="/guidance" className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Guidance</Link>
-        </div>
-      </details>
+            {/* Main Links */}
+            {[
+              { href: "/", label: "Home" },
+              { href: "/about", label: "About" },
+              { href: "/guidance", label: "Guidance" },
+              { href: "/contact", label: "Contact" },
+            ].map(({ href, label }) => (
+              <Link key={href} href={href} prefetch className="font-medium py-2 px-3 hover:bg-accent rounded-md transition-colors" onClick={() => setMenuOpen(false)}>
+                {label}
+              </Link>
+            ))}
 
-      {/* Explore */}
-      <details className="group">
-        <summary className="flex items-center justify-between cursor-pointer py-2 px-3 font-medium hover:bg-accent rounded-md">
-          Explore
-        </summary>
-        <div className="ml-4 mt-1 flex flex-col gap-2 border-l-2 border-accent pl-2">
-          <Link href="/about" className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>About</Link>
-          <Link href="/youtube" className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>YouTube</Link>
-          <Link href="/contact" className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Contact</Link>
-        </div>
-      </details>
+            {/* Courses Accordion */}
+            <details className="group">
+              <summary className="flex items-center justify-between cursor-pointer py-2 px-3 font-medium hover:bg-accent rounded-md">
+                Courses
+                <ChevronRight size={16} className="group-open:rotate-90 transition-transform" />
+              </summary>
+              <div className="ml-4 mt-1 flex flex-col gap-2 border-l-2 border-accent pl-2">
+                <Link href="/courses" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>All Courses</Link>
+                <Link href="/mocks" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Mocks</Link>
+                <Link href="/resources" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Free Resources</Link>
+                <Link href="/guidance" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Book Sessions</Link>
+              </div>
+            </details>
 
-      {/* Signed Out Auth Buttons */}
-      <SignedOut>
-        <div className="py-2 border-t mt-2 flex flex-col gap-2">
-          <Link href="/sign-in" className="font-medium py-2 px-3 rounded-md border border-input hover:bg-accent transition-colors text-center" onClick={() => setMenuOpen(false)}>
-            Sign In
-          </Link>
-          <Link href="/sign-up" className="font-medium py-2 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-center" onClick={() => setMenuOpen(false)}>
-            Sign Up
-          </Link>
-        </div>
-      </SignedOut>
-    </div>
-  </div>
-)}
+            {/* YouTube Accordion */}
+            <details className="group">
+              <summary className="flex items-center justify-between cursor-pointer py-2 px-3 font-medium hover:bg-accent rounded-md">
+                YouTube
+                <ChevronRight size={16} className="group-open:rotate-90 transition-transform" />
+              </summary>
+              <div className="ml-4 mt-1 flex flex-col gap-2 border-l-2 border-accent pl-2">
+                <Link href="/youtube" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Videos</Link>
+                <Link href="/youtube/channel" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Channel</Link>
+              </div>
+            </details>
 
+            <SignedOut>
+              <div className="py-2 border-t mt-2 flex flex-col gap-2">
+                <Link href="/sign-in" prefetch className="font-medium py-2 px-3 rounded-md border border-input hover:bg-accent transition-colors text-center" onClick={() => setMenuOpen(false)}>
+                  Sign In
+                </Link>
+                <Link href="/sign-up" prefetch className="font-medium py-2 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-center" onClick={() => setMenuOpen(false)}>
+                  Sign Up
+                </Link>
+              </div>
+            </SignedOut>
+          </div>
+        </div>
+      )}
     </nav>
   )
 }

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import ClientMockList from "@/components/ClientMockList";
 import FAQPage from "@/components/faq";
+export const revalidate = 60 // ✅ re-generate this page every 60s
 export default async function MockListPage() {
   const { userId } = await auth();
 

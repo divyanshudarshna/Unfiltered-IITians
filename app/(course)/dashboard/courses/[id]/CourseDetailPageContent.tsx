@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, BookOpen, PlayCircle, Bell } from "lucide-react";
+import { AlertCircle, BookOpen, PlayCircle, Bell, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ export default function CourseDetailPageContent() {
   const [currentQuizContentId, setCurrentQuizContentId] = useState<string | null>(null);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [isLoadingLecture, setIsLoadingLecture] = useState(false);
 
   // Notifications & unread
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -151,62 +152,84 @@ export default function CourseDetailPageContent() {
   };
 
   /** Navigation handlers */
-  const handleNext = () => {
-    if (!course || !selectedLecture) return;
-    const pos = findLecturePosition();
-    if (!pos) return;
-    const { ci, li } = pos;
-    const currentContent = course.contents[ci];
+  const handleNext = async () => {
+    if (!course || !selectedLecture || isLoadingLecture) return;
+    
+    setIsLoadingLecture(true);
+    try {
+      const pos = findLecturePosition();
+      if (!pos) return;
+      const { ci, li } = pos;
+      const currentContent = course.contents[ci];
 
-    if (li + 1 < currentContent.lectures.length) {
-      setSelectedLecture(currentContent.lectures[li + 1]);
-      return;
-    }
-
-    if (currentContent.hasQuiz && !currentContent.quizCompleted) {
-      setCurrentQuizContentId(currentContent.id);
-      setShowQuiz(true);
-      return;
-    }
-
-    if (ci + 1 < course.contents.length) {
-      const nextContent = course.contents[ci + 1];
-      if (nextContent.lectures.length > 0) {
-        setSelectedLecture(nextContent.lectures[0]);
-        setActiveContent(nextContent.id);
+      if (li + 1 < currentContent.lectures.length) {
+        // Mark current lecture as complete before moving to next
+        await markLectureComplete(selectedLecture.id);
+        setSelectedLecture(currentContent.lectures[li + 1]);
+        return;
       }
-    }
-  };
 
-  const handlePrevious = () => {
-    if (!course || !selectedLecture) return;
-    const pos = findLecturePosition();
-    if (!pos) return;
-    const { ci, li } = pos;
-
-    if (li > 0) {
-      setSelectedLecture(course.contents[ci].lectures[li - 1]);
-      return;
-    }
-
-    if (ci > 0) {
-      const prevContent = course.contents[ci - 1];
-      if (prevContent.hasQuiz && !prevContent.quizCompleted) {
-        setCurrentQuizContentId(prevContent.id);
+      if (currentContent.hasQuiz && !currentContent.quizCompleted) {
+        // Mark current lecture as complete before showing quiz
+        await markLectureComplete(selectedLecture.id);
+        setCurrentQuizContentId(currentContent.id);
         setShowQuiz(true);
         return;
       }
-      if (prevContent.lectures.length > 0) {
-        setSelectedLecture(prevContent.lectures[prevContent.lectures.length - 1]);
-        setActiveContent(prevContent.id);
+
+      if (ci + 1 < course.contents.length) {
+        // Mark current lecture as complete before moving to next module
+        await markLectureComplete(selectedLecture.id);
+        const nextContent = course.contents[ci + 1];
+        if (nextContent.lectures.length > 0) {
+          setSelectedLecture(nextContent.lectures[0]);
+          setActiveContent(nextContent.id);
+        }
       }
+    } catch (error) {
+      console.error("Error navigating to next lecture:", error);
+    } finally {
+      setIsLoadingLecture(false);
+    }
+  };
+
+  const handlePrevious = async () => {
+    if (!course || !selectedLecture || isLoadingLecture) return;
+    
+    setIsLoadingLecture(true);
+    try {
+      const pos = findLecturePosition();
+      if (!pos) return;
+      const { ci, li } = pos;
+
+      if (li > 0) {
+        setSelectedLecture(course.contents[ci].lectures[li - 1]);
+        return;
+      }
+
+      if (ci > 0) {
+        const prevContent = course.contents[ci - 1];
+        if (prevContent.hasQuiz && !prevContent.quizCompleted) {
+          setCurrentQuizContentId(prevContent.id);
+          setShowQuiz(true);
+          return;
+        }
+        if (prevContent.lectures.length > 0) {
+          setSelectedLecture(prevContent.lectures[prevContent.lectures.length - 1]);
+          setActiveContent(prevContent.id);
+        }
+      }
+    } catch (error) {
+      console.error("Error navigating to previous lecture:", error);
+    } finally {
+      setIsLoadingLecture(false);
     }
   };
 
   /** Quiz handlers */
-  const handleQuizComplete = (score: number, total: number) => {
+  const handleQuizComplete = async (score: number, total: number) => {
     if (course && currentQuizContentId) {
-      saveProgress(currentQuizContentId, true, score, total);
+      await saveProgress(currentQuizContentId, true, score, total);
     }
     setShowQuiz(false);
     setCurrentQuizContentId(null);
@@ -215,6 +238,23 @@ export default function CourseDetailPageContent() {
   const handleQuizCancel = () => {
     setShowQuiz(false);
     setCurrentQuizContentId(null);
+  };
+
+  const handleLectureSelect = async (lecture: any, contentId: string) => {
+    if (isLoadingLecture) return;
+    
+    setIsLoadingLecture(true);
+    try {
+      setSelectedLecture(lecture);
+      setActiveContent(contentId);
+      
+      // Simulate loading time for better UX
+      await new Promise(resolve => setTimeout(resolve, 300));
+    } catch (error) {
+      console.error("Error selecting lecture:", error);
+    } finally {
+      setIsLoadingLecture(false);
+    }
   };
 
   /** Render loading skeleton */
@@ -265,13 +305,21 @@ export default function CourseDetailPageContent() {
         <CourseSidebar
           course={course}
           selectedLecture={selectedLecture}
-          setSelectedLecture={setSelectedLecture}
+          setSelectedLecture={(lecture) => {
+            const content = course.contents.find(c => 
+              c.lectures.some(l => l.id === lecture.id)
+            );
+            if (content) {
+              handleLectureSelect(lecture, content.id);
+            }
+          }}
           activeContent={activeContent}
           setActiveContent={setActiveContent}
           onStartQuiz={(quizId) => {
             setCurrentQuizContentId(quizId);
             setShowQuiz(true);
           }}
+          isLoadingLecture={isLoadingLecture}
         />
       </div>
 
@@ -323,9 +371,10 @@ export default function CourseDetailPageContent() {
               lecture={selectedLecture}
               onNext={handleNext}
               onPrevious={handlePrevious}
-              hasNext
-              hasPrevious
+              hasNext={!!findNextLecture()}
+              hasPrevious={!!findPreviousLecture()}
               onMarkComplete={markLectureComplete}
+              isLoading={isLoadingLecture}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center p-6">
@@ -340,12 +389,19 @@ export default function CourseDetailPageContent() {
               </p>
               <Button
                 onClick={() => {
-                  setSelectedLecture(course.contents[0]?.lectures[0]);
-                  setActiveContent(course.contents[0]?.id || "");
+                  const firstContent = course.contents[0];
+                  if (firstContent && firstContent.lectures.length > 0) {
+                    handleLectureSelect(firstContent.lectures[0], firstContent.id);
+                  }
                 }}
                 className="gap-2"
+                disabled={isLoadingLecture}
               >
-                <PlayCircle className="h-4 w-4" />
+                {isLoadingLecture ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <PlayCircle className="h-4 w-4" />
+                )}
                 Start First Lesson
               </Button>
             </div>
@@ -373,4 +429,55 @@ export default function CourseDetailPageContent() {
       />
     </div>
   );
+
+  // Helper functions to determine next/previous lecture availability
+  function findNextLecture() {
+    if (!course || !selectedLecture) return null;
+    
+    const pos = findLecturePosition();
+    if (!pos) return null;
+    const { ci, li } = pos;
+    const currentContent = course.contents[ci];
+
+    if (li + 1 < currentContent.lectures.length) {
+      return currentContent.lectures[li + 1];
+    }
+
+    if (currentContent.hasQuiz && !currentContent.quizCompleted) {
+      return { isQuiz: true, contentId: currentContent.id };
+    }
+
+    if (ci + 1 < course.contents.length) {
+      const nextContent = course.contents[ci + 1];
+      if (nextContent.lectures.length > 0) {
+        return nextContent.lectures[0];
+      }
+    }
+
+    return null;
+  }
+
+  function findPreviousLecture() {
+    if (!course || !selectedLecture) return null;
+    
+    const pos = findLecturePosition();
+    if (!pos) return null;
+    const { ci, li } = pos;
+
+    if (li > 0) {
+      return course.contents[ci].lectures[li - 1];
+    }
+
+    if (ci > 0) {
+      const prevContent = course.contents[ci - 1];
+      if (prevContent.hasQuiz && !prevContent.quizCompleted) {
+        return { isQuiz: true, contentId: prevContent.id };
+      }
+      if (prevContent.lectures.length > 0) {
+        return prevContent.lectures[prevContent.lectures.length - 1];
+      }
+    }
+
+    return null;
+  }
 }

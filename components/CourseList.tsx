@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import {
   Clock,
   BookOpen,
@@ -27,7 +26,6 @@ import {
   Zap,
   Rocket,
   Search,
-  ChevronRight,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -45,9 +43,6 @@ interface Course {
 interface EnrollmentStatus {
   isEnrolled: boolean;
   enrolledAt?: string;
-  progress?: number;
-  totalContents?: number;
-  completedContents?: number;
   course?: {
     id: string;
     title: string;
@@ -78,6 +73,8 @@ const courseFeatures = [
   { icon: Bookmark, text: "Study Materials" },
   { icon: Zap, text: "Exam Preparation" },
 ];
+
+export const revalidate = 60 // ✅ re-generate this page every 60s
 
 export default function CourseList({
   title = "Join courses and crack exams with expert guidance",
@@ -112,9 +109,10 @@ export default function CourseList({
 
     if (!fetchCourses) return;
 
-    const fetchCoursesData = async () => {
+    const fetchCoursesAndEnrollments = async () => {
       try {
         setLoading(true);
+        // Fetch courses
         const response = await fetch("/api/courses");
         if (!response.ok)
           throw new Error(`Failed to fetch courses: ${response.status}`);
@@ -127,44 +125,11 @@ export default function CourseList({
         }));
         setCourses(coursesWithEnrollmentCount);
         setFilteredCourses(coursesWithEnrollmentCount);
-      } catch (err) {
-        console.error("Course fetch error:", err);
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCoursesData();
-  }, [externalCourses, fetchCourses]);
 
-  useEffect(() => {
-    if (searchQuery) {
-      const filtered = courses.filter(
-        (course) =>
-          course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          course.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredCourses(filtered);
-    } else {
-      setFilteredCourses(courses);
-    }
-  }, [searchQuery, courses]);
-
-  useEffect(() => {
-    // Apply countShow limit if provided
-    if (countShow && countShow > 0) {
-      setDisplayedCourses(filteredCourses.slice(0, countShow));
-    } else {
-      setDisplayedCourses(filteredCourses);
-    }
-  }, [filteredCourses, countShow]);
-
-  useEffect(() => {
-    if (isUserLoaded && user && courses.length > 0) {
-      const checkEnrollments = async () => {
-        try {
+        // Fetch enrollment statuses for all courses in parallel if user is logged in
+        if (isUserLoaded && user) {
           const statusesArray = await Promise.all(
-            courses.map(async (course) => {
+            coursesWithEnrollmentCount.map(async (course: Course) => {
               try {
                 const response = await fetch(
                   `/api/courses/${course.id}/enrollment-status`,
@@ -207,21 +172,46 @@ export default function CourseList({
           });
 
           setEnrollmentStatuses(statuses);
-        } catch (err) {
-          console.error("Failed to check enrollments:", err);
+        } else if (isUserLoaded && !user) {
+          // User not logged in → default all courses to not enrolled
+          const statuses: Record<string, EnrollmentStatus> = {};
+          coursesWithEnrollmentCount.forEach((course: Course) => {
+            statuses[course.id] = { isEnrolled: false, canEnroll: true };
+          });
+          setEnrollmentStatuses(statuses);
         }
-      };
+      } catch (err) {
+        console.error("Course fetch error:", err);
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCoursesAndEnrollments();
+  }, [externalCourses, fetchCourses, isUserLoaded, user]);
 
-      checkEnrollments();
-    } else if (isUserLoaded && !user) {
-      // User not logged in → default all courses to not enrolled
-      const statuses: Record<string, EnrollmentStatus> = {};
-      courses.forEach((course) => {
-        statuses[course.id] = { isEnrolled: false, canEnroll: true };
-      });
-      setEnrollmentStatuses(statuses);
+  useEffect(() => {
+    if (searchQuery) {
+      const filtered = courses.filter(
+        (course) =>
+          course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          course.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredCourses(filtered);
+    } else {
+      setFilteredCourses(courses);
     }
-  }, [isUserLoaded, user, courses]);
+  }, [searchQuery, courses]);
+
+  useEffect(() => {
+    // Apply countShow limit if provided
+    if (countShow && countShow > 0) {
+      setDisplayedCourses(filteredCourses.slice(0, countShow));
+    } else {
+      setDisplayedCourses(filteredCourses);
+    }
+  }, [filteredCourses, countShow]);
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -256,7 +246,7 @@ export default function CourseList({
   }
 
   return (
-    <div className="container mx-auto p-6 my-6">
+    <div className="container mx-auto p-4 mb-4 mt-0">
       {/* Header */}
       <div className="my-12 text-center">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -270,7 +260,7 @@ export default function CourseList({
         {showViewAllButton &&
           countShow &&
           filteredCourses.length > countShow && (
-            <div className="flex justify-left ml-2 mt-10">
+            <div className="flex justify-center mt-10">
               <Button
                 asChild
                 className="rounded-full border-1 border-purple-500 text-purple-500 px-8 py-3 text-lg font-semibold 
@@ -336,7 +326,6 @@ export default function CourseList({
                 isEnrolled: false,
               };
               const isEnrolled = enrollmentStatus.isEnrolled;
-              const progress = enrollmentStatus.progress || 0;
 
               const { regular, discounted, discountPercent } = getPriceDetails(
                 course.price,
@@ -424,21 +413,6 @@ export default function CourseList({
                       </div>
                     </div>
 
-                    {/* Progress */}
-                    {isEnrolled && progress > 0 && (
-                      <div className="mb-4">
-                        <div className="flex justify-between items-center text-sm mb-1">
-                          <span className="text-muted-foreground">
-                            Your progress
-                          </span>
-                          <span className="font-medium">
-                            {progress}% completed
-                          </span>
-                        </div>
-                        <Progress value={progress} className="h-2" />
-                      </div>
-                    )}
-
                     {/* Features */}
                     <div className="grid grid-cols-2 gap-3 mt-4">
                       {courseFeatures.slice(0, 4).map((feature, index) => (
@@ -482,8 +456,6 @@ export default function CourseList({
               );
             })}
           </div>
-
-          {/* View All Courses Button */}
         </>
       ) : (
         <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">

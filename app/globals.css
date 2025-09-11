@@ -324,3 +324,20 @@ body {
 .glow-effect {
   animation: glow 2s ease-in-out infinite alternate;
 }
+
+
+/* Force NProgress visibility */
+/* --- Sleek Glassy Progress Bar --- */
+/* Global CSS for NProgress */
+/* Smooth transitions for the progress bar */
+/* Smooth transitions for progress bar */
+/* Progress bar animations */
+
+@keyframes shine {
+  from { transform: translateX(-100%) skewX(-12deg); }
+  to   { transform: translateX(100%) skewX(-12deg); }
+}
+
+.animate-shine {
+  animation: shine 1.2s linear infinite;
+}

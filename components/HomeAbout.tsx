@@ -1,64 +1,73 @@
-'use client'
+"use client";
 
-import Image from 'next/image'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import Tilt from 'react-parallax-tilt'
+import Image from "next/image";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Tilt from "react-parallax-tilt";
 
-import { BookOpenCheck, GraduationCap ,ArrowRight} from 'lucide-react'
-import { Button } from './ui/button'
-import { FaYoutube } from 'react-icons/fa'
+import { BookOpenCheck, GraduationCap, ArrowRight } from "lucide-react";
+import { Button } from "./ui/button";
+import { FaYoutube } from "react-icons/fa";
 
 const highlights = [
   {
     icon: <BookOpenCheck className="w-6 h-6" />,
-    title: 'About Me',
+    title: "About Me",
     content: (
       <>
         <p>
-  I&apos;m <b>Divyanshu Darshna</b>, a passionate neuroscientist and biotechnology educator with
-  roots at <b>IIT Bombay</b>, currently advancing research at <b>IIT Roorkee</b>.
-</p>
+          I&apos;m <b>Divyanshu Darshna</b>, a passionate neuroscientist and
+          biotechnology educator with roots at <b>IIT Bombay</b>, currently
+          advancing research at <b>IIT Roorkee</b>.
+        </p>
 
         <p className="mt-2">
-          My mission is to demystify complex scientific concepts and provide students with the tools,
-          strategies, and confidence needed to excel in competitive exams and research careers.
+          My mission is to demystify complex scientific concepts and provide
+          students with the tools, strategies, and confidence needed to excel in
+          competitive exams and research careers.
         </p>
       </>
     ),
-    link: { href: '/about', text: 'My Journey' },
-    bg: 'bg-blue-100 dark:bg-blue-900/20',
-    border: 'border-blue-500',
+    link: { href: "/about", text: "My Journey" },
+    bg: "bg-slate-50 dark:bg-slate-900/30",
+    border: "border-slate-200 dark:border-slate-700",
+    iconBg: "bg-blue-100 dark:bg-blue-900/30",
+    iconColor: "text-blue-600 dark:text-blue-400"
   },
   {
     icon: <GraduationCap className="w-6 h-6" />,
-    title: 'Student Success Stories',
+    title: "Student Success Stories",
     content: (
-   <div className="space-y-3">
-  <p>
-    Divyanshu sir&apos;s guidance helped me crack IIT JAM with AIR 44. His teaching and guidance
-    style makes even the most complex topics understandable. - <b>Krishna Samatia</b>
-  </p>
-  <p>
-    The mentorship program transformed my approach to research. I&apos;m now pursuing my PhD at
-    IIT Bombay. - <b>Anonymous</b>
-  </p>
-  <p>
-    Divyanshu Sir&apos;s YouTube helped me crack my PhD interview at IIT Roorkee — His YouTube is
-    invaluable. - <b>Research Scholar</b>
-  </p>
-</div>
-
+      <div className="space-y-3">
+        <p>
+          Divyanshu sir&apos;s guidance helped me crack IIT JAM with AIR 44. His
+          teaching and guidance style makes even the most complex topics
+          understandable. - <b>Krishna Samatia</b>
+        </p>
+        <p>
+          The mentorship program transformed my approach to research. I&apos;m
+          now pursuing my PhD at IIT Bombay. - <b>Anonymous</b>
+        </p>
+        <p>
+          Divyanshu Sir&apos;s YouTube helped me crack my PhD interview at IIT
+          Roorkee — His YouTube is invaluable. - <b>Research Scholar</b>
+        </p>
+      </div>
     ),
-    link: { href: '/success', text: 'Read More Stories' },
-    bg: 'bg-green-100 dark:bg-green-900/20',
-    border: 'border-green-500',
+    link: { href: "/success", text: "Read More Stories" },
+    bg: "bg-slate-50 dark:bg-slate-900/30",
+    border: "border-slate-200 dark:border-slate-700",
+    iconBg: "bg-green-100 dark:bg-green-900/30",
+    iconColor: "text-green-600 dark:text-green-400"
   },
   {
     icon: <BookOpenCheck className="w-6 h-6" />,
-    title: 'Comprehensive Courses',
+    title: "Comprehensive Courses",
     content: (
       <>
-        <p>My meticulously designed courses cover the entire biotechnology spectrum, tailored specifically for:</p>
+        <p>
+          My meticulously designed courses cover the entire biotechnology
+          spectrum, tailored specifically for:
+        </p>
         <ul className="list-disc list-inside mt-2 space-y-1">
           <li>IIT JAM Biotechnology</li>
           <li>GAT-B &amp; GATE Exams</li>
@@ -67,18 +76,20 @@ const highlights = [
         </ul>
       </>
     ),
-    link: { href: '/courses', text: 'View All Courses' },
-    bg: 'bg-purple-100 dark:bg-purple-900/20',
-    border: 'border-purple-500',
+    link: { href: "/courses", text: "View All Courses" },
+    bg: "bg-slate-50 dark:bg-slate-900/30",
+    border: "border-slate-200 dark:border-slate-700",
+    iconBg: "bg-purple-100 dark:bg-purple-900/30",
+    iconColor: "text-purple-600 dark:text-purple-400"
   },
   {
     icon: <FaYoutube className="w-6 h-6" />,
-    title: 'Free Learning Resources',
+    title: "Free Learning Resources",
     content: (
       <>
         <p>
-          Access my YouTube channel for free tutorials, exam strategies, and research insights that have
-          helped thousands of students:
+          Access my YouTube channel for free tutorials, exam strategies, and
+          research insights that have helped thousands of students:
         </p>
         <ul className="list-disc list-inside mt-2 space-y-1">
           <li>Concept Breakdown Videos</li>
@@ -88,68 +99,77 @@ const highlights = [
         </ul>
       </>
     ),
-    link: { href: '/youtube', text: 'Visit YouTube' },
-    bg: 'bg-red-100 dark:bg-red-900/20',
-    border: 'border-red-500',
+    link: { href: "/youtube", text: "Visit YouTube" },
+    bg: "bg-slate-50 dark:bg-slate-900/30",
+    border: "border-slate-200 dark:border-slate-700",
+    iconBg: "bg-red-100 dark:bg-red-900/30",
+    iconColor: "text-red-600 dark:text-red-400"
   },
-]
+];
 
 export default function HowICanHelp() {
   return (
-    <section className="py-16 px-6 sm:px-10 lg:px-20">
+    <section className="py-16 px-6 sm:px-10 lg:px-20 ">
       <div className="max-w-6xl mx-auto text-center">
         <div className="text-center px-4 md:px-0">
-  {/* Title with gradient */}
-  <h2 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-purple-600 via-cyan-400 to-blue-500 bg-clip-text text-transparent mb-3">
-    How I Can Help You Succeed ?
-  </h2>
-  {/* Subtitle / designation */}
-  <p className="text-lg sm:text-xl text-gray-600 mb-12">
-   Divyanshu Darshana | PhD Scholar, IIT Roorkee – Biotechnology Department
-  </p>
+          {/* Title with gradient */}
+          <h2 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-purple-600 via-cyan-400 to-blue-500 bg-clip-text text-transparent mb-3">
+            How I Can Help You Succeed
+          </h2>
+          {/* Subtitle / designation */}
+          <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 mb-12">
+            Divyanshu Darshana | PhD Scholar, IIT Roorkee – Biotechnology
+            Department
+          </p>
 
-  {/* Circular profile with hover glow */}
-  <div className="flex justify-center mb-8">
-    <Tilt
-      className="w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full overflow-hidden transition-transform duration-500 hover:scale-105 hover:shadow-[0_0_30px_rgba(0,255,255,0.6)]"
-      tiltMaxAngleX={25}
-      tiltMaxAngleY={25}
-      perspective={900}
-      gyroscope={true}
-    >
-      <Image
-        src="/about.jpg"
-        alt="Divyanshu Darshna"
-        width={300}
-        height={300}
-        className="object-cover w-full h-full rounded-full border-4 border-cyan-400"
-        priority
-      />
-    </Tilt>
-  </div>
-</div>
-
+          {/* Circular profile with hover glow */}
+          <div className="flex justify-center mb-12">
+            <Tilt
+              className="w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full overflow-hidden transition-transform duration-500 hover:scale-105 "
+              tiltMaxAngleX={25}
+              tiltMaxAngleY={25}
+              perspective={900}
+              gyroscope={true}
+            >
+              <Image
+                src="/about.jpg"
+                alt="Divyanshu Darshna"
+                width={300}
+                height={300}
+                className="object-cover w-full h-full rounded-full border-4 border-cyan-400"
+                priority
+              />
+            </Tilt>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {highlights.map((item, index) => (
             <Card
               key={index}
-              className={`transition-all hover:scale-[1.02] hover:shadow-xl border ${item.border} ${item.bg}`}
+              className={`transition-all hover:scale-[1.02] hover:shadow-md hover:shadow-violet-400 border ${item.border} ${item.bg} backdrop-blur-sm`}
             >
               <CardHeader className="flex flex-row items-center gap-4">
-                <div className={`p-3 rounded-md ${item.bg}`}>{item.icon}</div>
-                <CardTitle className="text-lg font-semibold font-heading">{item.title}</CardTitle>
+                <div className={`p-3 rounded-md ${item.iconBg} ${item.iconColor}`}>
+                  {item.icon}
+                </div>
+                <CardTitle className="text-lg font-semibold font-heading text-slate-800 dark:text-slate-200">
+                  {item.title}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-muted-foreground font-body text-left text-sm space-y-2">
+                <div className="text-slate-700 dark:text-slate-300 font-body text-left text-sm space-y-2">
                   {item.content}
                 </div>
                 {item.link && (
                   <div className="mt-4 text-left">
-                   <Button variant="outline" className="text-sm group">
-  {item.link.text}
-  <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-</Button>
+                    <Button 
+                      variant="outline" 
+                      className="text-sm group rounded-4xl border-purple-300 dark:border-violet-600 text-violet-700 dark:text-violet-500  hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      {item.link.text}
+                      <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -158,5 +178,5 @@ export default function HowICanHelp() {
         </div>
       </div>
     </section>
-  )
+  );
 }
