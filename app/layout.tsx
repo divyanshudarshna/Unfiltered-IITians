@@ -17,10 +17,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en">
-      <body className="font-sans">
+    <html lang="en" suppressHydrationWarning>
+      <body className="font-sans" suppressHydrationWarning>
         <ClerkProvider appearance={{ baseTheme: dark }}>
           <ThemeProvider
             attribute="class"
@@ -28,15 +32,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             enableSystem
             disableTransitionOnChange
           >
-        
-              <AuthSync />
-              <TopProgress/>
-              {children}
-              <Toaster />
-           
+            {/* Client-only components */}
+            <AuthSync />
+            <TopProgress />
+            {children}
+            <Toaster />
           </ThemeProvider>
         </ClerkProvider>
 
+        {/* External script loaded after hydration */}
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
           strategy="afterInteractive"

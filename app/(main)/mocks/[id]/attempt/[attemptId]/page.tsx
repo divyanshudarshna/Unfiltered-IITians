@@ -252,7 +252,7 @@ const submitAttempt = async () => {
             >
               Previous
             </Button>
-            <div className="flex gap-2">
+          
               {answers[mock.questions[currentIndex].id] && (
                 <Button
                   variant="outline"
@@ -292,23 +292,11 @@ const submitAttempt = async () => {
 
                 
               )}
+         
 
-              <Button
-  onClick={() => {
-    const confirmed = window.confirm(
-      "Are you sure you want to submit the test? You won’t be able to change your answers after submitting."
-    );
-    if (confirmed) {
-      submitAttempt();
-    }
-  }}
-  disabled={loading}
-  className="bg-green-600  hover:bg-green-700"
->
-  {loading ? "Submitting..." : "Submit Test"}
-</Button>
+     
 
-            </div>
+         
           </div>
         </div>
       </div>
