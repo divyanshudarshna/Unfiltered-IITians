@@ -2,10 +2,9 @@
 import { useRef } from "react";
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { useParams } from "next/navigation";
-import { Calculator, X } from "lucide-react";
+import { X } from "lucide-react";
 import ScientificCalculator from "./ScientificCalculator";
 import {
   Dialog,
@@ -34,8 +33,7 @@ export default function MockAttemptPage() {
   const [selectedType, setSelectedType] = useState<"ALL" | QuestionType>("ALL");
   const { setTheme, theme } = useTheme();
   const previousTheme = useRef<string | undefined>(undefined);
-
-  const [timeLeft, setTimeLeft] = useState(0); // Start with 0, will be set after mock loads
+  const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
     if (!previousTheme.current) previousTheme.current = theme;
@@ -45,22 +43,19 @@ export default function MockAttemptPage() {
     };
   }, [theme, setTheme]);
 
-  // Fetch mock details
+  // Fetch mock
   useEffect(() => {
     const fetchMock = async () => {
       try {
         const res = await fetch(`/api/mock/${id}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to load mock");
-        
+
         setMock(data.mock);
-        
-        // Set timeLeft based on actual duration from schema
-        if (data.mock.duration) {
-          setTimeLeft(data.mock.duration * 60); // Convert minutes to seconds
-        } else {
-          setTimeLeft(60 * 60); // Fallback to 1 hour if no duration
-        }
+
+        setTimeLeft(
+          data.mock.duration ? data.mock.duration * 60 : 60 * 60
+        ); // minutes → seconds
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -70,21 +65,17 @@ export default function MockAttemptPage() {
     fetchMock();
   }, [id]);
 
-  // Timer effect
+  // Timer
   useEffect(() => {
     if (timeLeft <= 0 && mock) {
       submitAttempt();
       return;
     }
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
-
+    const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [timeLeft, mock]);
 
-  // Mark question as visited when displayed
+  // Mark visited
   useEffect(() => {
     if (mock && mock.questions[currentIndex]) {
       setVisitedQuestions((prev) => ({
@@ -103,70 +94,53 @@ export default function MockAttemptPage() {
     });
   };
 
+  const submitAttempt = async () => {
+    try {
+      setLoading(true);
+      if (!mock) throw new Error("Mock test data not available");
 
+      const formattedAnswers: AnswerState = {};
+      Object.entries(answers).forEach(([questionId, answerValue]) => {
+        const question = mock.questions.find((q) => q.id === questionId);
+        if (!question) return;
 
-const submitAttempt = async () => {
-  try {
-    setLoading(true);
-    
-    if (!mock) {
-      throw new Error("Mock test data not available");
-    }
+        if (question.type === "MSQ" && Array.isArray(answerValue)) {
+          const normalized = answerValue
+            .filter((ans) => ans && ans.trim() !== "")
+            .map((ans) => ans.replace(/"/g, "").trim())
+            .sort();
+          formattedAnswers[questionId] = normalized.join(";");
+        } else if (typeof answerValue === "string") {
+          formattedAnswers[questionId] = answerValue.replace(/"/g, "").trim();
+        } else {
+          formattedAnswers[questionId] = answerValue;
+        }
+      });
 
-    // Format answers for submission with proper normalization
-    const formattedAnswers: AnswerState = {};
-    
-    Object.entries(answers).forEach(([questionId, answerValue]) => {
-      const question = mock.questions.find(q => q.id === questionId);
-      
-      if (!question) return;
+      const res = await fetch(`/api/mock/${id}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          answers: formattedAnswers,
+          attemptId: attemptId,
+          timeSpent: mock.duration ? mock.duration * 60 - timeLeft : 0,
+          totalQuestions: mock.questions.length,
+        }),
+      });
 
-      if (question.type === "MSQ" && Array.isArray(answerValue)) {
-        // For MSQ: normalize, sort alphabetically, and join with semicolons
-        const normalizedAnswers = answerValue
-          .filter(ans => ans && ans.trim() !== '')
-          .map(ans => ans.replace(/"/g, '').trim())
-          .sort();
-        
-        formattedAnswers[questionId] = normalizedAnswers.join(';');
-      } else if (typeof answerValue === 'string') {
-        // For other types: remove quotes and trim
-        formattedAnswers[questionId] = answerValue.replace(/"/g, '').trim();
-      } else {
-        formattedAnswers[questionId] = answerValue;
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to submit attempt");
       }
-    });
 
-    const res = await fetch(`/api/mock/${id}/submit`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ 
-        answers: formattedAnswers, 
-        attemptId: attemptId,
-        timeSpent: mock.duration ? mock.duration * 60 - timeLeft : 0,
-        totalQuestions: mock.questions.length
-      }),
-    });
-    
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || `Failed to submit attempt`);
+      const data = await res.json();
+      router.push(`/mocks/${id}/result/${data.attemptId || attemptId}`);
+    } catch (err: any) {
+      setError(err.message || "Failed to submit attempt.");
+    } finally {
+      setLoading(false);
     }
-    
-    const data = await res.json();
-    router.push(`/mocks/${id}/result/${data.attemptId || attemptId}`);
-    
-  } catch (err: any) {
-    console.error("Submission error:", err);
-    setError(err.message || "Failed to submit attempt. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
-
-
+  };
 
   const clearCurrentAnswer = () => {
     if (!mock) return;
@@ -177,38 +151,52 @@ const submitAttempt = async () => {
     });
   };
 
-  if (loading && !mock) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-        <p className="text-lg text-gray-600">Loading test...</p>
+  // Loading / Error / Empty states
+  if (loading && !mock)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Loading test...</p>
+        </div>
       </div>
-    </div>
-  );
-  
-  if (error) return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="bg-white rounded-lg shadow-md p-6 max-w-md text-center">
-        <div className="text-red-500 text-lg font-semibold mb-2">Error</div>
-        <p className="text-gray-600 mb-4">{error}</p>
-        <Button onClick={() => window.location.reload()} className="bg-purple-600 hover:bg-purple-700">
-          Try Again
-        </Button>
+    );
+
+  if (error)
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 max-w-md text-center">
+          <div className="text-red-500 text-lg font-semibold mb-2">Error</div>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button
+            onClick={() => window.location.reload()}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            Try Again
+          </Button>
+        </div>
       </div>
-    </div>
-  );
-  
-  if (!mock) return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="bg-white rounded-lg shadow-md p-6 max-w-md text-center">
-        <div className="text-gray-700 text-lg font-semibold mb-2">Test Not Found</div>
-        <p className="text-gray-600 mb-4">The requested test could not be found.</p>
-        <Button onClick={() => router.push('/mocks')} className="bg-purple-600 hover:bg-purple-700">
-          Browse Tests
-        </Button>
+    );
+
+  if (!mock)
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 max-w-md text-center">
+          <div className="text-gray-700 text-lg font-semibold mb-2">
+            Test Not Found
+          </div>
+          <p className="text-gray-600 mb-4">
+            The requested test could not be found.
+          </p>
+          <Button
+            onClick={() => router.push("/mocks")}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            Browse Tests
+          </Button>
+        </div>
       </div>
-    </div>
-  );
+    );
 
   const currentQuestion = mock.questions[currentIndex];
   const totalQuestions = mock.questions.length;
@@ -218,7 +206,7 @@ const submitAttempt = async () => {
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
-      {/* Main Question Area */}
+      {/* Main Area */}
       <div className="flex-1 p-4">
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <HeaderStats
@@ -231,7 +219,7 @@ const submitAttempt = async () => {
             onToggleBookmark={toggleBookmark}
             totalDuration={totalDuration}
           />
-          
+
           <QuestionRenderer
             question={currentQuestion}
             answers={answers}
@@ -241,9 +229,10 @@ const submitAttempt = async () => {
             currentIndex={currentIndex}
             totalQuestions={totalQuestions}
           />
-          
-          {/* Navigation Buttons */}
-          <div className="flex justify-between border-t pt-4">
+
+          {/* Bottom Navigation */}
+          <div className="flex justify-between items-center border-t pt-4">
+            {/* Previous on extreme left */}
             <Button
               onClick={() => setCurrentIndex((i) => Math.max(i - 1, 0))}
               disabled={currentIndex === 0}
@@ -252,7 +241,9 @@ const submitAttempt = async () => {
             >
               Previous
             </Button>
-          
+
+            {/* Right-side buttons */}
+            <div className="flex gap-3">
               {answers[mock.questions[currentIndex].id] && (
                 <Button
                   variant="outline"
@@ -262,14 +253,7 @@ const submitAttempt = async () => {
                   Clear Response
                 </Button>
               )}
-              <Button
-                variant="outline"
-                onClick={() => setShowCalculator(true)}
-                className="flex items-center gap-2 border-purple-300 text-purple-800 hover:text-purple-900 hover:border-purple-400"
-              >
-                <Calculator className="w-4 h-4" />
-                Calculator
-              </Button>
+
               {currentIndex === mock.questions.length - 1 ? (
                 <Button
                   onClick={submitAttempt}
@@ -289,18 +273,13 @@ const submitAttempt = async () => {
                 >
                   Next
                 </Button>
-
-                
               )}
-         
-
-     
-
-         
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Sidebar Navigation */}
       <QuestionNavigation
         questions={mock.questions}
         currentIndex={currentIndex}
@@ -310,6 +289,9 @@ const submitAttempt = async () => {
         bookmarked={bookmarked}
         selectedType={selectedType}
         setSelectedType={setSelectedType}
+        showCalculator={() => setShowCalculator(true)}
+        submitAttempt={submitAttempt}
+        loading={loading}
       />
 
       {/* Calculator Modal */}
@@ -331,7 +313,6 @@ const submitAttempt = async () => {
           <ScientificCalculator />
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

@@ -1,12 +1,13 @@
-// next.config.js or next.config.ts
+// next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+
   images: {
     domains: [
-      "res.cloudinary.com", // Cloudinary uploads
-      "images.clerk.dev",   // Clerk's default images
-      "img.clerk.com",      // Clerk proxy image URLs (Google auth, etc.)
+      "res.cloudinary.com",
+      "images.clerk.dev",
+      "img.clerk.com",
     ],
   },
 };

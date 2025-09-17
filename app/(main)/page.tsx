@@ -4,7 +4,7 @@ import Hero from "@/components/Hero";
 import HomeAbout from "@/components/HomeAbout";
 import Testimonials from "@/components/Testimonials";
 import FAQPage from "@/components/faq";
-// import CourseList from "@/components/CourseList";
+
 export default function Home() {
 
   return (

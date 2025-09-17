@@ -4,17 +4,21 @@ import { redirect } from "next/navigation";
 import AttemptsList from "@/components/dashboard/AttemptsList";
 import { ObjectId } from "mongodb";
 
+
+// Compute attempt metrics
 function computeAttemptMetrics(attempt: any) {
-  const { answers = {}, mockTest, score, startedAt, submittedAt } = attempt;
+
+  const { answers = {}, mockTest, startedAt, submittedAt } = attempt;
   const questions = mockTest?.questions ?? [];
   const totalQuestions = questions.length;
+
 
   let correctCount = 0;
   let incorrectCount = 0;
 
   questions.forEach((q: any, i: number) => {
-    const questionId = q.id || `q-${i}`;
-    const userAnswer = answers[questionId];
+    const questionId = q.id ?? `q-${i}`;
+    const userAnswer = answers?.[questionId];
     const correctAnswer = q.correctAnswer ?? q.answer;
 
     if (userAnswer !== undefined) {
@@ -28,16 +32,12 @@ function computeAttemptMetrics(attempt: any) {
 
   const unansweredCount = totalQuestions - (correctCount + incorrectCount);
   const percentage =
-    totalQuestions > 0
-      ? Math.round((correctCount / totalQuestions) * 100)
-      : 0;
+    totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
 
   let timeTaken = 0;
   if (startedAt && submittedAt) {
     timeTaken =
-      (new Date(submittedAt).getTime() -
-        new Date(startedAt).getTime()) /
-      1000;
+      (new Date(submittedAt).getTime() - new Date(startedAt).getTime()) / 1000;
   }
 
   return {
@@ -52,24 +52,24 @@ function computeAttemptMetrics(attempt: any) {
   };
 }
 
-export default async function MockAttemptsPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function MockAttemptsPage(props: { params: { id: string } }) {
+  // ✅ Await params for Next.js 15 App Router
+  const resolvedParams = await props.params;
+  const mockTestIdParam = resolvedParams.id;
+
   const user = await currentUser();
   if (!user) redirect("/sign-in");
 
-  if (!params?.id) {
+  if (!mockTestIdParam) {
     console.error("Missing mock test ID parameter");
     redirect("/mocks");
   }
 
   let validMockTestId: string;
   try {
-    validMockTestId = new ObjectId(params.id).toString();
+    validMockTestId = new ObjectId(mockTestIdParam).toString();
   } catch (error) {
-    console.error("Invalid mock test ID format:", params.id, error);
+    console.error("Invalid mock test ID format:", mockTestIdParam, error);
     redirect("/mocks");
   }
 
@@ -97,23 +97,22 @@ export default async function MockAttemptsPage({
         },
       },
     },
-    orderBy: {
-      submittedAt: "desc",
-    },
+    orderBy: { submittedAt: "desc" },
   });
 
   if (!rawAttempts.length) {
     redirect("/mocks");
   }
 
-  // 🔥 Enrich attempts with calculated metrics
+  // Enrich attempts with metrics
   const attempts = rawAttempts.map((a) => computeAttemptMetrics(a));
 
   return (
     <div className="container mx-auto p-4">
+     
       <AttemptsList
         attempts={attempts}
-        mockTestTitle={attempts[0].mockTest.title}
+        mockTestTitle={attempts[0]?.mockTest?.title ?? "Untitled Test"}
         mockTestId={validMockTestId}
       />
     </div>

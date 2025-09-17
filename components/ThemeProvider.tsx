@@ -1,22 +1,29 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { ThemeProvider as NextThemesProvider } from "next-themes"
+import * as React from "react";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { useIsHydrated } from "@/hooks/useIsHydrated"; // reusable hook
 
 export function ThemeProvider({
   children,
   ...props
 }: React.ComponentProps<typeof NextThemesProvider>) {
-  const [mounted, setMounted] = React.useState(false)
+  const hydrated = useIsHydrated();
 
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) {
-    // Prevent hydration mismatch by not rendering until mounted
-    return <div style={{ visibility: "hidden" }}>{children}</div>
+  if (!hydrated) {
+    // Prevent hydration mismatch by delaying render until client is ready
+    return null;
   }
 
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>
+  return (
+    <NextThemesProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+      {...props}
+    >
+      {children}
+    </NextThemesProvider>
+  );
 }

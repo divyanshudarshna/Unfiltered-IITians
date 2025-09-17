@@ -1,4 +1,3 @@
-// app/(main)/layout.tsx
 import React from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -20,20 +19,22 @@ const poppins = Poppins({
   display: "swap",
 });
 
-export default function MainLayout({ children }: { children: React.ReactNode }) {
+export default function MainLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <div className={`${zillaSlab.variable} ${poppins.variable}`}>
-      {/* Wrap everything with Providers to enable NProgress */}
-      <Providers>
-        {/* Navbar is fixed, stays on top */}
-    
-        <Navbar />  
+      {/* Providers is client-only, but Navbar/Footer/BackgroundWrapper stay outside */}
+      <Navbar />
 
-        <BackgroundWrapper>
+      <BackgroundWrapper>
+        <Providers>
           <main className="font-body pt-16">{children}</main>
-          <Footer />
-        </BackgroundWrapper>
-      </Providers>
+        </Providers>
+        <Footer />
+      </BackgroundWrapper>
     </div>
   );
 }

@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-
+import { useUser } from "@clerk/nextjs";
+import { use } from "react";
 function formatDate(dateString: string | Date | null | undefined): string {
   if (!dateString) return "-";
   try {
@@ -44,6 +45,11 @@ export default function AttemptsList({
   mockTestId: string;
 }) {
   const router = useRouter();
+  const {user}= useUser();
+  const userSlug = user?.fullName
+    ? user.fullName.split(" ")[0]// take first word of fullname
+    : "me";
+    
 
   return (
     <div className="space-y-6 p-4 max-w-6xl mx-auto">
@@ -53,11 +59,30 @@ export default function AttemptsList({
           <h1 className="text-2xl font-bold tracking-tight">Test Results</h1>
           <p className="text-sm text-muted-foreground">{mockTestTitle}</p>
         </div>
-        <Button asChild variant="outline" className="border-primary/30 hover:border-primary/50">
-          <Link href={`/mocks/${mockTestId}/start`} className="font-medium">
-            + New Attempt
-          </Link>
-        </Button>
+      {/* Buttons Row */}
+        <div className="flex items-center gap-2">
+          {/* Back to Performance */}
+          <Button
+            asChild
+            variant="outline"
+            className="border-primary/30 hover:border-primary/50"
+          >
+            <Link href={`/${userSlug}/performance`} className="font-medium">
+              ← Back
+            </Link>
+          </Button>
+
+          {/* New Attempt */}
+          <Button
+            asChild
+            variant="outline"
+            className="border-primary/30 hover:border-primary/50"
+          >
+            <Link href={`/mocks/${mockTestId}/start`} className="font-medium">
+              + New Attempt
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Attempts Grid */}
