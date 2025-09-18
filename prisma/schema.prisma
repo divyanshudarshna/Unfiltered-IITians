@@ -230,6 +230,8 @@ model Testimonial {
   updatedAt   DateTime  @updatedAt
 }
 
+
+
 model ContactUs {
   id        String        @id @default(auto()) @map("_id") @db.ObjectId
   name      String
@@ -354,6 +356,31 @@ model YoutubeVideo {
   updatedAt   DateTime        @updatedAt
 }
 
+
+model MaterialCategory {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  name      String     @unique
+  desc      String?
+  materials Material[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Material {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  title      String
+  slug       String?  @unique
+  content    String?  // HTML content from text editor
+  pdfUrl     String?  // URL to uploaded PDF (optional)
+  youtubeLink String? // optional youtube (embed or watch)
+  tags       String[] // array of tags (can be empty)
+  order      Int?     // ordering within a category
+  published  Boolean  @default(true)
+  subjectId  String   @db.ObjectId
+  subject    MaterialCategory @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
 // npx prisma db push
 // npx prisma generate
 // npx prisma studio
