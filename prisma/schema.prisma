@@ -390,6 +390,20 @@ model Material {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+
+model MockBundle {
+  id              String       @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String?
+  mockIds         String[]     // Array of MockTest IDs
+  basePrice       Int          // Sum of individual mock prices
+  discountedPrice Int?         // Optional discounted price
+  status          PublishStatus @default(DRAFT) // DRAFT / PUBLISHED
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @default(now()) @updatedAt
+}
+
 // npx prisma db push
 // npx prisma generate
 // npx prisma studio

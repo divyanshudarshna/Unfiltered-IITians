@@ -43,6 +43,8 @@ const data = {
     { title: "Users", url: "/admin/users", icon: IconUsers },
     { title: "Mocks", url: "/admin/mocks", icon: IconTestPipe },
     { title: "Courses", url: "/admin/courses", icon: IconBook },
+    { title: "Free Materials", url: "/admin/materials", icon: IconFolder },
+    { title: "Success Stories", url: "/admin/successStories", icon: IconStar },
     { title: "Announcements", url: "/admin/announcement", icon: IconSpeakerphone },
     { title: "Feedbacks", url: "/admin/feedbacks", icon: IconMessage },
     { title: "Testimonials", url: "/admin/testimonials", icon: IconStar },
@@ -65,7 +67,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >  
+            >
               <Link href="/admin/dashboard" className="flex items-center gap-2">
                 <IconInnerShadowTop className="!size-5" />
                 <span className="text-base font-semibold">Admin Dashboard</span>

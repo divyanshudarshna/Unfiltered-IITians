@@ -13,7 +13,7 @@ import Providers from "./Providers";
 export const metadata: Metadata = {
   title: "Unfiltered IITIans",
   description: "A course platform for competitive exams",
-  icons: { icon: "/logo.jpeg" },
+  icons: { icon: "/unf_logo.jpeg" },
 };
 
 export default function RootLayout({
