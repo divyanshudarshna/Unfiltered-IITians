@@ -9,16 +9,16 @@ export default function CategorySection({ category }: { category: { id: string; 
   const [isExpanded, setIsExpanded] = useState(true);
 
   return (
-    <section className="bg-card/50 backdrop-blur-sm rounded-2xl border border-primary/10 p-6 shadow-lg transition-all duration-300 hover:shadow-primary/10 hover:shadow-xl">
+    <section className=" rounded-2xl  transition-all duration-300 ">
       {/* Category Header with toggle functionality */}
       <div 
         className="flex items-center justify-between mb-4 cursor-pointer group"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-8 bg-gradient-to-b from-primary to-primary/70 rounded-full"></div>
+        <div className="flex items-center gap-3 mt-4 ">
+          <div className="w-2 h-8 bg-gradient-to-b from-purple-400 to-purple-400/70 rounded-full"></div>
           <div>
-            <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80">
+            <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-cyan-400/80">
               {category.name}
             </h3>
             {/* optional category description could go here */}

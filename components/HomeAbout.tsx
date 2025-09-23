@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Tilt from "react-parallax-tilt";
+import Link from "next/link";
 
 import { BookOpenCheck, GraduationCap, ArrowRight } from "lucide-react";
 import { Button } from "./ui/button";
@@ -19,7 +20,6 @@ const highlights = [
           biotechnology educator with roots at <b>IIT Bombay</b>, currently
           advancing research at <b>IIT Roorkee</b>.
         </p>
-
         <p className="mt-2">
           My mission is to demystify complex scientific concepts and provide
           students with the tools, strategies, and confidence needed to excel in
@@ -31,7 +31,7 @@ const highlights = [
     bg: "bg-slate-50 dark:bg-slate-900/30",
     border: "border-slate-200 dark:border-slate-700",
     iconBg: "bg-blue-100 dark:bg-blue-900/30",
-    iconColor: "text-blue-600 dark:text-blue-400"
+    iconColor: "text-blue-600 dark:text-blue-400",
   },
   {
     icon: <GraduationCap className="w-6 h-6" />,
@@ -53,11 +53,11 @@ const highlights = [
         </p>
       </div>
     ),
-    link: { href: "/success", text: "Read More Stories" },
+    link: { href: "/success-stories", text: "Read More Stories" },
     bg: "bg-slate-50 dark:bg-slate-900/30",
     border: "border-slate-200 dark:border-slate-700",
     iconBg: "bg-green-100 dark:bg-green-900/30",
-    iconColor: "text-green-600 dark:text-green-400"
+    iconColor: "text-green-600 dark:text-green-400",
   },
   {
     icon: <BookOpenCheck className="w-6 h-6" />,
@@ -80,7 +80,7 @@ const highlights = [
     bg: "bg-slate-50 dark:bg-slate-900/30",
     border: "border-slate-200 dark:border-slate-700",
     iconBg: "bg-purple-100 dark:bg-purple-900/30",
-    iconColor: "text-purple-600 dark:text-purple-400"
+    iconColor: "text-purple-600 dark:text-purple-400",
   },
   {
     icon: <FaYoutube className="w-6 h-6" />,
@@ -103,7 +103,7 @@ const highlights = [
     bg: "bg-slate-50 dark:bg-slate-900/30",
     border: "border-slate-200 dark:border-slate-700",
     iconBg: "bg-red-100 dark:bg-red-900/30",
-    iconColor: "text-red-600 dark:text-red-400"
+    iconColor: "text-red-600 dark:text-red-400",
   },
 ];
 
@@ -145,35 +145,45 @@ export default function HowICanHelp() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {highlights.map((item, index) => (
-            <Card
+            <Link
               key={index}
-              className={`transition-all hover:scale-[1.02] hover:shadow-md hover:shadow-violet-400 border ${item.border} ${item.bg} backdrop-blur-sm`}
+              href={item.link?.href || "#"}
+              className="group"
             >
-              <CardHeader className="flex flex-row items-center gap-4">
-                <div className={`p-3 rounded-md ${item.iconBg} ${item.iconColor}`}>
-                  {item.icon}
-                </div>
-                <CardTitle className="text-lg font-semibold font-heading text-slate-800 dark:text-slate-200">
-                  {item.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-slate-700 dark:text-slate-300 font-body text-left text-sm space-y-2">
-                  {item.content}
-                </div>
-                {item.link && (
-                  <div className="mt-4 text-left">
-                    <Button 
-                      variant="outline" 
-                      className="text-sm group rounded-4xl border-purple-300 dark:border-violet-600 text-violet-700 dark:text-violet-500  hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >
-                      {item.link.text}
-                      <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Button>
+              <Card
+                className={`relative h-full transition-all duration-500 ${item.border} ${item.bg} backdrop-blur-sm 
+                hover:scale-[1.02] hover:shadow-xl hover:border-transparent 
+                before:absolute before:inset-0 before:rounded-2xl before:border-2 before:border-transparent 
+                hover:before:border-violet-500 hover:before:shadow-[0_0_25px_5px_rgba(139,92,246,0.5)] before:transition-all before:duration-700`}
+              >
+                <CardHeader className="flex flex-row items-center gap-4 relative z-10">
+                  <div
+                    className={`p-3 rounded-md ${item.iconBg} ${item.iconColor}`}
+                  >
+                    {item.icon}
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  <CardTitle className="text-lg font-semibold font-heading text-slate-800 dark:text-slate-200">
+                    {item.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="relative z-10">
+                  <div className="text-slate-700 dark:text-slate-300 font-body text-left text-sm space-y-2">
+                    {item.content}
+                  </div>
+                  {item.link && (
+                    <div className="mt-4 text-left">
+                      <Button
+                        variant="outline"
+                        className="text-sm group rounded-4xl border-purple-300 dark:border-violet-600 text-violet-700 dark:text-violet-500  hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        {item.link.text}
+                        <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       </div>

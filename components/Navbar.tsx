@@ -76,7 +76,7 @@ const Navbar = () => {
             ].map(({ href, label }) => (
               <Link key={href} href={href} prefetch className="relative font-medium text-foreground group/navlink">
                 {label}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-500 transition-all duration-300 group-hover/navlink:w-full"></span>
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
               </Link>
             ))}
 
@@ -84,19 +84,19 @@ const Navbar = () => {
             <NavigationMenu>
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-medium hover:text-blue-500 transition-colors data-[state=open]:text-blue-500 flex items-center gap-1 relative group/navlink">
+                  <NavigationMenuTrigger className="font-medium hover:text-violet-700 transition-colors data-[state=open]:text-violet-700 flex items-center gap-1 relative group/navlink">
                     Courses
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-500 transition-all duration-300 group-hover/navlink:w-full"></span>
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
                   </NavigationMenuTrigger>
                   <NavigationMenuContent className="rounded-lg shadow-lg">
                     <ul className="flex flex-col gap-2 min-w-[200px]">
                       <li>
-                        <Link href="/courses" prefetch className="flex items-center gap-2 hover:bg-accent hover:text-blue-500 px-3 py-2 rounded-md transition-colors">
+                        <Link href="/courses" prefetch className="flex items-center gap-2 hover:bg-accent hover:text-violet-700 px-3 py-2 rounded-md transition-colors">
                           <BookOpen size={16} /> All Courses
                         </Link>
                       </li>
                       <li>
-                        <Link href="/mocks" prefetch className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors">
+                        <Link href="/mockBundles" prefetch className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors">
                           <FileText size={16} /> Mocks
                         </Link>
                       </li>
@@ -161,7 +161,7 @@ const Navbar = () => {
                     <Link href="/dashboard/courses" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
                       <User size={18} /> <span>My Courses</span>
                     </Link>
-                    <Link href="/mocks" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
+                    <Link href="/mockBundles" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
                       <FileText size={18} /> <span>Mocks</span>
                     </Link>
                   </div>
@@ -196,7 +196,7 @@ const Navbar = () => {
                             {mode === "dark" && <Moon size={16} />}
                             {mode === "system" && <Monitor size={16} />}
                             <span className="capitalize">{mode}</span>
-                            {theme === mode && <div className="ml-auto w-2 h-2 bg-blue-500 rounded-full"></div>}
+                            {theme === mode && <div className="ml-auto w-2 h-2 bg-violet-700 rounded-full"></div>}
                           </button>
                         ))}
                       </div>

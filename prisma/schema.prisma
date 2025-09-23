@@ -107,18 +107,22 @@ model MockAttempt {
 }
 
 model Subscription {
-  id              String     @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String     @db.ObjectId
-  mockTestId      String?    @db.ObjectId
-  courseId        String?    @db.ObjectId
-  razorpayOrderId String    
-  paid            Boolean    @default(false)
-  createdAt       DateTime   @default(now())
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String      @db.ObjectId
+  mockTestId      String?     @db.ObjectId
+  courseId        String?     @db.ObjectId
+  mockBundleId    String?     @db.ObjectId   // ✅ NEW: Bundle subscription support
+  razorpayOrderId String
+  paid            Boolean     @default(false)
+  createdAt       DateTime    @default(now())
 
-  user     User      @relation(fields: [userId], references: [id])
-  mockTest MockTest? @relation(fields: [mockTestId], references: [id])
-  course   Course?   @relation(fields: [courseId], references: [id])
+  // Relations
+  user       User        @relation(fields: [userId], references: [id])
+  mockTest   MockTest?   @relation(fields: [mockTestId], references: [id])
+  course     Course?     @relation(fields: [courseId], references: [id])
+  mockBundle MockBundle? @relation(fields: [mockBundleId], references: [id])
 }
+
 
 // ================== COURSES ==================
 model Course {
@@ -392,16 +396,21 @@ model Material {
 }
 
 
+
 model MockBundle {
-  id              String       @id @default(auto()) @map("_id") @db.ObjectId
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
   title           String
   description     String?
-  mockIds         String[]     // Array of MockTest IDs
-  basePrice       Int          // Sum of individual mock prices
-  discountedPrice Int?         // Optional discounted price
-  status          PublishStatus @default(DRAFT) // DRAFT / PUBLISHED
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @default(now()) @updatedAt
+  mockIds         String[]      // ✅ Still stores mockTest IDs inside bundle
+  basePrice       Int
+  discountedPrice Int?
+  status          PublishStatus @default(DRAFT)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now()) @updatedAt
+
+  // ✅ New relation to subscriptions
+  subscriptions   Subscription[]
 }
 
 // npx prisma db push

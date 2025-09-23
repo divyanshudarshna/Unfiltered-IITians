@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import {
   IconDashboard,
   IconUsers,
@@ -42,6 +43,7 @@ const data = {
     { title: "Dashboard", url: "/admin/dashboard", icon: IconDashboard },
     { title: "Users", url: "/admin/users", icon: IconUsers },
     { title: "Mocks", url: "/admin/mocks", icon: IconTestPipe },
+    { title: "Mock Bundles", url: "/admin/mockBundles", icon: IconTestPipe },
     { title: "Courses", url: "/admin/courses", icon: IconBook },
     { title: "Free Materials", url: "/admin/materials", icon: IconFolder },
     { title: "Success Stories", url: "/admin/successStories", icon: IconStar },
@@ -53,8 +55,8 @@ const data = {
   ],
   navSecondary: [
     { title: "Settings", url: "/admin/settings", icon: IconSettings },
-    { title: "Help", url: "/admin/help", icon: IconHelp },
-    { title: "Search", url: "/admin/search", icon: IconSearch },
+    // { title: "Help", url: "/admin/help", icon: IconHelp },
+    // { title: "Search", url: "/admin/search", icon: IconSearch },
   ],
 }
 
@@ -66,12 +68,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
+              className="data-[slot=sidebar-menu-button]:!p-1.5 my-2"
             >
-              <Link href="/admin/dashboard" className="flex items-center gap-2">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Admin Dashboard</span>
-              </Link>
+             <Link href="/admin/dashboard" className="flex items-center gap-2">
+      <Image
+        src="/unf_logo.jpeg"
+        alt="Logo"
+        width={32}
+        height={32}
+        className="rounded-full border border-gray-200 dark:border-gray-700 shadow-sm "
+      />
+      <span className="text-base font-semibold">Admin Dashboard</span>
+    </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

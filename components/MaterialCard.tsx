@@ -156,7 +156,7 @@ export default function MaterialCard({ material }: { material: any }) {
                 <Badge 
                   key={tag} 
                   variant="secondary"
-                  className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors duration-200 px-2 py-1 text-xs"
+                  className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors duration-200 px-2 py-1 text-xs"
                 >
                   {tag}
                 </Badge>

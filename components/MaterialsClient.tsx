@@ -141,7 +141,7 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
                 <SelectValue>{selectedCategory === "all" ? "All Subjects" : initialCategories.find(c => c.id === selectedCategory)?.name}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Subjects</SelectItem>
+                <SelectItem value="all" >All Subjects</SelectItem>
                 {initialCategories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
               </SelectContent>
             </Select>
