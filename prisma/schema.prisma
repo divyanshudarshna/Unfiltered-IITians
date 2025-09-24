@@ -67,6 +67,8 @@ model User {
   feedbackReplies    FeedbackReply[] // add this
 
   receivedFeedbackReplies FeedbackReplyRecipient[] // replies received by this student
+  //need to add the relation for the sessions enrollments
+  sessionEnrollments SessionEnrollment[]
 }
 
 // ================== MOCKS ==================
@@ -411,6 +413,75 @@ model MockBundle {
 
   // ✅ New relation to subscriptions
   subscriptions   Subscription[]
+}
+
+
+// Add these enums to your existing enums section
+enum SessionType {
+  ONE_ON_ONE
+  GROUP
+}
+
+enum SessionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+// Add these models to your existing schema
+model Session {
+  id                  String         @id @default(auto()) @map("_id") @db.ObjectId
+  title               String
+  description         String?
+  content             String?        // HTML content from text editor
+  tags                String[]
+  status              SessionStatus  @default(DRAFT)
+  price               Float          @default(0)
+  discountedPrice     Float?
+  maxEnrollment       Int?           // null means unlimited
+  type                SessionType
+  duration            Int            // in minutes
+  expiryDate          DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Relations
+  enrollments         SessionEnrollment[]
+
+  @@index([status])
+  @@index([expiryDate])
+}
+
+model SessionEnrollment {
+  id                  String         @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId           String         @db.ObjectId
+  userId              String         @db.ObjectId
+  studentName         String         // Auto-filled from user table
+  studentEmail        String         // Auto-filled from user table
+  studentPhone        String         // Manually entered by user
+  razorpayOrderId     String?
+  razorpayPaymentId   String?
+  paymentStatus       PaymentStatus  @default(PENDING)
+  amountPaid          Float?
+  enrolledAt          DateTime       @default(now())
+  completedAt         DateTime?
+
+  // Relations
+  session             Session        @relation(fields: [sessionId], references: [id])
+  user                User           @relation(fields: [userId], references: [id])
+
+  @@unique([sessionId, userId])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([paymentStatus])
+  @@index([enrolledAt])
 }
 
 // npx prisma db push

@@ -79,9 +79,19 @@ export default function YoutubePage() {
   target="_blank"
   rel="noopener noreferrer"
 >
-  <Button size="lg" variant="default" className="rounded-xl">
-    <FaYoutube className="mr-2 h-5 w-5" /> Subscribe Now
-  </Button>
+  <div className="flex justify-center">
+ <Button
+  size="lg"
+  variant="default"
+  className="rounded-xl bg-gradient-to-r from-red-500 via-red-600 to-red-700 text-white font-semibold flex items-center justify-center gap-2 
+             hover:from-red-600 hover:via-red-700 hover:to-red-800 
+             transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg"
+>
+  <FaYoutube className="h-5 w-5" />
+  Subscribe Now
+</Button>
+</div>
+
 </a>
 
       </section>

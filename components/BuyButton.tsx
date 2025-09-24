@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 
 interface BuyButtonProps {
   clerkUserId: string;
-  itemId: string; // mockId, bundleId, or courseId
-  itemType: "mockTest" | "mockBundle" | "course";
+  itemId: string;
+  itemType: "mockTest" | "mockBundle" | "course" | "session"; // ✅ added session
   title: string;
   amount: number;
-  mockIds?: string[]; // ✅ For bundle: list of mocks to subscribe
+  mockIds?: string[];
+  studentPhone?: string; // ✅ new
   onPurchaseSuccess?: () => void;
 }
 
@@ -20,6 +21,7 @@ export const BuyButton = ({
   title,
   amount,
   mockIds,
+  studentPhone, // ✅ new
   onPurchaseSuccess,
 }: BuyButtonProps) => {
   const [loading, setLoading] = useState(false);
@@ -32,6 +34,10 @@ export const BuyButton = ({
       return alert("No mocks selected for purchase!");
     }
 
+    if (itemType === "session" && !studentPhone) {
+      return alert("Please enter your phone number to enroll.");
+    }
+
     try {
       setLoading(true);
 
@@ -39,7 +45,13 @@ export const BuyButton = ({
       const res = await fetch("/api/payment/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clerkUserId, itemId, itemType, mockIds }),
+        body: JSON.stringify({
+          clerkUserId,
+          itemId,
+          itemType,
+          mockIds,
+          studentPhone, // ✅ include phone here
+        }),
       });
 
       const data = await res.json();
@@ -91,7 +103,7 @@ export const BuyButton = ({
         return;
       }
 
-      alert("✅ Payment verified and subscription updated!");
+      alert("✅ Payment verified and subscription/enrollment updated!");
       onPurchaseSuccess?.();
       router.refresh();
     } catch (err) {
