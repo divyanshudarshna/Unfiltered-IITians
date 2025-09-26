@@ -3,28 +3,30 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
 // Define all public routes that should never trigger auth redirects
 const isPublicRoute = createRouteMatcher([
-  '/',                   // Home page - always public
-  '/about',              // About page - always public
-  '/courses(.*)',        // Course listings
-  '/blog(.*)',           // Blog posts
-  '/api/webhooks/clerk', // Clerk webhook
+  '/',
+  '/about',
+  '/courses(.*)',
+  '/blog(.*)',
   '/contact',
   '/youtube',
-    // ✅ Temporarily make these APIs public:
+  '/guidance(.*)', // ✅ Add this line
+  '/api/webhooks/clerk',
   '/api/user/(.*)',
   '/api/mock/(.*)',
   '/api/subscription/(.*)',
   '/api/performance/(.*)',
-  '/api/testimonials(.*)', // ✅ FIXED (added slash)
-  '/api/contact-us(.*)', // ✅ FIXED (added slash)
-  '/api/courses(.*)', // ✅ FIXED (added slash)
-  '/api/sessions(.*)', // ✅ FIXED (added slash)
-
-  // ✅ TEMP: make admin APIs public for testing
+  '/api/testimonials(.*)',
+  '/api/contact-us(.*)',
+  '/api/courses(.*)',
+  '/api/sessions(.*)',
+  '/api/course-details(.*)',
   '/api/admin/(.*)',
-
-  // Add other public routes here
+  '/faq(.*)', // ✅ Add this line
+  '/api/faq(.*)', // ✅ Add this to make the API public
+  '/mockBundles(.*)', // ✅ Add this to make the API public
+  '/resources(.*)',
 ]);
+
 
 // Define auth routes that should only be accessible when explicitly visited
 const isAuthRoute = createRouteMatcher([

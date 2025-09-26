@@ -30,11 +30,7 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var theme = localStorage.getItem('theme');
-                  if (!theme) {
-                    var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    theme = systemDark ? 'dark' : 'light';
-                  }
+                  var theme = localStorage.getItem('theme') || 'dark'; // default dark
                   document.documentElement.setAttribute('data-theme', theme);
                 } catch (_) {}
               })();
@@ -42,18 +38,38 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="font-sans">
+      <body className="font-sans bg-slate-900 text-slate-100">
         <ClerkProvider appearance={{ baseTheme: dark }}>
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
-            enableSystem
+            defaultTheme="dark" // default to dark
+            enableSystem={false} // you can set true if you want system preference override
             disableTransitionOnChange
           >
             <AuthSync />
             <TopProgress /> 
             <Providers>{children}</Providers>
-            <Toaster />
+
+            {/* Custom Toaster */}
+            <Toaster
+              richColors
+              toastOptions={{
+                success: {
+                  style: {
+                    background: '#22c55e', // green background
+                    color: '#ffffff',      // white text
+                    fontWeight: 'bold',
+                  },
+                },
+                error: {
+                  style: {
+                    background: '#ef4444', // red background
+                    color: '#ffffff',      // white text
+                    fontWeight: 'bold',
+                  },
+                },
+              }}
+            />
           </ThemeProvider>
         </ClerkProvider>
 

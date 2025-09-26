@@ -102,6 +102,7 @@ const skills = [
   },
 ];
 
+export const dynamic = "force-static";
 export default function About() {
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8  text-slate-200">
@@ -129,7 +130,7 @@ export default function About() {
     gyroscope={true}
   >
     <Image
-      src="/about.jpg"
+      src="https://res.cloudinary.com/dqe1wy2nc/image/upload/v1758919081/admin-uploads/about-277c5b7e.webp"
       alt="Profile Picture"
       width={300}
       height={300}

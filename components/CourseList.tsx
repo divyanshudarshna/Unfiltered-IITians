@@ -427,31 +427,46 @@ export default function CourseList({
                     </div>
                   </CardContent>
 
-                  <CardFooter>
-                    {isEnrolled ? (
-                      <Button
-                        asChild
-                        className="w-full bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-white transition-all duration-200 shadow-md hover:shadow-lg"
-                      >
-                        <Link
-                          href={`/dashboard/courses/${course.id}`}
-                          className="flex items-center justify-center gap-2"
-                        >
-                          Start Learning <Rocket className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    ) : (
-                      <Button
-                        asChild
-                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
-                      >
-                        <Link href={`/courses/${course.id}`}>
-                          {discounted > 0 ? "Enroll Now" : "Start Free"}{" "}
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                      </Button>
-                    )}
-                  </CardFooter>
+                 <CardFooter className="flex gap-3">
+  {isEnrolled ? (
+    <Button
+      asChild
+      className="flex-1 bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-white transition-all duration-200 shadow-md hover:shadow-lg"
+    >
+      <Link
+        href={`/dashboard/courses/${course.id}`}
+        className="flex items-center justify-center gap-2"
+      >
+        Start Learning <Rocket className="h-4 w-4" />
+      </Link>
+    </Button>
+  ) : (
+    <>
+      {/* Enroll Button → Payment page */}
+      <Button
+        asChild
+        className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+      >
+        <Link href={`/checkout/${course.id}`}>
+          {discounted > 0 ? "Enroll Now" : "Start Free"}{" "}
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Link>
+      </Button>
+
+      {/* Details Button → Full course details page */}
+      <Button
+        asChild
+        variant="outline"
+        className="flex-1 border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300"
+      >
+        <Link href={`/courses/${course.id}/details`}>
+          Details <BookOpen className="ml-2 h-4 w-4" />
+        </Link>
+      </Button>
+    </>
+  )}
+</CardFooter>
+
                 </Card>
               );
             })}

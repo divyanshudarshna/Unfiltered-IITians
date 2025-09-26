@@ -39,7 +39,9 @@ export async function GET() {
         coupons: true,
         enrollments: true,
         subscriptions: true,
+       
       },
+
       orderBy: { createdAt: "desc" },
     });
 

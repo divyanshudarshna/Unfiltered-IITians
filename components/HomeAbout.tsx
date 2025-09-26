@@ -6,8 +6,9 @@ import Tilt from "react-parallax-tilt";
 import Link from "next/link";
 
 import { BookOpenCheck, GraduationCap, ArrowRight } from "lucide-react";
-import { Button } from "./ui/button";
 import { FaYoutube } from "react-icons/fa";
+
+export const dynamic = "force-static";
 
 const highlights = [
   {
@@ -109,78 +110,74 @@ const highlights = [
 
 export default function HowICanHelp() {
   return (
-    <section className="py-16 px-6 sm:px-10 lg:px-20 ">
+    <section className="py-16 px-6 sm:px-10 lg:px-20">
       <div className="max-w-6xl mx-auto text-center">
-        <div className="text-center px-4 md:px-0">
-          {/* Title with gradient */}
-          <h2 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-purple-600 via-cyan-400 to-blue-500 bg-clip-text text-transparent mb-3">
-            How I Can Help You Succeed
-          </h2>
-          {/* Subtitle / designation */}
-          <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 mb-12">
-            Divyanshu Darshana | PhD Scholar, IIT Roorkee – Biotechnology
-            Department
-          </p>
+        {/* Title */}
+        <h2 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-purple-600 via-cyan-400 to-blue-500 bg-clip-text text-transparent mb-3">
+          How I Can Help You Succeed
+        </h2>
+        <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 mb-12">
+          Divyanshu Darshana | PhD Scholar, IIT Roorkee – Biotechnology Department
+        </p>
 
-          {/* Circular profile with hover glow */}
-          <div className="flex justify-center mb-12">
-            <Tilt
-              className="w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full overflow-hidden transition-transform duration-500 hover:scale-105 "
-              tiltMaxAngleX={25}
-              tiltMaxAngleY={25}
-              perspective={900}
-              gyroscope={true}
-            >
-              <Image
-                src="/about.jpg"
-                alt="Divyanshu Darshna"
-                width={300}
-                height={300}
-                className="object-cover w-full h-full rounded-full border-4 border-cyan-400"
-                priority
-              />
-            </Tilt>
-          </div>
+        {/* Profile Image */}
+        <div className="flex justify-center mb-12">
+          <Tilt
+            className="w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full overflow-hidden transition-transform duration-500 hover:scale-105"
+            tiltMaxAngleX={25}
+            tiltMaxAngleY={25}
+            perspective={900}
+            gyroscope={true}
+          >
+            <Image
+              src="https://res.cloudinary.com/dqe1wy2nc/image/upload/v1758919081/admin-uploads/about-277c5b7e.webp"
+              alt="Divyanshu Darshna"
+              width={300}
+              height={300}
+              className="object-cover w-full h-full rounded-full border-4 border-cyan-400"
+              priority
+            />
+          </Tilt>
         </div>
 
+        {/* Highlights Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {highlights.map((item, index) => (
             <Link
               key={index}
               href={item.link?.href || "#"}
+              prefetch={true}
               className="group"
             >
               <Card
                 className={`relative h-full transition-all duration-500 ${item.border} ${item.bg} backdrop-blur-sm 
-                hover:scale-[1.02] hover:shadow-xl hover:border-transparent 
-                before:absolute before:inset-0 before:rounded-2xl before:border-2 before:border-transparent 
-                hover:before:border-violet-500 hover:before:shadow-[0_0_25px_5px_rgba(139,92,246,0.5)] before:transition-all before:duration-700`}
+                  hover:scale-[1.02] hover:shadow-xl hover:border-transparent 
+                  before:absolute before:inset-0 before:rounded-2xl before:border-2 before:border-transparent 
+                  hover:before:border-violet-500 hover:before:shadow-[0_0_25px_5px_rgba(139,92,246,0.5)] before:transition-all before:duration-700`}
               >
                 <CardHeader className="flex flex-row items-center gap-4 relative z-10">
-                  <div
-                    className={`p-3 rounded-md ${item.iconBg} ${item.iconColor}`}
-                  >
+                  <div className={`p-3 rounded-md ${item.iconBg} ${item.iconColor}`}>
                     {item.icon}
                   </div>
                   <CardTitle className="text-lg font-semibold font-heading text-slate-800 dark:text-slate-200">
                     {item.title}
                   </CardTitle>
                 </CardHeader>
+
                 <CardContent className="relative z-10">
                   <div className="text-slate-700 dark:text-slate-300 font-body text-left text-sm space-y-2">
                     {item.content}
                   </div>
-                  {item.link && (
-                    <div className="mt-4 text-left">
-                      <Button
-                        variant="outline"
-                        className="text-sm group rounded-4xl border-purple-300 dark:border-violet-600 text-violet-700 dark:text-violet-500  hover:bg-slate-100 dark:hover:bg-slate-800"
-                      >
-                        {item.link.text}
-                        <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                      </Button>
-                    </div>
-                  )}
+   {item.link && (
+  <div className="mt-4 flex justify-start">
+    <div className="inline-flex items-center px-4 py-2 rounded-2xl border border-purple-400 text-sm font-medium text-violet-700 dark:text-violet-500 
+      group-hover:text-violet-900 dark:group-hover:text-violet-400 transition-colors">
+      {item.link.text}
+      <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+    </div>
+  </div>
+)}
+
                 </CardContent>
               </Card>
             </Link>

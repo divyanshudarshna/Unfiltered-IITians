@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, IndianRupee } from "lucide-react";
-import { useUser } from "@clerk/nextjs"; // ✅ Import Clerk hook
 
 interface Session {
   id: string;
@@ -19,18 +18,15 @@ interface Session {
   type: string;
   duration: number;
   expiryDate?: string;
-  isEnrolled?: boolean; // ✅ from API
 }
 
 export default function GuidancePage() {
-  const { user } = useUser(); // ✅ Get Clerk user
-  const firstName = user?.firstName || "user"; // fallback if firstName not available
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    async function fetchSessions() {
+    const fetchSessions = async () => {
       try {
         const res = await fetch("/api/sessions", { cache: "no-store" });
         const data = await res.json();
@@ -40,17 +36,16 @@ export default function GuidancePage() {
       } finally {
         setLoading(false);
       }
-    }
+    };
     fetchSessions();
   }, []);
 
-  if (loading) {
+  if (loading)
     return (
       <div className="flex justify-center items-center h-64 text-muted-foreground">
         Loading sessions...
       </div>
     );
-  }
 
   return (
     <div className="container mx-auto px-6 py-10">
@@ -85,22 +80,18 @@ export default function GuidancePage() {
 
             <CardContent>
               {/* Highlights */}
-              <div className="mt-4 mb-4 text-sm font-semibold">
-                What you'll get:
-              </div>
+              <div className="mt-4 mb-4 text-sm font-semibold">What you'll get:</div>
               <ul className="space-y-2 text-sm text-zinc-300">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-400" /> Expert tips on syllabus coverage
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-400" /> Live Interaction based service
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-400" /> 1 + 1 session (30 minutes each)
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-400" /> SWOT analysis
-                </li>
+                {[
+                  "Expert tips on syllabus coverage",
+                  "Live Interaction based service",
+                  "1 + 1 session (30 minutes each)",
+                  "SWOT analysis",
+                ].map((item, idx) => (
+                  <li key={idx} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-400" /> {item}
+                  </li>
+                ))}
               </ul>
 
               {/* Pricing */}
@@ -130,23 +121,13 @@ export default function GuidancePage() {
               </div>
 
               {/* Action button */}
-              {session.isEnrolled ? (
-                <Button
-                  className="w-full mt-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white"
-                  size="lg"
-                  onClick={() => router.push(`/${firstName}/dashboard`)} // ✅ Dynamic redirect
-                >
-                  Go to Dashboard →
-                </Button>
-              ) : (
-                <Button
-                  className="w-full mt-6 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white"
-                  size="lg"
-                  onClick={() => router.push(`/guidance/${session.id}`)}
-                >
-                  Enroll Now →
-                </Button>
-              )}
+              <Button
+                className="w-full mt-6 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white"
+                size="lg"
+                onClick={() => router.push(`/guidance/${session.id}`)}
+              >
+                Enroll Now →
+              </Button>
             </CardContent>
           </Card>
         ))}

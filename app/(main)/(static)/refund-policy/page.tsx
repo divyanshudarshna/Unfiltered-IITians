@@ -19,7 +19,7 @@ import {
   AlertTriangle,
   ChevronsRight,
 } from "lucide-react";
-
+export const dynamic = "force-static";
 export default function RefundPolicyPage() {
   return (
     <div className="container max-w-4xl mx-auto px-4 py-12">

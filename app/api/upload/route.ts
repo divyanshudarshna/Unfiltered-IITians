@@ -76,13 +76,17 @@ export async function POST(req: Request) {
       publicId,
       finalUrl: fileUrl,
     });
-return NextResponse.json({ 
-  url: fileUrl,
-  resourceType: resourceType,
-  originalFileName: originalFileName
-})
+
+    // Return extended response with publicId for the admin panel
+    return NextResponse.json({ 
+      url: fileUrl,
+      resourceType: resourceType,
+      originalFileName: originalFileName,
+      publicId: publicId // ✅ Added this line - the only change
+    });
+
   } catch (error) {
-    console.error('❌ Upload failed:', error)
-    return NextResponse.json({ error: 'Upload failed: ' + (error as Error).message }, { status: 500 })
+    console.error('❌ Upload failed:', error);
+    return NextResponse.json({ error: 'Upload failed: ' + (error as Error).message }, { status: 500 });
   }
 }

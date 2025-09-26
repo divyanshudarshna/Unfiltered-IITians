@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { FaYoutube } from "react-icons/fa";
 import Link from "next/link";
+export const dynamic = "force-static";
 
 const stats = [
   {
@@ -96,6 +97,7 @@ export default function Hero() {
           >
             <Link
               href="/courses"
+              prefetch={true} // explicitly prefetch
               className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-full shadow-lg hover:shadow-purple-500/30 transition-all"
             >
               Explore My Courses →
@@ -120,7 +122,7 @@ export default function Hero() {
                 transition={{ duration: 0.6}}
                 whileHover={{ y: -6, transition: { duration: 0.3 } }}
               >
-                <Link href={stat.href}>
+                <Link href={stat.href} prefetch={true}>
                   <Card className="relative bg-slate-900/30 backdrop-blur-xl border border-slate-700/30 rounded-xl overflow-hidden group transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-purple-500/20">
                     <CardContent className="p-6 text-center relative z-10">
                       {/* Icon */}

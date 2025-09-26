@@ -14,7 +14,7 @@ import {
   Mail,
   AlertCircle,
 } from "lucide-react";
-
+export const dynamic = "force-static";
 export default function PrivacyPolicyPage() {
   return (
     <div className="container max-w-4xl mx-auto px-4 py-12">
