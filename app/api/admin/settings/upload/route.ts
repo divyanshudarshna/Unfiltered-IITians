@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { cloudinary } from '@/lib/Cloudinary';
+import { cloudinary } from '@/lib/cloudinary';
 import { v4 as uuidv4 } from 'uuid';
 
 // GET - Get all uploaded files

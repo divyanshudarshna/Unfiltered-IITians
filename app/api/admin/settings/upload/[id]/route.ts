@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { cloudinary } from '@/lib/Cloudinary';
+import { cloudinary } from '@/lib/cloudinary';
 
 interface Params {
   params: Promise<{ id: string }>;

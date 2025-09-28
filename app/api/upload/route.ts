@@ -1,6 +1,6 @@
 // app/api/upload/route.ts
 import { NextResponse } from 'next/server'
-import { cloudinary } from '@/lib/Cloudinary'
+import { cloudinary } from '@/lib/cloudinary'
 import { v4 as uuidv4 } from 'uuid'
 
 export async function POST(req: Request) {
