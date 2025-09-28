@@ -18,8 +18,8 @@ interface DashboardClientProps {
     imageUrl: string;
     createdAt: Date;
   };
-  initialProfile: any;
-  subscription?: any[];
+  initialProfile: Record<string, unknown>;
+  subscription?: Record<string, unknown>[];
   averageScore: number;
   attemptedMocks: number;
   totalMocks: number;

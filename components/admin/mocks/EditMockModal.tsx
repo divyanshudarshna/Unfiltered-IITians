@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { DifficultyLevel, PublishStatus } from "@prisma/client"
-import { useRouter } from "next/navigation"
 
 interface EditMockModalProps {
   mock: {
@@ -43,7 +42,6 @@ export function EditMockModal({
   onSuccess,
 }: EditMockModalProps) {
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
 
   const [formData, setFormData] = useState({
     title: mock.title,

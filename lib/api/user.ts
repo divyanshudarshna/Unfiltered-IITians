@@ -6,7 +6,7 @@ export async function fetchUserProfile(clerkUserId: string) {
   return data.user;
 }
 
-export const updateUserProfile = async (data: any) => {
+export const updateUserProfile = async (data: Record<string, unknown>) => {
   const res = await fetch(`/api/user/profile/update`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

@@ -20,7 +20,7 @@
     ],
     "paths": {
       "@/*": ["./*"],
-       "next/link": ["./lib/PatchedLink"]
+      //  "next/link": ["./lib/PatchedLink"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

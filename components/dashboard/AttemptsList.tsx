@@ -12,7 +12,6 @@ import {
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
-import { use } from "react";
 function formatDate(dateString: string | Date | null | undefined): string {
   if (!dateString) return "-";
   try {
@@ -23,7 +22,7 @@ function formatDate(dateString: string | Date | null | undefined): string {
       hour: "2-digit",
       minute: "2-digit",
     });
-  } catch (error) {
+  } catch {
     return "-";
   }
 }
@@ -32,22 +31,37 @@ function formatTime(seconds: number | undefined | null): string {
   if (!seconds || seconds <= 0) return "-";
   const mins = Math.floor(seconds / 60);
   const secs = Math.round(seconds % 60);
-  return `${mins > 0 ? `${mins}m ` : ""}${secs}s`;
+  const minutes = mins > 0 ? `${mins}m ` : "";
+  return `${minutes}${secs}s`;
+}
+
+interface Attempt {
+  id: string;
+  score: number;
+  totalQuestions: number;
+  timeTaken?: number;
+  completedAt?: string | Date;
+  percentage?: number;
+  correctCount?: number;
+  submittedAt?: string | Date;
+  [key: string]: unknown;
+}
+
+interface AttemptsListProps {
+  readonly attempts: Attempt[];
+  readonly mockTestTitle: string;
+  readonly mockTestId: string;
 }
 
 export default function AttemptsList({
   attempts,
   mockTestTitle,
   mockTestId,
-}: {
-  attempts: any[];
-  mockTestTitle: string;
-  mockTestId: string;
-}) {
+}: AttemptsListProps) {
   const router = useRouter();
-  const {user}= useUser();
+  const { user } = useUser();
   const userSlug = user?.fullName
-    ? user.fullName.split(" ")[0]// take first word of fullname
+    ? user.fullName.split(" ")[0] // take first word of fullname
     : "me";
     
 
@@ -127,11 +141,11 @@ export default function AttemptsList({
                     percentage >= 40 ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400" :
                     "bg-red-500/10 text-red-600 dark:text-red-400"
                   )}>
-                    {percentage}%
+                    {(percentage as number)}%
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {formatDate(submittedAt)}
+                  {formatDate(submittedAt as string | Date)}
                 </p>
               </CardHeader>
 
@@ -144,8 +158,8 @@ export default function AttemptsList({
                   
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Correct: {correctCount}</span>
-                      <span>Incorrect: {totalQuestions - correctCount}</span>
+                      <span>Correct: {correctCount as number}</span>
+                      <span>Incorrect: {totalQuestions - (correctCount as number)}</span>
                     </div>
                     <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                       <div
@@ -193,7 +207,7 @@ export default function AttemptsList({
   );
 }
 
-function StatItem({ label, value }: { label: string; value: string | number }) {
+function StatItem({ label, value }: { readonly label: string; readonly value: string | number }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>

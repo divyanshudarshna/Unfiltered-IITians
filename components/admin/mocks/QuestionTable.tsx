@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import QuestionActions from "./QuestionActions";
@@ -10,9 +10,9 @@ type Question = { id: string; question: string; type: string; options: string[];
 export default function QuestionsTable({ questions, mockId, refreshMock, setEditQuestion }: { questions: Question[]; mockId: string; refreshMock: () => void; setEditQuestion: (q: Question) => void }) {
 
   const columns: ColumnDef<Question>[] = [
-    { accessorKey: "id", header: "ID", cell: info => <span className="font-mono text-sm">#{info.getValue().toString().slice(0,6)}</span> },
-    { accessorKey: "question", header: "Question", cell: info => <span className="line-clamp-2">{info.getValue()}</span> },
-    { accessorKey: "type", header: "Type", cell: info => <span>{info.getValue()}</span> },
+    { accessorKey: "id", header: "ID", cell: info => <span className="font-mono text-sm">#{(info.getValue() as string).slice(0,6)}</span> },
+    { accessorKey: "question", header: "Question", cell: info => <span className="line-clamp-2">{info.getValue() as string}</span> },
+    { accessorKey: "type", header: "Type", cell: info => <span>{info.getValue() as string}</span> },
     { id: "actions", header: "Actions", cell: ({ row }) => <QuestionActions question={row.original} mockId={mockId} refreshMock={refreshMock} setEditQuestion={setEditQuestion} /> }
   ];
 

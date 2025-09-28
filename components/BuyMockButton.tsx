@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { RazorpayResponse } from "../types/razorpay";
 
 interface Props {
   mockTestId: string;
@@ -34,14 +35,14 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, onPu
       }
 
       const { order } = data;
-      const razorpay = new (window as any).Razorpay({
+      const razorpay = new window.Razorpay({
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount: order.amount,
         currency: "INR",
         name: "Unfiltered IITians",
         description: mockTitle,
         order_id: order.id,
-        handler: function (response: any) {
+        handler: function (response: RazorpayResponse) {
           verifyPayment(response);
         },
         theme: { color: "#6366F1" },
@@ -56,7 +57,7 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, onPu
     }
   };
 
-  const verifyPayment = async (response: any) => {
+  const verifyPayment = async (response: RazorpayResponse) => {
     try {
       const verifyRes = await fetch("/api/payment/verify", {
         method: "POST",
@@ -68,7 +69,7 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, onPu
         }),
       });
 
-      const verifyData = await verifyRes.json();
+      await verifyRes.json();
       if (!verifyRes.ok) {
         alert("❌ Payment verification failed");
         return;

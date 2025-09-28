@@ -8,7 +8,26 @@ import { BuyMockButton } from "@/components/BuyMockButton";
 import Link from "next/link";
 import { Clock, FileText, Star, Zap, Award, CheckCircle2, Crown, Sparkles, Target, Rocket } from "lucide-react";
 
-export default function ClientMockList({ mocks, userId, purchasedMockIds }: any) {
+interface Mock {
+  id: string;
+  title: string;
+  price: number;
+  actualPrice?: number;
+  difficulty: string;
+  duration: number;
+  questions: unknown[];
+  description?: string;
+  tags?: string[];
+  [key: string]: unknown;
+}
+
+interface ClientMockListProps {
+  readonly mocks: Mock[];
+  readonly userId: string;
+  readonly purchasedMockIds: string[];
+}
+
+export default function ClientMockList({ mocks, userId, purchasedMockIds }: ClientMockListProps) {
   const [purchased, setPurchased] = useState(new Set(purchasedMockIds));
 
   const handlePurchaseSuccess = (mockId: string) => {
@@ -16,7 +35,7 @@ export default function ClientMockList({ mocks, userId, purchasedMockIds }: any)
   };
 
   // Calculate discount percentage based on actualPrice and price
-  const calculateDiscountPercentage = (price: number, actualPrice: number | null) => {
+  const calculateDiscountPercentage = (price: number, actualPrice: number | null | undefined) => {
     if (!actualPrice || actualPrice <= price) return 0;
     return Math.round(((actualPrice - price) / actualPrice) * 100);
   };
@@ -69,7 +88,7 @@ export default function ClientMockList({ mocks, userId, purchasedMockIds }: any)
 
   return (
     <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-      {mocks.map((mock: any) => {
+      {mocks.map((mock: Mock) => {
         const isPurchased = purchased.has(mock.id);
         const isFree = mock.price === 0;
         const discountPercentage = calculateDiscountPercentage(mock.price, mock.actualPrice);
@@ -129,7 +148,7 @@ export default function ClientMockList({ mocks, userId, purchasedMockIds }: any)
                 </CardTitle>
                 
                 <CardDescription className="mt-2">
-                  {mock.description || "Comprehensive test to evaluate your knowledge and skills."}
+                  {(mock.description as string) || "Comprehensive test to evaluate your knowledge and skills."}
                 </CardDescription>
               </CardHeader>
             </div>
@@ -160,7 +179,7 @@ export default function ClientMockList({ mocks, userId, purchasedMockIds }: any)
                 {features.map((feature, index) => {
                   const Icon = feature.icon;
                   return (
-                    <div key={index} className="flex items-center gap-2">
+                    <div key={`${mock.id}-feature-${index}`} className="flex items-center gap-2">
                       <Icon className="h-4 w-4 text-blue-500" />
                       <span className="text-sm">{feature.text}</span>
                     </div>
@@ -169,12 +188,12 @@ export default function ClientMockList({ mocks, userId, purchasedMockIds }: any)
               </div>
 
               {/* Tags */}
-              {mock.tags && mock.tags.length > 0 && (
+              {Array.isArray(mock.tags) && mock.tags.length > 0 && (
                 <div className="mt-6">
                   <h4 className="text-sm font-medium mb-2">Topics Covered:</h4>
                   <div className="flex flex-wrap gap-1">
                     {mock.tags.slice(0, 3).map((tag: string, idx: number) => (
-                      <Badge key={idx} variant="secondary" className="text-xs">
+                      <Badge key={`${mock.id}-tag-${idx}`} variant="secondary" className="text-xs">
                         {tag}
                       </Badge>
                     ))}

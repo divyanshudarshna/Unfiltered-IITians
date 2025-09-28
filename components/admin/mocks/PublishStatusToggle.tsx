@@ -1,7 +1,6 @@
 "use client"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
 
 interface PublishStatusToggleProps {
   mockId: string
@@ -16,7 +15,6 @@ export function PublishStatusToggle({
 }: PublishStatusToggleProps) {
   const [status, setStatus] = useState(initialStatus)
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
 
   const toggleStatus = async () => {
     setLoading(true)

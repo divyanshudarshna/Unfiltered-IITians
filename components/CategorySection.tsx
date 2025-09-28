@@ -5,14 +5,26 @@ import React, { useState } from "react";
 import MaterialCard from "./MaterialCard";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
-export default function CategorySection({ category }: { category: { id: string; name: string; materials: any[] } }) {
+interface Material {
+  id: string;
+  [key: string]: unknown;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  materials: Material[];
+}
+
+export default function CategorySection({ category }: { readonly category: Category }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   return (
     <section className=" rounded-2xl  transition-all duration-300 ">
       {/* Category Header with toggle functionality */}
-      <div 
-        className="flex items-center justify-between mb-4 cursor-pointer group"
+      <button 
+        type="button"
+        className="flex items-center justify-between mb-4 cursor-pointer group w-full text-left bg-transparent border-none p-0"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3 mt-4 ">
@@ -28,15 +40,15 @@ export default function CategorySection({ category }: { category: { id: string; 
           <div className="text-sm text-muted-foreground bg-primary/10 px-3 py-1 rounded-full">
             {category.materials.length} {category.materials.length === 1 ? 'item' : 'items'}
           </div>
-          <button className="p-1 rounded-full bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-white">
+          <div className="p-1 rounded-full bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-white">
             {isExpanded ? (
               <ChevronUp className="h-5 w-5" />
             ) : (
               <ChevronDown className="h-5 w-5" />
             )}
-          </button>
+          </div>
         </div>
-      </div>
+      </button>
 
       {/* Animated expand/collapse section */}
       <div className={`overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>

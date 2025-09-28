@@ -5,11 +5,9 @@ import {
   IconTrendingUp,
   IconUsers,
   IconCurrencyDollar,
-  IconUserPlus,
   IconDeviceGamepad2,
   IconBooks,
   IconChartLine,
-  IconTrendingDown,
 } from "@tabler/icons-react"
 
 import { Badge } from "@/components/ui/badge"

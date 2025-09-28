@@ -1,12 +1,13 @@
 // components/materials/MaterialCard.tsx
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Youtube, ExternalLink, Play, FileDown, Calendar } from "lucide-react";
+import { FileText, Video, ExternalLink, Play, FileDown, Calendar } from "lucide-react";
 
 function getYouTubeEmbed(url?: string | null) {
   if (!url) return null;
@@ -50,7 +51,21 @@ function formatDate(dateString?: string) {
   });
 }
 
-export default function MaterialCard({ material }: { material: any }) {
+interface Material {
+  id: string;
+  title: string;
+  youtubeLink?: string;
+  pdfLink?: string;
+  pdfUrl?: string;
+  driveLink?: string;
+  createdAt?: string | Date;
+  content?: string;
+  slug?: string;
+  tags?: string[];
+  [key: string]: unknown;
+}
+
+export default function MaterialCard({ material }: { readonly material: Material }) {
   const embed = getYouTubeEmbed(material.youtubeLink);
   const [imageLoaded, setImageLoaded] = useState(false);
   
@@ -76,11 +91,11 @@ export default function MaterialCard({ material }: { material: any }) {
     return null;
   };
 
-  const youtubeThumbnail = getYouTubeThumbnail(material.youtubeLink);
+  const youtubeThumbnail = getYouTubeThumbnail(material.youtubeLink || null);
 
   // 🔑 Always prefer slug for clean URL
   const linkTarget = material.slug
-    ? `/resources/${material.slug}`
+    ? `/resources/${String(material.slug)}`
     : `/resources/${material.id}`;
 
   return (
@@ -113,7 +128,7 @@ export default function MaterialCard({ material }: { material: any }) {
             </div>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-muted/20 to-muted/10 p-6">
-              <Youtube className="h-12 w-12 text-muted-foreground mb-2" />
+              <Video className="h-12 w-12 text-muted-foreground mb-2" />
               <span className="text-sm text-muted-foreground">Video Content</span>
             </div>
           )}
@@ -136,7 +151,7 @@ export default function MaterialCard({ material }: { material: any }) {
             {material.createdAt && (
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                {formatDate(material.createdAt)}
+                {formatDate(typeof material.createdAt === 'string' ? material.createdAt : material.createdAt?.toString())}
               </div>
             )}
             <div className="flex items-center gap-1">
@@ -174,7 +189,7 @@ export default function MaterialCard({ material }: { material: any }) {
             {/* PDF link if exists */}
             {material.pdfUrl ? (
               <a
-                href={material.pdfUrl}
+                href={String(material.pdfUrl)}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors duration-200 group/download"

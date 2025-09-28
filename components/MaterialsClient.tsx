@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Funnel, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import CategorySection from "./CategorySection";
 
 type MaterialShape = {
@@ -32,7 +32,7 @@ type CategoryShape = {
 
 export default function MaterialsClient({ initialCategories }: { initialCategories: CategoryShape[] }) {
   const [query, setQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | "all">("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "titleAsc" | "titleDesc">("newest");
   const [page, setPage] = useState(1);
@@ -49,7 +49,7 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
   const allTags = useMemo(() => {
     const s = new Set<string>();
     allMaterials.forEach((m) => (m.tags || []).forEach((t) => t && s.add(t)));
-    return Array.from(s).sort();
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [allMaterials]);
 
   // apply filters
@@ -147,7 +147,7 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
             </Select>
 
             <Select 
-              onValueChange={(v) => { setSortBy(v as any); setPage(1); }}
+              onValueChange={(v: string) => { setSortBy(v as "newest" | "oldest" | "titleAsc" | "titleDesc"); setPage(1); }}
             >
               <SelectTrigger className="w-full md:w-44 bg-background/50 border-primary/20 focus:border-primary/50 focus:ring-1 focus:ring-primary/30">
                 <SelectValue>
@@ -205,7 +205,7 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
         {grouped.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground bg-card/50 rounded-2xl p-8 border border-dashed border-primary/20">
             <div className="text-2xl mb-2">No materials found</div>
-            <p>Try adjusting your search or filters to find what you're looking for.</p>
+            <p>Try adjusting your search or filters to find what you&apos;re looking for.</p>
           </div>
         ) : (
           grouped.map((g) => (
