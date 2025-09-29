@@ -19,7 +19,8 @@ import {
   Palette,
   ChevronRight,
   BookOpen,
-  Download
+  Download,
+  LogIn
 } from "lucide-react"
 
 import {
@@ -54,7 +55,7 @@ const Navbar = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md shadow-sm border-b border-gray-200 dark:border-gray-800">
       <div className="px-4 sm:px-6 py-3 flex justify-between items-center">
         
-        {/* Logo */}
+        {/* Logo - Extreme Left */}
         <Link href="/" prefetch className="flex items-center gap-4 group ml-2 sm:ml-10">
           <div className="flex flex-col relative">
             <span className="font-bold text-2xl text-gray-800 dark:text-white relative inline-block">
@@ -64,73 +65,83 @@ const Navbar = () => {
           </div>
         </Link>
 
-        {/* Desktop Nav */}
-        <div className="hidden md:flex items-center justify-center flex-grow mx-8">
-          <div className="flex items-center gap-10">
-            {[
-              { href: "/", label: "Home" },
-              { href: "/about", label: "About" },
-              { href: "/youtube", label: "Youtube" },
-              { href: "/guidance", label: "Guidance" },
-              { href: "/contact", label: "Contact" },
-            ].map(({ href, label }) => (
-              <Link key={href} href={href} prefetch className="relative font-medium text-foreground group/navlink">
-                {label}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
-              </Link>
-            ))}
+        {/* Desktop Nav - Moved to Right Side */}
+        <div className="hidden md:flex items-center gap-10 mr-2 sm:mr-10">
+  {/* Home */}
+  <Link href="/" prefetch className="relative font-medium text-foreground group/navlink">
+    Home
+    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+  </Link>
 
-            {/* Courses Dropdown */}
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-medium hover:text-violet-700 transition-colors data-[state=open]:text-violet-700 flex items-center gap-1 relative group/navlink">
-                    Courses
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent className="rounded-lg shadow-lg">
-                    <ul className="flex flex-col gap-2 min-w-[200px]">
-                      <li>
-                        <Link href="/courses" prefetch className="flex items-center gap-2 hover:bg-accent hover:text-violet-700 px-3 py-2 rounded-md transition-colors">
-                          <BookOpen size={16} /> All Courses
-                        </Link>
-                      </li>
-                      <li>
-                        <Link href="/mockBundles" prefetch className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors">
-                          <FileText size={16} /> Mocks
-                        </Link>
-                      </li>
-                      <li>
-                        <Link href="/resources" prefetch className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors">
-                          <Download size={16} /> Free Resources
-                        </Link>
-                      </li>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
-          </div>
-        </div>
+  {/* About */}
+  <Link href="/about" prefetch className="relative font-medium text-foreground group/navlink">
+    About
+    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+  </Link>
 
-        {/* Right Side */}
-        <div className="flex items-center gap-4 mr-2 sm:mr-10">
-          {/* Signed Out */}
-          <SignedOut>
-            <div className="hidden sm:flex items-center gap-2">
-              <Link href="/sign-in" prefetch>
-                <Button variant="outline" size="sm">Sign In</Button>
+  {/* Courses Dropdown */}
+  <NavigationMenu>
+    <NavigationMenuList>
+      <NavigationMenuItem>
+        <NavigationMenuTrigger className="font-medium hover:text-violet-700 text-black dark:text-white transition-colors data-[state=open]:text-violet-700 flex items-center gap-1  relative group/navlink">
+          Courses
+          <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+        </NavigationMenuTrigger>
+        <NavigationMenuContent className="rounded-lg shadow-lg">
+          <ul className="flex flex-col gap-2 min-w-[200px]">
+            <li>
+              <Link href="/courses" prefetch className="flex items-center gap-2 hover:bg-accent hover:text-violet-700 px-3 py-2 rounded-md transition-colors">
+                <BookOpen size={16} /> All Courses
               </Link>
-              <Link href="/sign-up" prefetch>
-                <Button size="sm">Sign Up</Button>
+            </li>
+            <li>
+              <Link href="/mockBundles" prefetch className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors">
+                <FileText size={16} /> Mocks
               </Link>
-            </div>
-          </SignedOut>
+            </li>
+            <li>
+              <Link href="/resources" prefetch className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors">
+                <Download size={16} /> Free Resources
+              </Link>
+            </li>
+          </ul>
+        </NavigationMenuContent>
+      </NavigationMenuItem>
+    </NavigationMenuList>
+  </NavigationMenu>
 
-          {/* Signed In */}
+  {/* Youtube */}
+  <Link href="/youtube" prefetch className="relative font-medium text-foreground group/navlink">
+    Youtube
+    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+  </Link>
+
+  {/* Guidance */}
+  <Link href="/guidance" prefetch className="relative font-medium text-foreground group/navlink">
+    Guidance
+    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+  </Link>
+
+  {/* Contact */}
+  <Link href="/contact" prefetch className="relative font-medium text-foreground group/navlink">
+    Contact
+    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+  </Link>
+
+
+          {/* Signed Out - Single Login Button */}
+        <SignedOut>
+  <Link href="/sign-in" prefetch>
+    <Button size="sm" className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+      <LogIn size={16} />
+      Login
+    </Button>
+  </Link>
+</SignedOut>
+
+          {/* Signed In - User Dropdown */}
           <SignedIn>
-            {/* User Dropdown */}
-            <div className="hidden md:relative md:block">
+            <div className="relative dark:text-white text-black">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent transition-colors"
@@ -215,21 +226,16 @@ const Navbar = () => {
                 </div>
               )}
             </div>
-
-            {/* Mobile avatar */}
-            <div className="md:hidden">
-              <UserButton appearance={{ elements: { avatarBox: "w-8 h-8" } }} />
-            </div>
           </SignedIn>
-
-          {/* Mobile Toggle */}
-          <button className="md:hidden ml-2 p-1.5 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(!menuOpen)}>
-            {menuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
         </div>
+
+        {/* Mobile Toggle */}
+        <button className="md:hidden ml-2 p-1.5 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(!menuOpen)}>
+          {menuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu - UNCHANGED */}
       {menuOpen && (
         <div className="fixed top-16 left-0 right-0 bg-background border-b shadow-md md:hidden z-50 animate-in slide-in-from-top duration-300">
           <div className="flex flex-col p-4 gap-2">
@@ -291,12 +297,12 @@ const Navbar = () => {
 
             <SignedOut>
               <div className="py-2 border-t mt-2 flex flex-col gap-2">
-                <Link href="/sign-in" prefetch className="font-medium py-2 px-3 rounded-md border border-input hover:bg-accent transition-colors text-center" onClick={() => setMenuOpen(false)}>
-                  Sign In
-                </Link>
-                <Link href="/sign-up" prefetch className="font-medium py-2 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-center" onClick={() => setMenuOpen(false)}>
-                  Sign Up
-                </Link>
+                <Link href="/sign-in" prefetch>
+                 <Button size="sm" className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+      <LogIn size={16} />
+      Login
+    </Button>
+            </Link>
               </div>
             </SignedOut>
           </div>

@@ -53,61 +53,58 @@ export default function Hero() {
   return (
     <section className="relative min-h-screen py-24 px-6 md:px-12 overflow-hidden  transition-colors">
       <div className="max-w-6xl mx-auto flex flex-col items-center text-center space-y-16 relative z-10">
-        {/* Headline */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={mounted ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 1, delay: 0.2 }}
-          className="space-y-8 max-w-8xl mx-auto text-center"
-        >
-          <motion.h1
-            className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight text-slate-900 dark:text-slate-100"
-            initial={{ opacity: 0, y: 20 }}
-            animate={mounted ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.6 }}
-          >
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-slate-700 to-slate-500 dark:from-slate-100 dark:via-slate-200 dark:to-slate-300">
-              Transforming {" "}
-              <span className="text-purple-600 dark:text-purple-400 drop-shadow-md">
-                Biotechnology Education
-              </span>
-            </span>
-            <br />
-            Through Research & Mentorship
-          </motion.h1>
+    {/* Headline */}
+<motion.div
+  initial={{ opacity: 0, y: 30 }}
+  animate={mounted ? { opacity: 1, y: 0 } : {}}
+  transition={{ duration: 1, delay: 0.2 }}
+  className="space-y-8 max-w-7xl mx-auto text-center"
+>
+  <motion.h1
+    className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight text-slate-900 dark:text-slate-100"
+    initial={{ opacity: 0, y: 20 }}
+    animate={mounted ? { opacity: 1, y: 0 } : {}}
+    transition={{ duration: 0.8, delay: 0.6 }}
+  >
+    <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-slate-700 to-slate-500 dark:from-slate-100 dark:via-slate-200 dark:to-slate-300">
+      Your Gateway to{" "}
+      <span className="text-purple-600 dark:text-purple-400 drop-shadow-md">
+        IITs {" "}
+      </span>
+    </span>{" "}
+    through Biology
+  </motion.h1>
 
-          <motion.p
-            className="mx-auto max-w-3xl text-slate-600 dark:text-slate-300 text-xl md:text-2xl leading-relaxed font-medium"
-            initial={{ opacity: 0 }}
-            animate={mounted ? { opacity: 1 } : {}}
-            transition={{ duration: 1, delay: 1.0 }}
-          >
-            IIT Roorkee researcher providing {" "}
-            <span className="text-slate-900 dark:text-slate-100 font-semibold">
-              cutting-edge biotechnology education
-            </span>{" "}
-            with proven methodologies and {" "}
-            <span className="text-slate-900 dark:text-slate-100 font-semibold">
-              personalized mentorship
-            </span>{" "}
-            for academic excellence.
-          </motion.p>
+  <motion.p
+    className="mx-auto max-w-3xl text-slate-600 text-center dark:text-slate-300 text-xl md:text-2xl leading-relaxed font-medium"
+    initial={{ opacity: 0 }}
+    animate={mounted ? { opacity: 1 } : {}}
+    transition={{ duration: 1, delay: 1.0 }}
+  >
+    As an <span className="font-semibold text-slate-900 dark:text-slate-100">IIT Bombay alumnus</span>,{" "}
+    <span className="font-semibold text-slate-900 dark:text-slate-100">IIT Roorkee researcher</span>, and{" "}
+    <span className="font-semibold text-slate-900 dark:text-slate-100">academic mentor</span>, 
+    I bridge the gap between complex scientific concepts and student success with{" "}
+    <span className="font-semibold text-slate-900 dark:text-slate-100">proven strategies</span> and{" "}
+    <span className="font-semibold text-slate-900 dark:text-slate-100">personalized guidance</span>.
+  </motion.p>
 
-          {/* Button */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={mounted ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, delay: 1.4 }}
-          >
-            <Link
-              href="/courses"
-              prefetch={true}
-              className="px-8 py-4 bg-purple-600 text-white font-semibold text-lg rounded-full shadow-lg hover:shadow-purple-500/40 transition-all"
-            >
-              Explore My Courses →
-            </Link>
-          </motion.div>
-        </motion.div>
+  {/* Button */}
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={mounted ? { opacity: 1, y: 0 } : {}}
+    transition={{ duration: 0.8, delay: 1.4 }}
+  >
+    <Link
+      href="/courses"
+      prefetch={true}
+      className="px-8 py-4 bg-purple-600 text-white font-semibold text-lg rounded-full shadow-lg hover:shadow-purple-500/40 transition-all"
+    >
+      Explore My Courses →
+    </Link>
+  </motion.div>
+</motion.div>
+
 
         {/* Stats */}
         <motion.div
