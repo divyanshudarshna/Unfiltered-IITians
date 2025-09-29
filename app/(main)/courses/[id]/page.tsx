@@ -365,7 +365,7 @@ const handleCheckout = async () => {
                 {loading ? (
                   <>Processing Payment...</>
                 ) : (
-                  <>Pay Now - ₹{finalPrice}</>
+                  <>Pay Now = ₹{finalPrice}</>
                 )}
               </Button>
             </CardFooter>

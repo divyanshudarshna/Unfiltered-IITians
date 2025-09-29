@@ -447,7 +447,7 @@ export default function CourseList({
         asChild
         className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
       >
-        <Link href={`/checkout/${course.id}`}>
+        <Link href={`/courses/${course.id}`}>
           {discounted > 0 ? "Enroll Now" : "Start Free"}{" "}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Link>

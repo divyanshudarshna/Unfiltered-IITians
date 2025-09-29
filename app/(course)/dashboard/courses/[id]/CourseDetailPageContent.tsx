@@ -294,7 +294,7 @@ export default function CourseDetailPageContent() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-screen w-full overflow-hidden dark:bg-black ">
       {/* Sidebar */}
       <div
         className={cn(

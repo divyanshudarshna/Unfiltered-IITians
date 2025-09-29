@@ -256,16 +256,7 @@ export default function SessionPage() {
                   </span>
                 </div>
                 
-                <div className="flex items-center gap-3 text-sm">
-                  <Shield className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                  <span className="text-gray-600 dark:text-gray-300">Status:</span>
-                  <Badge 
-                    variant={session.status === "active" ? "default" : "secondary"}
-                    className="ml-auto capitalize"
-                  >
-                    {session.status}
-                  </Badge>
-                </div>
+            
               </CardContent>
             </Card>
 

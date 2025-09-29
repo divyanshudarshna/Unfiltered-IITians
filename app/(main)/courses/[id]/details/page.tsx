@@ -264,17 +264,23 @@ export default function CourseDetailsPage() {
                 </span>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button className="bg-emerald-400 hover:from-green-600 hover:bg-green-700 text-gray-900 font-semibold px-8 py-4 rounded-full shadow-lg transition-all duration-300 hover:shadow-green-500/25 hover:translate-y-[-2px]">
-                  Enroll Now <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200 px-8 py-3 rounded-full backdrop-blur-sm"
-                >
-                  Try Free Mock Test <FileTextIcon className="ml-2 w-4 h-4" />
-                </Button>
-              </div>
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+  <Button
+    onClick={() => router.push(`/courses/${course.id}`)}
+    className="bg-emerald-500 hover:from-green-600 hover:bg-green-700 text-gray-900 font-semibold text-lg px-10 py-5 rounded-full shadow-xl transition-all duration-300 hover:shadow-green-500/30 hover:translate-y-[-3px]"
+  >
+    Enroll Now <ArrowRight className="ml-3 w-5 h-5" />
+  </Button>
+
+  <Button
+    onClick={() => router.push("/mocks")}
+    variant="outline"
+    className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200 text-lg px-10 py-4 rounded-full backdrop-blur-md"
+  >
+    Try Free Mock Test <FileTextIcon className="ml-3 w-5 h-5" />
+  </Button>
+</div>
+
             </div>
           </CardContent>
         </Card>
@@ -364,12 +370,13 @@ export default function CourseDetailsPage() {
               to ace your exam.
             </p>
 
-            <Button 
+     <Button
   onClick={() => router.push(`/courses/${course.id}`)}
-  className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold  rounded-full shadow-lg transition-all duration-300 hover:shadow-purple-500/25 hover:translate-y-[-2px] text-sm px-4"
+  className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold rounded-full shadow-xl transition-all duration-300 hover:shadow-purple-500/30 hover:translate-y-[-3px] text-lg px-10 py-5"
 >
-  Enroll Now! <ArrowRight className=" w-5 h-5" />
+  Enroll Now! <ArrowRight className="ml-3 w-8 h-8" />
 </Button>
+
           </CardContent>
         </Card>
 
