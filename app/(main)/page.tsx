@@ -10,7 +10,7 @@ export default function Home() {
   return (
     <>
     <Hero/>
-    {/* <CourseList showSearch={false}
+    {/* <CourseList showSearc   h={false}
     
   description="Handpicked selection of our best courses for professional growth"
   countShow={3}
