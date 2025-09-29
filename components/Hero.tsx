@@ -14,28 +14,32 @@ const stats = [
     label: "Years Experience",
     icon: Star,
     href: "/about",
-    color: "text-amber-400",
+    color: "text-amber-500",
+    glow: "shadow-amber-400/50",
   },
   {
     number: "100+",
     label: "Students Mentored",
     icon: Users,
     href: "/guidance",
-    color: "text-emerald-400",
+    color: "text-emerald-500",
+    glow: "shadow-emerald-400/50",
   },
   {
-    number: "102K+",
+    number: "100,000+",
     label: "YouTube Views",
     icon: FaYoutube,
     href: "/youtube",
     color: "text-red-500",
+    glow: "shadow-red-500/50",
   },
   {
     number: "100%",
     label: "Dedication",
     icon: Target,
     href: "/about",
-    color: "text-blue-400",
+    color: "text-blue-500",
+    glow: "shadow-blue-400/50",
   },
 ];
 
@@ -47,24 +51,24 @@ export default function Hero() {
   }, []);
 
   return (
-    <section className="relative min-h-screen py-20 px-6 md:px-12 overflow-hidden ">
-      <div className="max-w-6xl mx-auto flex flex-col items-center text-center space-y-12 relative z-10">
+    <section className="relative min-h-screen py-24 px-6 md:px-12 overflow-hidden  transition-colors">
+      <div className="max-w-6xl mx-auto flex flex-col items-center text-center space-y-16 relative z-10">
         {/* Headline */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={mounted ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 1, delay: 0.2 }}
-          className="space-y-6 max-w-5xl mx-auto text-center"
+          className="space-y-8 max-w-8xl mx-auto text-center"
         >
           <motion.h1
-            className="text-4xl md:text-6xl lg:text-6xl font-extrabold tracking-tight leading-tight text-slate-100"
+            className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight text-slate-900 dark:text-slate-100"
             initial={{ opacity: 0, y: 20 }}
             animate={mounted ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.6 }}
           >
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-100 via-slate-200 to-slate-300">
-              Transforming{" "}
-              <span className="text-purple-400 drop-shadow-md">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-slate-700 to-slate-500 dark:from-slate-100 dark:via-slate-200 dark:to-slate-300">
+              Transforming {" "}
+              <span className="text-purple-600 dark:text-purple-400 drop-shadow-md">
                 Biotechnology Education
               </span>
             </span>
@@ -73,17 +77,17 @@ export default function Hero() {
           </motion.h1>
 
           <motion.p
-            className="mx-auto max-w-3xl text-slate-300/90 text-lg md:text-xl leading-relaxed font-medium"
+            className="mx-auto max-w-3xl text-slate-600 dark:text-slate-300 text-xl md:text-2xl leading-relaxed font-medium"
             initial={{ opacity: 0 }}
             animate={mounted ? { opacity: 1 } : {}}
             transition={{ duration: 1, delay: 1.0 }}
           >
-            IIT Roorkee researcher providing{" "}
-            <span className="text-slate-100 font-semibold">
+            IIT Roorkee researcher providing {" "}
+            <span className="text-slate-900 dark:text-slate-100 font-semibold">
               cutting-edge biotechnology education
             </span>{" "}
-            with proven methodologies and{" "}
-            <span className="text-slate-100 font-semibold">
+            with proven methodologies and {" "}
+            <span className="text-slate-900 dark:text-slate-100 font-semibold">
               personalized mentorship
             </span>{" "}
             for academic excellence.
@@ -97,8 +101,8 @@ export default function Hero() {
           >
             <Link
               href="/courses"
-              prefetch={true} // explicitly prefetch
-              className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-full shadow-lg hover:shadow-purple-500/30 transition-all"
+              prefetch={true}
+              className="px-8 py-4 bg-purple-600 text-white font-semibold text-lg rounded-full shadow-lg hover:shadow-purple-500/40 transition-all"
             >
               Explore My Courses →
             </Link>
@@ -107,7 +111,7 @@ export default function Hero() {
 
         {/* Stats */}
         <motion.div
-          className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full max-w-5xl"
+          className="grid grid-cols-2 md:grid-cols-4 gap-8 w-full max-w-5xl"
           initial={{ opacity: 0 }}
           animate={mounted ? { opacity: 1 } : {}}
           transition={{ duration: 0.8, delay: 1.8 }}
@@ -119,24 +123,24 @@ export default function Hero() {
                 key={index}
                 initial={{ y: 30, opacity: 0 }}
                 animate={mounted ? { y: 0, opacity: 1 } : {}}
-                transition={{ duration: 0.6}}
-                whileHover={{ y: -6, transition: { duration: 0.3 } }}
+                transition={{ duration: 0.6 }}
+                whileHover={{ y: -8, transition: { duration: 0.3 } }}
               >
                 <Link href={stat.href} prefetch={true}>
-                  <Card className="relative bg-slate-900/30 backdrop-blur-xl border border-slate-700/30 rounded-xl overflow-hidden group transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-purple-500/20">
-                    <CardContent className="p-6 text-center relative z-10">
+                  <Card className="relative bg-slate-100 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-300 dark:border-slate-700/30 rounded-2xl overflow-hidden group transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-purple-500/20">
+                    <CardContent className="p-8 text-center relative z-10">
                       {/* Icon */}
                       <motion.div
-                        className="inline-flex items-center justify-center w-12 h-12 bg-slate-800/60 rounded-xl mb-3 shadow-md group-hover:shadow-purple-400/30"
-                        whileHover={{ scale: 1.05 }}
-                        transition={{ type: "spring", stiffness: 10 }}
+                        className={`inline-flex items-center justify-center w-16 h-16 bg-slate-200 dark:bg-slate-800/60 rounded-2xl mb-4 shadow-md group-hover:scale-110 transition-all duration-300`}
                       >
-                        <IconComponent className="w-6 h-6 text-white" />
+                        <IconComponent
+                          className={`w-8 h-8 text-slate-700 dark:text-white group-hover:${stat.color} group-hover:drop-shadow-[0_0_12px] ${stat.glow}`}
+                        />
                       </motion.div>
 
                       {/* Number */}
                       <motion.div
-                        className={`text-2xl font-bold mb-1 ${stat.color}`}
+                        className={`text-3xl md:text-4xl font-bold mb-2 ${stat.color}`}
                         initial={{ scale: 0.9, opacity: 0.5 }}
                         animate={mounted ? { scale: 1, opacity: 1 } : {}}
                         transition={{ duration: 0.5, delay: 2.2 + index * 0.2 }}
@@ -145,7 +149,7 @@ export default function Hero() {
                       </motion.div>
 
                       {/* Label */}
-                      <div className="text-sm text-slate-300 font-medium">
+                      <div className="text-base text-slate-700 dark:text-slate-300 font-medium">
                         {stat.label}
                       </div>
                     </CardContent>

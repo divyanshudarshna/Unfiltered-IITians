@@ -110,13 +110,13 @@ const highlights = [
 
 export default function HowICanHelp() {
   return (
-    <section className="py-16 px-6 sm:px-10 lg:px-20">
+    <section className="p-6 sm:px-10 lg:px-20">
       <div className="max-w-6xl mx-auto text-center">
         {/* Title */}
-        <h2 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-purple-600 via-cyan-400 to-blue-500 bg-clip-text text-transparent mb-3">
+        <h2 className="text-4xl sm:text-6xl font-extrabold bg-gradient-to-r from-purple-600 via-cyan-400 to-blue-500 bg-clip-text text-transparent mb-3">
           How I Can Help You Succeed
         </h2>
-        <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 mb-12">
+        <p className="text-lg sm:text-lg text-gray-600 dark:text-gray-400 mb-12">
           Divyanshu Darshana | PhD Scholar, IIT Roorkee – Biotechnology Department
         </p>
 
@@ -132,8 +132,8 @@ export default function HowICanHelp() {
             <Image
               src="https://res.cloudinary.com/dqe1wy2nc/image/upload/v1758919081/admin-uploads/about-277c5b7e.webp"
               alt="Divyanshu Darshna"
-              width={300}
-              height={300}
+              width={400}
+              height={400}
               className="object-cover w-full h-full rounded-full border-4 border-cyan-400"
               priority
             />
@@ -155,30 +155,30 @@ export default function HowICanHelp() {
                   before:absolute before:inset-0 before:rounded-2xl before:border-2 before:border-transparent 
                   hover:before:border-violet-500 hover:before:shadow-[0_0_25px_5px_rgba(139,92,246,0.5)] before:transition-all before:duration-700`}
               >
-                <CardHeader className="flex flex-row items-center gap-4 relative z-10">
-                  <div className={`p-3 rounded-md ${item.iconBg} ${item.iconColor}`}>
-                    {item.icon}
-                  </div>
-                  <CardTitle className="text-lg font-semibold font-heading text-slate-800 dark:text-slate-200">
-                    {item.title}
-                  </CardTitle>
-                </CardHeader>
-
-                <CardContent className="relative z-10">
-                  <div className="text-slate-700 dark:text-slate-300 font-body text-left text-sm space-y-2">
-                    {item.content}
-                  </div>
-   {item.link && (
-  <div className="mt-4 flex justify-start">
-    <div className="inline-flex items-center px-4 py-2 rounded-2xl border border-purple-400 text-sm font-medium text-violet-700 dark:text-violet-500 
-      group-hover:text-violet-900 dark:group-hover:text-violet-400 transition-colors">
-      {item.link.text}
-      <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-    </div>
+               <CardHeader className="flex flex-row items-center gap-4 relative z-10">
+  <div className={`p-3 rounded-md ${item.iconBg} ${item.iconColor}`}>
+    {item.icon}
   </div>
-)}
+  <CardTitle className="text-2xl font-semibold font-heading text-slate-800 dark:text-slate-200">
+    {item.title}
+  </CardTitle>
+</CardHeader>
 
-                </CardContent>
+<CardContent className="relative z-10">
+  <div className="text-slate-700 dark:text-slate-300 font-body text-left text-base sm:text-lg leading-relaxed space-y-3">
+    {item.content}
+  </div>
+  {item.link && (
+    <div className="mt-5 flex justify-start">
+      <div className="inline-flex items-center px-4 py-2 rounded-2xl border border-purple-400 text-sm font-medium text-violet-700 dark:text-violet-500 
+        group-hover:text-violet-900 dark:group-hover:text-violet-400 transition-colors">
+        {item.link.text}
+        <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+      </div>
+    </div>
+  )}
+</CardContent>
+
               </Card>
             </Link>
           ))}

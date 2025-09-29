@@ -15,10 +15,10 @@ export default function Home() {
   description="Handpicked selection of our best courses for professional growth"
   countShow={3}
     /> */}
-    <FAQPage categories={[ "getting started","courses"]} />
     <HomeAbout/>
 
     <Testimonials/>
+    <FAQPage categories={[ "getting started","courses"]} />
 
     
     </>
