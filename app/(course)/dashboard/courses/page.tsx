@@ -148,7 +148,7 @@ export default function MyCoursesPage() {
   // --------------------------
   if (loading) {
     return (
-      <div className="w-full min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="w-full min-h-screen flex flex-col bg-black">
         <Navbar />
         <main className="flex-1 p-6 max-w-7xl mx-auto w-full">
           <div className="mb-8">

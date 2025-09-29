@@ -15,6 +15,7 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Missing clerkUserId" }, { status: 400 });
     }
 
+    // ✅ Find user
     const user = await prisma.user.findUnique({
       where: { clerkUserId },
     });
@@ -22,32 +23,51 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // ✅ Find course
     const course = await prisma.course.findUnique({
       where: { id: params.id },
     });
-    if (!course || !course.price) {
-      return NextResponse.json({ error: "Invalid or free course" }, { status: 400 });
+    if (!course) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
-    let finalPrice = course.price;
+    // ✅ Check if user already has a paid subscription
+    const existingSubscription = await prisma.subscription.findFirst({
+      where: {
+        userId: user.id,
+        courseId: course.id,
+        paid: true,
+      },
+    });
+
+    if (existingSubscription) {
+      return NextResponse.json(
+        {
+          error: "You are already enrolled in this course.",
+          redirectTo: `/dashboard/courses`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Base price = actualPrice (fallback to price)
+    let finalPrice = course.actualPrice ?? course.price;
+    let appliedCoupon: string | null = null;
 
     // ✅ Apply coupon if provided
-    let appliedCoupon: string | null = null;
     if (couponCode) {
       const coupon = await prisma.coupon.findUnique({
         where: { code: couponCode },
       });
 
       if (coupon && coupon.validTill > new Date() && coupon.courseId === course.id) {
-        finalPrice = Math.max(
-          0,
-          course.price - Math.floor((course.price * coupon.discountPct) / 100)
-        );
+        const discountAmount = Math.floor((finalPrice * coupon.discountPct) / 100);
+        finalPrice = Math.max(0, finalPrice - discountAmount);
         appliedCoupon = coupon.code;
       }
     }
 
-    const amount = Math.round(finalPrice * 100); // paise
+    const amount = Math.round(finalPrice * 100); // in paise
     const receipt = crypto.randomUUID().slice(0, 20);
 
     // ✅ Create Razorpay order
@@ -58,16 +78,13 @@ export async function POST(req: Request, { params }: Params) {
       payment_capture: true,
     });
 
-    // ✅ Create a pending subscription entry (to be verified later)
+    // ✅ Create a pending subscription entry
     await prisma.subscription.create({
       data: {
         userId: user.id,
         courseId: course.id,
         razorpayOrderId: order.id,
         paid: false,
-        // optional tracking
-        // couponCode: appliedCoupon,
-        // finalPrice
       },
     });
 

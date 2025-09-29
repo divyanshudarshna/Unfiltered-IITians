@@ -46,27 +46,23 @@ export default function MockBundlesList({
         badges.push({ label: `${discountPercent}% Off`, color: "bg-gradient-to-r from-orange-500 to-amber-600", icon: Star });
       }
     }
-    
+
     if (bundle.createdAt && (Date.now() - new Date(bundle.createdAt).getTime()) < 7 * 24 * 60 * 60 * 1000) {
       badges.push({ label: "New", color: "bg-gradient-to-r from-green-500 to-emerald-600", icon: Star });
     }
-    
+
     if (bundle.mockIds.length >= 5) {
       badges.push({ label: "Popular", color: "bg-gradient-to-r from-purple-500 to-indigo-600", icon: Users });
     }
 
- 
-
     return badges;
   };
 
-  // Mock titles for demonstration - in real app, you'd fetch these from your database
   const getMockTitles = (mockIds: string[]) => {
     const mockTitles = [
       "Full Length Test 1", "Subject Wise Test", "Previous Year Paper", 
       "Concept Test", "Speed Test", "Revision Test", "Advanced Level", "Basic Level"
     ];
-    
     return mockIds.slice(0, 6).map((_, index) => mockTitles[index % mockTitles.length]);
   };
 
@@ -77,8 +73,7 @@ export default function MockBundlesList({
         <h1 className="text-4xl font-bold text-gray-900 dark:text-purple-500 mb-2">
           Mock Test Bundles
         </h1>
-        {/* UNDERLINE  */}
-          <div className="w-30 h-1  bg-gradient-to-r from-purple-500 to-blue-500 mx-auto mb-4 rounded-full"></div>
+        <div className="w-30 h-1 bg-gradient-to-r from-purple-500 to-blue-500 mx-auto mb-4 rounded-full"></div>
         <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
           Comprehensive mock test packages designed for maximum preparation efficiency
         </p>
@@ -126,8 +121,11 @@ export default function MockBundlesList({
                 itemId={bundle.id}
                 itemType="mockBundle"
                 title={bundle.title}
-                amount={bundle.discountedPrice || bundle.basePrice}
+                amount={bundle.discountedPrice ?? bundle.basePrice} // ✅ send discounted if available
                 mockIds={remainingMocks}
+                onPurchaseSuccess={() => {
+                  // optional: add toast notification
+                }}
                 className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg"
               />
             );
@@ -192,7 +190,7 @@ export default function MockBundlesList({
                     </div>
                   </div>
 
-                  {/* Mock Titles as Mini Buttons */}
+                  {/* Mock Titles */}
                   <div>
                     <h4 className="font-semibold text-gray-900 dark:text-white mb-2 text-sm">
                       Includes:
@@ -247,24 +245,6 @@ export default function MockBundlesList({
                       </div>
                     )}
                   </div>
-
-                  {/* Progress for Partial Purchases
-                  {purchasedMockCount > 0 && !fullyPurchased && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                        <span>Your progress</span>
-                        <span className="font-semibold text-amber-600 dark:text-amber-400">
-                          {purchasedMockCount}/{bundle.mockIds.length} purchased
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-amber-400 to-orange-500 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${(purchasedMockCount / bundle.mockIds.length) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  )} */}
 
                   {/* Action Button */}
                   <div className="mt-2">

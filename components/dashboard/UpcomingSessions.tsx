@@ -1,4 +1,3 @@
-// components/dashboard/UpcomingSessions.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -26,7 +25,11 @@ export function UpcomingSessions() {
   useEffect(() => {
     async function fetchSessions() {
       try {
-        const res = await fetch("/api/sessions", { cache: "no-store" });
+        // Pass Clerk user ID to API to get enrolled info
+        const res = await fetch(
+          user ? `/api/sessions?userId=${user.id}` : "/api/sessions",
+          { cache: "no-store" }
+        );
         const data = await res.json();
         if (Array.isArray(data.sessions)) setSessions(data.sessions);
       } catch (err) {
@@ -37,7 +40,7 @@ export function UpcomingSessions() {
     }
 
     fetchSessions();
-  }, []);
+  }, [user]);
 
   if (loading) {
     return (

@@ -9,17 +9,18 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { BuyButton } from "@/components/BuyButton";
 import { useUser } from "@clerk/nextjs";
-import { 
-  Clock, 
-  Users, 
-  Calendar, 
-  Tag, 
-  Star, 
-  Zap, 
-  Shield, 
+import { useRouter } from "next/navigation";
+import {
+  Clock,
+  Users,
+  Calendar,
+  Tag,
+  Star,
+  Zap,
+  Shield,
   BookOpen,
   ArrowRight,
-  Loader2
+  Loader2,
 } from "lucide-react";
 
 interface Session {
@@ -45,6 +46,7 @@ export default function SessionPage() {
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState("");
   const { user, isLoaded } = useUser();
+  const router = useRouter();
 
   useEffect(() => {
     if (!id) return;
@@ -87,16 +89,22 @@ export default function SessionPage() {
           <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <Shield className="h-10 w-10 text-red-600 dark:text-red-400" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Session Not Found</h2>
-          <p className="text-gray-600 dark:text-gray-300">The session you're looking for doesn't exist or has been removed.</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Session Not Found
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300">
+            The session you're looking for doesn't exist or has been removed.
+          </p>
         </div>
       </div>
     );
   }
 
   const isDiscounted = session.discountedPrice < session.price;
-  const discountPercentage = isDiscounted 
-    ? Math.round(((session.price - session.discountedPrice) / session.price) * 100)
+  const discountPercentage = isDiscounted
+    ? Math.round(
+        ((session.price - session.discountedPrice) / session.price) * 100
+      )
     : 0;
 
   return (
@@ -104,7 +112,10 @@ export default function SessionPage() {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header Section */}
         <div className="text-center space-y-4">
-          <Badge variant="secondary" className="px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700">
+          <Badge
+            variant="secondary"
+            className="px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700"
+          >
             <Zap className="w-4 h-4 mr-2" />
             {session.type.toUpperCase()} SESSION
           </Badge>
@@ -125,7 +136,9 @@ export default function SessionPage() {
               <CardHeader className="pb-4">
                 <div className="flex items-center gap-2 mb-2">
                   <BookOpen className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Session Overview</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    Session Overview
+                  </h2>
                 </div>
               </CardHeader>
               <CardContent>
@@ -140,7 +153,9 @@ export default function SessionPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Tag className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Topics Covered</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Topics Covered
+                  </h3>
                 </div>
               </CardHeader>
               <CardContent>
@@ -164,7 +179,7 @@ export default function SessionPage() {
             <Card className="rounded-3xl border-0 shadow-2xl hover:shadow-3xl transition-all duration-500   relative overflow-hidden">
               {/* Background Pattern */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.15)_1px,transparent_0)] bg-[length:20px_20px] -z-10" />
-              
+
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold">Enroll Now</h3>
@@ -176,17 +191,23 @@ export default function SessionPage() {
                   </Badge>
                 )}
               </CardHeader>
-              
+
               <CardContent className="space-y-6">
                 {/* Pricing */}
                 <div className="text-center space-y-2">
                   <div className="flex items-center justify-center gap-3">
-                    <span className="text-4xl font-bold text-emerald-400">₹{session.discountedPrice}</span>
+                    <span className="text-4xl font-bold text-emerald-400">
+                      ₹{session.discountedPrice}
+                    </span>
                     {isDiscounted && (
-                      <span className="text-lg line-through text-purple-200">₹{session.price}</span>
+                      <span className="text-lg line-through text-purple-200">
+                        ₹{session.price}
+                      </span>
                     )}
                   </div>
-                  <p className="text-purple-100 text-sm">One-time payment • Lifetime access</p>
+                  <p className="text-purple-100 text-sm">
+                    One-time payment • Lifetime access
+                  </p>
                 </div>
 
                 {/* Enrollment Form */}
@@ -202,7 +223,6 @@ export default function SessionPage() {
                       className="bg-white/20 border-white/30 text-white placeholder-purple-200 rounded-xl focus:bg-white/30 focus:border-white/50"
                     />
                   </div>
-
                   {isLoaded && user ? (
                     <BuyButton
                       clerkUserId={user.id}
@@ -211,14 +231,21 @@ export default function SessionPage() {
                       title={session.title}
                       amount={session.discountedPrice}
                       studentPhone={phone}
-                      onPurchaseSuccess={() =>
-                        toast.success("🎉 Session enrolled successfully!")
-                      }
+                      onPurchaseSuccess={() => {
+                        // Show toast first
+                        toast.success("🎉 Session enrolled successfully!");
+
+                        // Redirect to dashboard
+                        const encodedName = encodeURIComponent(
+                          user.firstName?.[0] || "user"
+                        );
+                        router.push(`/${encodedName}/dashboard`);
+                      }}
                       className="w-full bg-white text-purple-600 hover:bg-purple-50 hover:scale-105 transform transition-all duration-300 font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl border-0"
                     />
                   ) : (
-                    <Button 
-                      disabled 
+                    <Button
+                      disabled
                       className="w-full bg-white/30 text-purple-100 border-white/30 hover:bg-white/40 font-semibold py-3 rounded-xl"
                     >
                       Please sign in to enroll
@@ -231,32 +258,40 @@ export default function SessionPage() {
             {/* Session Info Card */}
             <Card className="rounded-3xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-white/20 dark:border-gray-700/50">
               <CardHeader>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Session Details</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Session Details
+                </h3>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3 text-sm">
                   <Clock className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                  <span className="text-gray-600 dark:text-gray-300">Duration:</span>
-                  <span className="font-medium text-gray-900 dark:text-white ml-auto">{session.duration} minutes</span>
+                  <span className="text-gray-600 dark:text-gray-300">
+                    Duration:
+                  </span>
+                  <span className="font-medium text-gray-900 dark:text-white ml-auto">
+                    {session.duration} minutes
+                  </span>
                 </div>
-                
+
                 <div className="flex items-center gap-3 text-sm">
                   <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                  <span className="text-gray-600 dark:text-gray-300">Max Enrollment:</span>
+                  <span className="text-gray-600 dark:text-gray-300">
+                    Max Enrollment:
+                  </span>
                   <span className="font-medium text-gray-900 dark:text-white ml-auto">
                     {session.maxEnrollment ?? "Unlimited"}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center gap-3 text-sm">
                   <Calendar className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                  <span className="text-gray-600 dark:text-gray-300">Expires:</span>
+                  <span className="text-gray-600 dark:text-gray-300">
+                    Expires:
+                  </span>
                   <span className="font-medium text-gray-900 dark:text-white ml-auto">
                     {new Date(session.expiryDate).toLocaleDateString()}
                   </span>
                 </div>
-                
-            
               </CardContent>
             </Card>
 
@@ -264,7 +299,9 @@ export default function SessionPage() {
             <Card className="rounded-3xl border-0 shadow-xl bg-gradient-to-br from-green-700 to-emerald-600 text-white">
               <CardContent className="p-6 text-center">
                 <Shield className="h-12 w-12 mx-auto mb-3 text-white/90" />
-                <h4 className="font-semibold mb-2">100% Satisfaction Guarantee</h4>
+                <h4 className="font-semibold mb-2">
+                  100% Satisfaction Guarantee
+                </h4>
                 <p className="text-sm text-white/90 opacity-90">
                   Full refund if not satisfied within 7 days
                 </p>

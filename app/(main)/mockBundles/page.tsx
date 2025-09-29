@@ -37,6 +37,8 @@ export default async function MockBundlesPage() {
     where: { status: "PUBLISHED" },
     orderBy: { createdAt: "desc" },
   });
+  
+  
 
   return (
     <MockBundlesList
