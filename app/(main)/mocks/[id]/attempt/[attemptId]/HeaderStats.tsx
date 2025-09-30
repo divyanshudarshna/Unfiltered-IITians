@@ -79,7 +79,7 @@ export default function HeaderStats({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-700">Bookmarked:</span>
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm font-medium">
+            <span className="px-2 py-1  bg-blue-100 text-blue-800 rounded-md text-sm font-medium">
               {bookmarkedQuestions}
             </span>
           </div>
@@ -112,11 +112,11 @@ export default function HeaderStats({
             className={`h-9 w-9 ${
               isBookmarked
                 ? "bg-blue-50 text-blue-600 border-blue-200"
-                : ""
+                : "text-black border-gray-300 hover:bg-gray-50"
             }`}
           >
             <Bookmark
-              className={`w-4 h-4 ${isBookmarked ? "fill-blue-400" : ""}`}
+              className={`w-4 h-4  ${isBookmarked ? "fill-blue-400" : ""}`}
             />
           </Button>
         </div>

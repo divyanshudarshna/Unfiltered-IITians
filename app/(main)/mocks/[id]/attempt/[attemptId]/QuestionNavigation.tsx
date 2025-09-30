@@ -98,7 +98,7 @@ export default function QuestionNavigation({
                 size="sm"
                 variant="outline"
                 onClick={() => setCurrentIndex(globalIndex)}
-                className={`h-9 w-full rounded-md text-xs font-medium ${getButtonClass(
+                className={`h-9 w-full text-black rounded-md text-xs font-medium ${getButtonClass(
                   q
                 )} ${bookmarked[q.id] ? "border-2" : ""}`}
               >
