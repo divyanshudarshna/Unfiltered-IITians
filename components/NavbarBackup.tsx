@@ -77,7 +77,7 @@ const Navbar = () => {
     Unfiltered IITians
   </span>
   <span className="text-xs text-muted-foreground mt-[-2px]">
-    by Divyanshu Darshana
+    by Divyanshu Darshna
   </span>
 </div>
 

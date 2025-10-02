@@ -27,7 +27,7 @@ export default function Footer() {
     <span className="font-bold text-lg text-gray-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
       Unfiltered IITians
     </span>
-    <span className="text-xs text-muted-foreground mt-[-2px]">by Divyanshu Darshana</span>
+    <span className="text-xs text-muted-foreground mt-[-2px]">by Divyanshu Darshna</span>
   </div>
   
   {/* Mobile version */}

@@ -166,7 +166,7 @@ export default function About() {
           before:absolute before:inset-0 before:rounded-2xl before:border-2 before:border-transparent
           hover:before:border-violet-500 hover:before:shadow-[0_0_25px_5px_rgba(139,92,246,0.5)] flex flex-col items-center text-center p-6`}
       >
-        <div className="mb-4 flex justify-center">{skill.icon}</div>
+        <div className="mb-4 flex justify-center ">{skill.icon}</div>
         <CardHeader className="p-0 mb-3 flex flex-col items-center">
           <CardTitle className="text-xl font-bold text-slate-200 whitespace-nowrap">
             {skill.title}

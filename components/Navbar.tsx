@@ -18,18 +18,10 @@ import {
   Monitor,
   Palette,
   ChevronRight,
-  BookOpen,
   Download,
   LogIn
 } from "lucide-react"
 
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu"
 import { Button } from "@/components/ui/button"
 import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
@@ -67,77 +59,51 @@ const Navbar = () => {
 
         {/* Desktop Nav - Moved to Right Side */}
         <div className="hidden md:flex items-center gap-10 mr-2 sm:mr-10">
-  {/* Home */}
-  <Link href="/" prefetch className="relative font-medium text-foreground group/navlink">
-    Home
-    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
-  </Link>
+          {/* Home */}
+          <Link href="/" prefetch className="relative font-medium text-foreground group/navlink">
+            Home
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+          </Link>
 
-  {/* About */}
-  <Link href="/about" prefetch className="relative font-medium text-foreground group/navlink">
-    About
-    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
-  </Link>
+          {/* About */}
+          <Link href="/about" prefetch className="relative font-medium text-foreground group/navlink">
+            About
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+          </Link>
 
-  {/* Courses Dropdown */}
-  <NavigationMenu>
-    <NavigationMenuList>
-      <NavigationMenuItem>
-        <NavigationMenuTrigger className="font-medium hover:text-violet-700 text-black dark:text-white transition-colors data-[state=open]:text-violet-700 flex items-center gap-1  relative group/navlink">
-          Courses
-          <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
-        </NavigationMenuTrigger>
-        <NavigationMenuContent className="rounded-lg shadow-lg">
-          <ul className="flex flex-col gap-2 min-w-[200px]">
-            <li>
-              <Link href="/courses" prefetch className="flex items-center gap-2 hover:bg-accent hover:text-violet-700 px-3 py-2 rounded-md transition-colors">
-                <BookOpen size={16} /> All Courses
-              </Link>
-            </li>
-            <li>
-              <Link href="/mockBundles" prefetch className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors">
-                <FileText size={16} /> Mocks
-              </Link>
-            </li>
-            <li>
-              <Link href="/resources" prefetch className="flex items-center gap-2 hover:bg-accent px-3 py-2 rounded-md transition-colors">
-                <Download size={16} /> Free Resources
-              </Link>
-            </li>
-          </ul>
-        </NavigationMenuContent>
-      </NavigationMenuItem>
-    </NavigationMenuList>
-  </NavigationMenu>
+          {/* Courses - simple link */}
+          <Link href="/courses" prefetch className="relative font-medium text-foreground group/navlink">
+            Courses
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+          </Link>
 
-  {/* Youtube */}
-  <Link href="/youtube" prefetch className="relative font-medium text-foreground group/navlink">
-    Youtube
-    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
-  </Link>
+          {/* Youtube */}
+          <Link href="/youtube" prefetch className="relative font-medium text-foreground group/navlink">
+            Youtube
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+          </Link>
 
-  {/* Guidance */}
-  <Link href="/guidance" prefetch className="relative font-medium text-foreground group/navlink">
-    Guidance
-    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
-  </Link>
+          {/* Guidance */}
+          <Link href="/guidance" prefetch className="relative font-medium text-foreground group/navlink">
+            Guidance
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+          </Link>
 
-  {/* Contact */}
-  <Link href="/contact" prefetch className="relative font-medium text-foreground group/navlink">
-    Contact
-    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
-  </Link>
-
+          {/* Contact */}
+          <Link href="/contact" prefetch className="relative font-medium text-foreground group/navlink">
+            Contact
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
+          </Link>
 
           {/* Signed Out - Single Login Button */}
-        <SignedOut>
-  <Link href="/sign-in" prefetch>
-    <Button size="sm" className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-      <LogIn size={16} />
-      Login
-    </Button>
-  </Link>
-</SignedOut>
+          <SignedOut>
+            <Link href="/sign-in" prefetch>
+              <Button size="sm" className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+                <LogIn size={16} />
+                Login
+              </Button>
+            </Link>
+          </SignedOut>
 
           {/* Signed In - User Dropdown */}
           <SignedIn>
@@ -174,6 +140,11 @@ const Navbar = () => {
                     </Link>
                     <Link href="/mockBundles" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
                       <FileText size={18} /> <span>Mocks</span>
+                    </Link>
+
+                    {/* Free Resources moved here */}
+                    <Link href="/resources" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
+                      <Download size={18} /> <span>Free Resources</span>
                     </Link>
                   </div>
 
@@ -235,7 +206,7 @@ const Navbar = () => {
         </button>
       </div>
 
-      {/* Mobile Menu - UNCHANGED */}
+      {/* Mobile Menu */}
       {menuOpen && (
         <div className="fixed top-16 left-0 right-0 bg-background border-b shadow-md md:hidden z-50 animate-in slide-in-from-top duration-300">
           <div className="flex flex-col p-4 gap-2">
@@ -251,6 +222,12 @@ const Navbar = () => {
                 <Link href="/mocks" prefetch className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(false)}>
                   <FileText size={18} /> <span>Mocks</span>
                 </Link>
+
+                {/* Free Resources moved here */}
+                <Link href="/resources" prefetch className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(false)}>
+                  <Download size={18} /> <span>Free Resources</span>
+                </Link>
+
                 <button onClick={() => { signOut(); setMenuOpen(false) }} className="flex items-center gap-3 px-3 py-2 text-destructive hover:bg-destructive/10 rounded-md transition-colors">
                   <LogOut size={18} /> <span>Logout</span>
                 </button>
@@ -261,48 +238,24 @@ const Navbar = () => {
             {[
               { href: "/", label: "Home" },
               { href: "/about", label: "About" },
+              { href: "/courses", label: "Courses" },
               { href: "/guidance", label: "Guidance" },
               { href: "/contact", label: "Contact" },
+              { href: "/youtube", label: "Youtube" },
             ].map(({ href, label }) => (
               <Link key={href} href={href} prefetch className="font-medium py-2 px-3 hover:bg-accent rounded-md transition-colors" onClick={() => setMenuOpen(false)}>
                 {label}
               </Link>
             ))}
 
-            {/* Courses Accordion */}
-            <details className="group">
-              <summary className="flex items-center justify-between cursor-pointer py-2 px-3 font-medium hover:bg-accent rounded-md">
-                Courses
-                <ChevronRight size={16} className="group-open:rotate-90 transition-transform" />
-              </summary>
-              <div className="ml-4 mt-1 flex flex-col gap-2 border-l-2 border-accent pl-2">
-                <Link href="/courses" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>All Courses</Link>
-                <Link href="/mocks" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Mocks</Link>
-                <Link href="/resources" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Free Resources</Link>
-                <Link href="/guidance" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Book Sessions</Link>
-              </div>
-            </details>
-
-            {/* YouTube Accordion */}
-            <details className="group">
-              <summary className="flex items-center justify-between cursor-pointer py-2 px-3 font-medium hover:bg-accent rounded-md">
-                YouTube
-                <ChevronRight size={16} className="group-open:rotate-90 transition-transform" />
-              </summary>
-              <div className="ml-4 mt-1 flex flex-col gap-2 border-l-2 border-accent pl-2">
-                <Link href="/youtube" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Videos</Link>
-                <Link href="/youtube/channel" prefetch className="text-sm py-1 hover:underline" onClick={() => setMenuOpen(false)}>Channel</Link>
-              </div>
-            </details>
-
             <SignedOut>
               <div className="py-2 border-t mt-2 flex flex-col gap-2">
                 <Link href="/sign-in" prefetch>
-                 <Button size="sm" className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-      <LogIn size={16} />
-      Login
-    </Button>
-            </Link>
+                  <Button size="sm" className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+                    <LogIn size={16} />
+                    Login
+                  </Button>
+                </Link>
               </div>
             </SignedOut>
           </div>
