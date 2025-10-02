@@ -52,7 +52,7 @@ const data = {
       submenu: [
         { title: "Manage Courses", url: "/admin/courses" },
         { title: "Manage Details", url: "/admin/course-details" },
-        { title: "Manage Announcements", url: "/admin/announcements" },
+        { title: "Manage Announcements", url: "/admin/announcement" },
         { title: "Feedbacks", url: "/admin/feedbacks"},
       ],
     },
