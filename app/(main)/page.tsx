@@ -17,7 +17,7 @@ export default function Home() {
     /> */}
     <HomeAbout/>
 
-    <Testimonials/>
+ 
     {/* <FAQPage categories={[ "getting started","courses"]} /> */}
          {/* Guidance Session Section */}
       <section className="py-16 px-4">
@@ -50,7 +50,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+<Testimonials/>
     
     </>
   );

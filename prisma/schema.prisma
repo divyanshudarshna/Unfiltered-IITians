@@ -513,6 +513,15 @@ model SettingsUpload {
   @@map("settings_uploads")
 }
 
+model Newsletter {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("newsletter")
+}
+
 // npx prisma db push
 // npx prisma generate
 // npx prisma studio

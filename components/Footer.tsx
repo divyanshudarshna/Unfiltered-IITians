@@ -3,6 +3,66 @@
 import Link from 'next/link'
 import { FaGithub, FaLinkedin, FaTwitter, FaYoutube } from 'react-icons/fa'
 import { useTheme } from 'next-themes'
+import { useState } from 'react'
+import { toast } from 'sonner'
+
+function NewsletterForm() {
+  const [email, setEmail] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    try {
+      const response = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success(data.message)
+        setEmail('')
+      } else {
+        toast.error(data.error)
+      }
+    } catch (error) {
+      toast.error('Something went wrong. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="w-full">
+      <h4 className="text-lg font-semibold text-foreground dark:text-white mb-3">Newsletter</h4>
+      <p className="mb-3">Subscribe for exclusive content, exam tips, and course updates delivered to your inbox.</p>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+        <input 
+          type="email" 
+          placeholder="Your email address" 
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          disabled={isLoading}
+        />
+        <button 
+          type="submit" 
+          disabled={isLoading}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Subscribing...' : 'Subscribe'}
+        </button>
+      </form>
+    </div>
+  )
+}
 
 export default function Footer() {
   const { theme } = useTheme()
@@ -14,30 +74,30 @@ export default function Footer() {
         {/* About Section */}
         <div>
           {/* Clean logo/brand styling */}
-<Link href="/" className="flex items-center gap-2 group mb-4">
-  <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-white">
-      <path d="M12 14l9-5-9-5-9 5 9 5z" />
-      <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-    </svg>
-  </div>
-  
-  <div className="hidden sm:flex flex-col">
-    <span className="font-bold text-lg text-gray-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-      Unfiltered IITians
-    </span>
-    <span className="text-xs text-muted-foreground mt-[-2px]">by Divyanshu Darshna</span>
-  </div>
-  
-  {/* Mobile version */}
-  <div className="sm:hidden flex flex-col">
-    <span className="font-bold text-sm text-gray-800 dark:text-white">
-      Unfiltered IITians
-    </span>
-    <span className="text-[10px] text-muted-foreground mt-[-2px]">by Divyanshu</span>
-  </div>
-</Link>
+          <Link href="/" className="flex items-center gap-2 group mb-4">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-white">
+                <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+              </svg>
+            </div>
+            
+            <div className="hidden sm:flex flex-col">
+              <span className="font-bold text-lg text-gray-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                Unfiltered IITians
+              </span>
+              <span className="text-xs text-muted-foreground mt-[-2px]">by Divyanshu Darshna</span>
+            </div>
+            
+            {/* Mobile version */}
+            <div className="sm:hidden flex flex-col">
+              <span className="font-bold text-sm text-gray-800 dark:text-white">
+                Unfiltered IITians
+              </span>
+              <span className="text-[10px] text-muted-foreground mt-[-2px]">by Divyanshu</span>
+            </div>
+          </Link>
           <p>
             A dedicated team of IITians and academic mentors helping students achieve their educational goals through quality guidance and resources.
           </p>
@@ -84,23 +144,7 @@ export default function Footer() {
         </div>
 
         {/* Newsletter Section */}
-        <div>
-          <h4 className="text-lg font-semibold text-foreground dark:text-white mb-3">Newsletter</h4>
-          <p className="mb-3">Subscribe for exclusive content, exam tips, and course updates delivered to your inbox.</p>
-          <form className="flex flex-col gap-2">
-            <input 
-              type="email" 
-              placeholder="Your email address" 
-              className="px-3 py-2 bg-background border rounded-md text-foreground"
-            />
-            <button 
-              type="submit" 
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-            >
-              Subscribe
-            </button>
-          </form>
-        </div>
+        <NewsletterForm />
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-4 border-t border-border text-center text-sm">

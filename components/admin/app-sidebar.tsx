@@ -9,13 +9,13 @@ import {
   IconBook,
   IconFolder,
   IconStar,
-  IconSpeakerphone,
-  IconMessage,
+ 
   IconAddressBook,
   IconHelpCircle,
   IconTestPipe,
   IconChevronDown,
 } from "@tabler/icons-react";
+
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { NavSecondary } from "@/components/admin/nav-secondary";
 import { NavUser } from "@/components/admin/nav-user";
+import { GraduationCap, MailOpen, MessageSquare } from "lucide-react";
 
 const data = {
   user: {
@@ -51,20 +52,17 @@ const data = {
       submenu: [
         { title: "Manage Courses", url: "/admin/courses" },
         { title: "Manage Details", url: "/admin/course-details" },
-        { title: "Manage Announcements", url: "/admin/course-announcements" },
+        { title: "Manage Announcements", url: "/admin/announcements" },
+        { title: "Feedbacks", url: "/admin/feedbacks"},
       ],
     },
     { title: "Free Materials", url: "/admin/materials", icon: IconFolder },
     { title: "Success Stories", url: "/admin/successStories", icon: IconStar },
-    { title: "Sessions", url: "/admin/sessions", icon: IconStar },
-    {
-      title: "Announcements",
-      url: "/admin/announcement",
-      icon: IconSpeakerphone,
-    },
-    { title: "Feedbacks", url: "/admin/feedbacks", icon: IconMessage },
-    { title: "Testimonials", url: "/admin/testimonials", icon: IconStar },
+    { title: "Sessions", url: "/admin/sessions", icon: GraduationCap },
+  
+    { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquare },
     { title: "Contacts", url: "/admin/contact-us", icon: IconAddressBook },
+    { title: "Newsletter", url: "/admin/newsletter", icon: MailOpen },
     { title: "FAQ", url: "/admin/faq", icon: IconHelpCircle },
   ],
   navSecondary: [{ title: "Settings", url: "/admin/settings", icon: IconBook }],
