@@ -83,134 +83,167 @@ export default function CoursesPage() {
       </section>
 
       {/* Practice Materials Section */}
-      <section className="py-16 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 inline-block relative">
-              Practice Materials & Mock Tests
-              <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-20 h-1 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] rounded-full mt-4"></span>
-            </h2>
-          </div>
+ <section className="py-16 px-4">
+  <div className="max-w-7xl mx-auto">
+    <div className="text-center mb-16">
+      <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 inline-block relative">
+        Practice Materials & Mock Tests
+        <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-20 h-1 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] rounded-full mt-4"></span>
+      </h2>
+    </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Free Mock Test */}
-            <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20">
-              <div className="text-5xl text-white mb-4">⭐</div>
-              <h3 className="text-xl font-bold mb-3">Free Mock Test</h3>
-              <p className="text-gray-400 mb-6">Take a free mock test to assess your current preparation level and identify areas that need improvement.</p>
-              <div className="text-2xl font-bold text-white mb-6">FREE</div>
-            <Link
-  href="/mocks"
-  prefetch
-  className="inline-flex items-center gap-2 bg-gradient-to-r from-[#00ff8c] to-[#00cc6f] text-[#0D0D15] px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-green-500/30 transition-all"
->
-  Take Free Test
-  <svg
-    className="w-4 h-4"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M14 5l7 7m0 0l-7 7m7-7H3"
-    />
-  </svg>
-</Link>
-            </div>
-
-            {/* Mock Test Bundle 1 */}
-            <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20">
-              <div className="text-5xl text-white mb-4">📄</div>
-              <h3 className="text-xl font-bold mb-3">10 Mock Tests Bundle</h3>
-              <p className="text-gray-400 mb-6">Comprehensive set of 10 full-length mock tests designed to simulate actual exam conditions with detailed solutions.</p>
-              <div className="text-2xl font-bold text-white mb-2">₹899</div>
-              <div className="text-gray-400 text-sm line-through mb-6">₹1499</div>
-              <a 
-                href="/purchase-mock-10" 
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] text-white px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-purple-500/30 transition-all"
-              >
-                Purchase Now 
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </a>
-            </div>
-
-            {/* Mock Test Bundle 2 */}
-            <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20">
-              <div className="text-5xl text-white mb-4">📄</div>
-              <h3 className="text-xl font-bold mb-3">5 Mock Tests Bundle</h3>
-              <p className="text-gray-400 mb-6">Set of 5 full-length mock tests with detailed solutions and performance analysis.</p>
-              <div className="text-2xl font-bold text-white mb-2">₹499</div>
-              <div className="text-gray-400 text-sm line-through mb-6">₹750</div>
-              <a 
-                href="/purchase-mock-5" 
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] text-white px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-purple-500/30 transition-all"
-              >
-                Purchase Now 
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </a>
-            </div>
-
-            {/* Previous Year Papers */}
-            <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20">
-              <div className="text-5xl text-white mb-4">📋</div>
-              <h3 className="text-xl font-bold mb-3">Previous Year Papers</h3>
-              <p className="text-gray-400 mb-6">Solved papers from the last 10 years with detailed explanations and alternative solving approaches.</p>
-              <a 
-                href="/previous-papers" 
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] text-white px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-purple-500/30 transition-all"
-              >
-                Download Now 
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </a>
-            </div>
-
-            {/* Revision Notes */}
-            <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20">
-              <div className="text-5xl text-white mb-4">📝</div>
-              <h3 className="text-xl font-bold mb-3">Quick Revision Notes</h3>
-              <p className="text-gray-400 mb-6">Concise, well-organized notes covering all high-yield topics for last-minute revision before exams.</p>
-              <div className="text-2xl font-bold text-white mb-2">₹999</div>
-              <div className="text-gray-400 text-sm line-through mb-6">₹3499</div>
-              <a 
-                href="/purchase-notes" 
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] text-white px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-purple-500/30 transition-all"
-              >
-                Purchase Now 
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </a>
-            </div>
-
-            {/* Unit-wise Questions */}
-            <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20">
-              <div className="text-5xl text-white mb-4">📖</div>
-              <h3 className="text-xl font-bold mb-3">Unit-wise Question Banks</h3>
-              <p className="text-gray-400 mb-6">Chapter-specific practice questions with varying difficulty levels to strengthen your understanding of each topic.</p>
-              <div className="text-2xl font-bold text-white mb-6">₹999</div>
-              <a 
-                href="/purchase-question-bank" 
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] text-white px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-purple-500/30 transition-all"
-              >
-                Purchase Now 
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </a>
-            </div>
-          </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Free Mock Test */}
+      <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 flex flex-col h-full min-h-[420px]">
+        <div className="flex-grow">
+          <div className="text-5xl text-white mb-4">⭐</div>
+          <h3 className="text-xl font-bold mb-3">Free Mock Test</h3>
+          <p className="text-gray-400 mb-6">Take a free mock test to assess your current preparation level and identify areas that need improvement.</p>
+          <div className="text-2xl font-bold text-white mb-6">FREE</div>
         </div>
-      </section>
+        <Link
+          href="/mocks"
+          prefetch
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-[#00ff8c] to-[#00cc6f] text-[#0D0D15] px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-green-500/30 transition-all mt-auto"
+        >
+          Take Free Test
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        </Link>
+      </div>
 
+      {/* Mock Test Bundle 1 */}
+      <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 flex flex-col h-full min-h-[420px]">
+        <div className="flex-grow">
+          <div className="text-5xl text-white mb-4">📄</div>
+          <h3 className="text-xl font-bold mb-3">10 Mock Tests Bundle</h3>
+          <p className="text-gray-400 mb-6">Comprehensive set of 10 full-length mock tests designed to simulate actual exam conditions with detailed solutions.</p>
+          <div className="text-2xl font-bold text-white mb-2">₹899</div>
+          <div className="text-gray-400 text-sm line-through mb-6">₹1499</div>
+        </div>
+        <a 
+          href="/mockBundles" 
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] text-white px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-purple-500/30 transition-all mt-auto"
+        >
+          Purchase Now 
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        </a>
+      </div>
+
+      {/* Mock Test Bundle 2 */}
+      <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 flex flex-col h-full min-h-[420px]">
+        <div className="flex-grow">
+          <div className="text-5xl text-white mb-4">📄</div>
+          <h3 className="text-xl font-bold mb-3">5 Mock Tests Bundle</h3>
+          <p className="text-gray-400 mb-6">Set of 5 full-length mock tests with detailed solutions and performance analysis.</p>
+          <div className="text-2xl font-bold text-white mb-2">₹499</div>
+          <div className="text-gray-400 text-sm line-through mb-6">₹750</div>
+        </div>
+        <a 
+          href="/mockBundles" 
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] text-white px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-purple-500/30 transition-all mt-auto"
+        >
+          Purchase Now 
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        </a>
+      </div>
+
+      {/* Previous Year Papers */}
+      <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 flex flex-col h-full min-h-[420px]">
+        <div className="flex-grow">
+          <div className="text-5xl text-white mb-4">📋</div>
+          <h3 className="text-xl font-bold mb-3">Previous Year Papers</h3>
+          <p className="text-gray-400 mb-6">Solved papers from the last 10 years with detailed explanations and alternative solving approaches.</p>
+        </div>
+
+       <Link
+      href="/resources"
+      className="inline-flex items-center gap-2 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] text-white px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-purple-500/30 transition-all mt-auto"
+    >
+      Download Now
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
+      </svg>
+    </Link>
+      </div>
+
+      {/* Revision Notes */}
+      <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 flex flex-col h-full min-h-[420px]">
+        <div className="flex-grow">
+          <div className="text-5xl text-white mb-4">📝</div>
+          <h3 className="text-xl font-bold mb-3">Quick Revision Notes</h3>
+          <p className="text-gray-400 mb-6">Concise, well-organized notes covering all high-yield topics for last-minute revision before exams.</p>
+          <div className="text-2xl font-bold text-white mb-2">₹999</div>
+          <div className="text-gray-400 text-sm line-through mb-6">₹3499</div>
+        </div>
+
+    <Link
+      href="/resources"
+      className="inline-flex items-center gap-2 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] text-white px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-purple-500/30 transition-all mt-auto"
+    >
+      Purchase Now
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+        />
+      </svg>
+    </Link>
+      </div>
+
+      {/* Unit-wise Questions */}
+      <div className="bg-[#151522]/50 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 flex flex-col h-full min-h-[420px]">
+        <div className="flex-grow">
+          <div className="text-5xl text-white mb-4">📖</div>
+          <h3 className="text-xl font-bold mb-3">Unit-wise Question Banks</h3>
+          <p className="text-gray-400 mb-6">Chapter-specific practice questions with varying difficulty levels to strengthen your understanding of each topic.</p>
+          <div className="text-2xl font-bold text-white mb-6">₹999</div>
+        </div>
+      <Link
+      href="/resources"
+      className="inline-flex items-center gap-2 bg-gradient-to-r from-[#6C2BD9] to-[#8A4FFF] text-white px-6 py-3 rounded-full font-semibold w-full justify-center hover:shadow-lg hover:shadow-purple-500/30 transition-all mt-auto"
+    >
+      Purchase Now
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+        />
+      </svg>
+    </Link>
+      </div>
+    </div>
+  </div>
+</section>
       {/* Guidance Session Section */}
       <section className="py-16 px-4">
         <div className="max-w-7xl mx-auto">
