@@ -108,9 +108,11 @@ export default function MaterialCard({ material }: { readonly material: Material
               <div 
                 className={`w-full h-full bg-gradient-to-br from-primary/20 to-primary/10 transition-all duration-500 ${imageLoaded ? 'opacity-0' : 'opacity-100'}`}
               />
-              <img
+              <Image
                 src={youtubeThumbnail || `/api/placeholder/400/225`}
                 alt={material.title}
+                width={400}
+                height={225}
                 className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
                 onLoad={() => setImageLoaded(true)}
               />
@@ -121,12 +123,16 @@ export default function MaterialCard({ material }: { readonly material: Material
                 </div>
               </div>
             </>
-          ) : material.pdfUrl ? (
+          ) : null}
+          
+          {!embed && !youtubeThumbnail && material.pdfUrl && (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-500/10 to-purple-500/10 p-6">
               <FileText className="h-12 w-12 text-primary mb-2" />
               <span className="text-sm text-muted-foreground">PDF Document</span>
             </div>
-          ) : (
+          )}
+          
+          {!embed && !youtubeThumbnail && !material.pdfUrl && (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-muted/20 to-muted/10 p-6">
               <Video className="h-12 w-12 text-muted-foreground mb-2" />
               <span className="text-sm text-muted-foreground">Video Content</span>
@@ -165,7 +171,7 @@ export default function MaterialCard({ material }: { readonly material: Material
           </div>
 
           {/* Tags */}
-          {material.tags?.length > 0 && (
+          {material.tags && material.tags.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               {material.tags.slice(0, 3).map((tag: string) => (
                 <Badge 

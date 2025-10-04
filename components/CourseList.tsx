@@ -27,7 +27,6 @@ import {
   Rocket,
   Search,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 
 interface Course {
   id: string;
@@ -55,13 +54,13 @@ interface EnrollmentStatus {
 }
 
 interface CourseListProps {
-  title?: string;
-  description?: string;
-  showSearch?: boolean;
-  courses?: Course[];
-  fetchCourses?: boolean;
-  countShow?: number; // Number of courses to show (optional)
-  showViewAllButton?: boolean; // Whether to show "View All Courses" button
+  readonly title?: string;
+  readonly description?: string;
+  readonly showSearch?: boolean;
+  readonly courses?: Course[];
+  readonly fetchCourses?: boolean;
+  readonly countShow?: number; // Number of courses to show (optional)
+  readonly showViewAllButton?: boolean; // Whether to show "View All Courses" button
 }
 
 // Hardcoded course features to display
@@ -96,7 +95,6 @@ export default function CourseList({
     Record<string, EnrollmentStatus>
   >({});
   const [searchQuery, setSearchQuery] = useState("");
-  const { theme } = useTheme();
   const { user, isLoaded: isUserLoaded } = useUser();
 
   useEffect(() => {
@@ -249,7 +247,7 @@ export default function CourseList({
     <div className="container mx-auto p-4 mb-4 mt-0">
       {/* Header */}
       <div className="my-12 text-center">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
           {title}
         </h1>
 
@@ -294,8 +292,8 @@ export default function CourseList({
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: countShow || 6 }).map((_, i) => (
-            <Card key={i} className="overflow-hidden h-full flex flex-col">
+          {Array.from({ length: countShow || 6 }, (_, i) => `loading-card-${Date.now()}-${i}`).map((uniqueKey) => (
+            <Card key={uniqueKey} className="overflow-hidden h-full flex flex-col">
               <CardHeader className="pb-2">
                 <Skeleton className="h-6 w-3/4 mb-2" />
                 <Skeleton className="h-4 w-full" />
@@ -318,18 +316,19 @@ export default function CourseList({
             </Card>
           ))}
         </div>
-      ) : displayedCourses.length > 0 ? (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {displayedCourses.map((course) => {
-              const enrollmentStatus = enrollmentStatuses[course.id] || {
-                isEnrolled: false,
-              };
-              const isEnrolled = enrollmentStatus.isEnrolled;
+      ) : null}
 
-              const { regular, discounted, discountPercent } = getPriceDetails(
-                course.price,
-                course.actualPrice
+      {!loading && displayedCourses.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {displayedCourses.map((course) => {
+            const enrollmentStatus = enrollmentStatuses[course.id] || {
+              isEnrolled: false,
+            };
+            const isEnrolled = enrollmentStatus.isEnrolled;
+
+            const { regular, discounted, discountPercent } = getPriceDetails(
+              course.price,
+              course.actualPrice
               );
 
               return (
@@ -384,7 +383,7 @@ export default function CourseList({
                               variant="outline"
                               className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                             >
-                              Save {formatPrice(regular - discounted)}
+                              Save {formatPrice((regular || 0) - discounted)}
                             </Badge>
                           </div>
                           <div className="text-xs text-green-600 font-medium">
@@ -407,17 +406,17 @@ export default function CourseList({
                         {course.durationMonths}{" "}
                         {course.durationMonths === 1 ? "month" : "months"}
                       </div>
-                      <div className="flex items-center text-sm text-muted-foreground">
+                      {/* <div className="flex items-center text-sm text-muted-foreground">
                         <BookOpen className="h-4 w-4 mr-1 text-blue-500" />
                         {course.enrolledStudents}+ enrolled
-                      </div>
+                      </div> */}
                     </div>
 
                     {/* Features */}
                     <div className="grid grid-cols-2 gap-3 mt-4">
                       {courseFeatures.slice(0, 4).map((feature, index) => (
                         <div
-                          key={index}
+                          key={`${course.id}-feature-${index}`}
                           className="flex items-center text-sm text-muted-foreground"
                         >
                           <feature.icon className="h-4 w-4 mr-2 text-blue-500" />
@@ -471,8 +470,9 @@ export default function CourseList({
               );
             })}
           </div>
-        </>
-      ) : (
+      )}
+
+      {!loading && displayedCourses.length === 0 && (
         <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
           <div className="bg-muted p-6 rounded-full mb-4">
             <BookOpen className="h-12 w-12 text-muted-foreground" />

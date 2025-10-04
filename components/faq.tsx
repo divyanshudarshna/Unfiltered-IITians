@@ -100,14 +100,16 @@ export default function FAQPage({ categories }: FAQPageProps) {
               Your path to clarity and understanding
             </p>
 
-            {/* More FAQs button */}
             <Link
-              href="/faqs"
-              prefetch // ✅ Next.js prefetch
-              className="mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-400 px-6 py-2 text-cyan-400 hover:bg-slate-600 transition"
-            >
-              More FAQs <ArrowRight className="w-4 h-4" />
-            </Link>
+  href="/faqs"
+  prefetch
+  className="mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-400 px-6 py-2 text-cyan-400 
+             hover:border-cyan-500 hover:text-cyan-300 hover:shadow-[0_0_15px_rgba(34,211,238,0.7)] 
+             transition duration-300 ease-in-out"
+>
+  More FAQs <ArrowRight className="w-4 h-4" />
+</Link>
+
           </div>
 
           {/* FAQ Items */}

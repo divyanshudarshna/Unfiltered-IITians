@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -350,10 +351,12 @@ export default function AdminSettingsPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => window.open(upload.url, '_blank')}
+                            asChild
                           >
-                            <FileText className="w-3 h-3 mr-1" />
-                            View
+                            <Link href={upload.url} target="_blank" rel="noopener noreferrer">
+                              <FileText className="w-3 h-3 mr-1" />
+                              View
+                            </Link>
                           </Button>
                           <Button
                             size="sm"
