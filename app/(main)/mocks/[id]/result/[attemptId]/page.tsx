@@ -36,6 +36,20 @@ export default async function MockResultPage({
     redirect("/mocks");
   }
 
+  // Debug logging
+  console.log("Result Page Debug:", {
+    attemptId: attempt.id,
+    answersType: typeof attempt.answers,
+    answersContent: attempt.answers,
+    storedStats: {
+      correctCount: attempt.correctCount,
+      incorrectCount: attempt.incorrectCount,
+      totalQuestions: attempt.totalQuestions,
+      percentage: attempt.percentage,
+      score: attempt.score
+    }
+  });
+
   const attemptCount = await prisma.mockAttempt.count({
     where: { userId: attempt.userId, mockTestId: attempt.mockTestId },
   });

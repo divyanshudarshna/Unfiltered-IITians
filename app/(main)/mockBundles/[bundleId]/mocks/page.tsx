@@ -1,8 +1,9 @@
 // app/mockBundles/[bundleId]/mocks/page.tsx
 import { prisma } from "@/lib/prisma";
-import BundleMocksClient from "@/components/ClientMockList";
+import BundleMocksClient from "@/components/BundleMocksClient";
 import { auth } from "@clerk/nextjs/server";
 import BundlePurchaseSection from "@/components/BundlePurchaseSection";
+import { ScrollToButton } from "@/components/ScrollToButton";
 
 export default async function BundleMocksPage({ params }: Readonly<{ params: { bundleId: string } }>) {
   const { bundleId } = params;
@@ -44,7 +45,24 @@ export default async function BundleMocksPage({ params }: Readonly<{ params: { b
     },
   });
 
-  const isPurchased = !!userSubscription;
+  // Get individual mock subscriptions for this user
+  const userMockSubscriptions = await prisma.subscription.findMany({
+    where: {
+      user: { clerkUserId: userId },
+      mockTestId: { in: bundle.mockIds },
+      paid: true,
+    },
+    select: { mockTestId: true }
+  });
+
+  const purchasedMockIds = userMockSubscriptions.map(sub => sub.mockTestId!);
+  const isBundlePurchased = !!userSubscription;
+  
+  // Check if user owns all mocks individually
+  const ownsAllMocksIndividually = bundle.mockIds.length > 0 && 
+    bundle.mockIds.every(mockId => purchasedMockIds.includes(mockId));
+  
+  const isPurchased = isBundlePurchased || ownsAllMocksIndividually;
 
   // Fetch mocks
   const mocks =
@@ -67,14 +85,30 @@ export default async function BundleMocksPage({ params }: Readonly<{ params: { b
           },
         })
       : [];
-  const simplifiedMocks = mocks.map((m) => ({
-    ...m,
-    actualPrice: m.actualPrice ?? undefined,
-    description: m.description ?? undefined,
-    duration: m.duration ?? 0,
-    questions: Array.isArray(m.questions) ? m.questions : [],
-    questionCount: Array.isArray(m.questions) ? m.questions.length : 0,
-  }));
+  const simplifiedMocks = mocks.map((m) => {
+    const isSubscribed = isPurchased || purchasedMockIds.includes(m.id);
+    let subscriptionSource: 'bundle' | 'individual' | 'none';
+    
+    if (isPurchased) {
+      subscriptionSource = isBundlePurchased ? 'bundle' : 'individual';
+    } else if (purchasedMockIds.includes(m.id)) {
+      subscriptionSource = 'individual';
+    } else {
+      subscriptionSource = 'none';
+    }
+
+    return {
+      ...m,
+      actualPrice: m.actualPrice ?? undefined,
+      description: m.description ?? undefined,
+      duration: m.duration ?? 0,
+      questions: Array.isArray(m.questions) ? m.questions : [],
+      questionCount: Array.isArray(m.questions) ? m.questions.length : 0,
+      isSubscribed,
+      subscriptionSource,
+      price: m.price
+    };
+  });
 
   // Calculate discount percentage
   const discountPercentage = bundle.discountedPrice && bundle.basePrice > bundle.discountedPrice
@@ -105,10 +139,15 @@ export default async function BundleMocksPage({ params }: Readonly<{ params: { b
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
-              <span>Purchased</span>
+              <span>{ownsAllMocksIndividually ? 'Owned Individually' : 'Bundle Purchased'}</span>
             </div>
           )}
         </div>
+
+        {/* Quick Action Button for Non-Purchased */}
+        {!isPurchased && simplifiedMocks.length > 0 && (
+          <ScrollToButton discountPercentage={discountPercentage} />
+        )}
       </section>
 
       {/* Individual Mocks */}
@@ -116,6 +155,7 @@ export default async function BundleMocksPage({ params }: Readonly<{ params: { b
         {simplifiedMocks.length > 0 ? (
           <BundleMocksClient
             mocks={simplifiedMocks}
+            clerkUserId={userId}
           />
         ) : (
           <p className="text-gray-500 text-center">No mocks available in this bundle yet.</p>
@@ -124,17 +164,21 @@ export default async function BundleMocksPage({ params }: Readonly<{ params: { b
 
       {/* Bundle Checkout/Purchase Section */}
       {simplifiedMocks.length > 0 && (
-        <BundlePurchaseSection
-          clerkUserId={userId}
-          bundleId={bundle.id}
-          bundleTitle={bundle.title}
-          finalPrice={finalPrice}
-          mockIds={bundle.mockIds}
-          basePrice={bundle.basePrice}
-          discountPercentage={discountPercentage}
-          isPurchased={isPurchased}
-          mockCount={bundle.mockIds.length}
-        />
+        <section id="purchase-section">
+          <BundlePurchaseSection
+            clerkUserId={userId}
+            bundleId={bundle.id}
+            bundleTitle={bundle.title}
+            finalPrice={finalPrice}
+            mockIds={bundle.mockIds}
+            basePrice={bundle.basePrice}
+            discountPercentage={discountPercentage}
+            isPurchased={isPurchased}
+            mockCount={bundle.mockIds.length}
+            purchasedMockIds={purchasedMockIds}
+            ownsAllIndividually={ownsAllMocksIndividually}
+          />
+        </section>
       )}
     </main>
   );

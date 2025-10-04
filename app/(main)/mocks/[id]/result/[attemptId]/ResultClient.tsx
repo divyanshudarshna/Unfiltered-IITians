@@ -20,7 +20,6 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  ChevronRight,
   ArrowLeft,
   RotateCcw,
   BookOpenCheck,
@@ -40,60 +39,151 @@ type Question = {
 
 function normalizeAnswer(q: Question): string[] {
   if (!q.answer) return [];
+  
+  // Remove any quotes and trim
+  const cleanAnswer = q.answer.replace(/["']/g, '').trim();
+  
   if (q.type === "MSQ") {
-    return q.answer.split(";").map((letter) => {
-      const idx = letter.charCodeAt(0) - 65;
-      return q.options?.[idx] ?? letter;
-    });
+    return cleanAnswer.split(";")
+      .map((item) => item.trim())
+      .filter(item => item !== "")
+      .map((item) => {
+        // If it's a single letter (A, B, C, etc), convert to option text
+        if (item.length === 1 && /[A-Z]/i.test(item)) {
+          const idx = item.toUpperCase().charCodeAt(0) - 65;
+          return q.options?.[idx] ?? item;
+        }
+        // Otherwise, return as is (already option text)
+        return item;
+      });
   }
+  
   if (q.type === "MCQ") {
-    const idx = q.answer.charCodeAt(0) - 65;
-    return [q.options?.[idx] ?? q.answer];
+    // If it's a single letter (A, B, C, etc), convert to option text
+    if (cleanAnswer.length === 1 && /[A-Z]/i.test(cleanAnswer)) {
+      const idx = cleanAnswer.toUpperCase().charCodeAt(0) - 65;
+      return [q.options?.[idx] ?? cleanAnswer];
+    }
+    // Otherwise, return as is
+    return [cleanAnswer];
   }
-  return [q.answer];
+  
+  return [cleanAnswer];
 }
 
 function isCorrect(q: Question, userAns?: string): boolean {
-  if (!userAns) return false;
+  if (!userAns || userAns.trim() === "") return false;
+  
   const correct = normalizeAnswer(q);
+  const cleanUserAns = userAns.replace(/["']/g, '').trim();
 
   if (q.type === "MSQ") {
-    const userArr = userAns.split(";").map((a) => a.trim());
+    const userArr = cleanUserAns.split(";")
+      .map((a) => a.trim())
+      .filter(a => a !== "")
+      .sort((a, b) => a.localeCompare(b));
+    const correctSorted = correct.slice().sort((a, b) => a.localeCompare(b));
+    
     return (
-      userArr.length === correct.length &&
-      userArr.every((a) => correct.includes(a))
+      userArr.length === correctSorted.length &&
+      userArr.every((a) => correctSorted.includes(a))
     );
   }
 
-  return correct.includes(userAns);
+  if (q.type === "NAT") {
+    // For numerical answers, compare as numbers
+    const correctNum = parseFloat(correct[0]);
+    const userNum = parseFloat(cleanUserAns);
+    return !isNaN(correctNum) && !isNaN(userNum) && Math.abs(correctNum - userNum) < 0.001;
+  }
+
+  // For MCQ and other types
+  return correct.includes(cleanUserAns);
+}
+
+interface ResultClientProps {
+  readonly attempt: {
+    id: string;
+    answers: any;
+    score?: number | null;
+    correctCount?: number | null;
+    incorrectCount?: number | null;
+    unansweredCount?: number | null;
+    totalQuestions?: number | null;
+    percentage?: number | null;
+    startedAt: string | Date;
+    submittedAt?: string | Date | null;
+    mockTest: {
+      id: string;
+      title: string;
+      questions: any;
+    };
+  };
+  readonly attemptCount: number;
+  readonly initialQuestion?: number;
 }
 
 export default function ResultClient({
   attempt,
   attemptCount,
-}: {
-  attempt: any;
-  attemptCount: number;
-}) {
+  initialQuestion = 0,
+}: ResultClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // derive current question index from URL
+  // Parse questions properly (they might be stored as JSON string)
+  const rawQuestions = attempt.mockTest.questions;
+  const questions = Array.isArray(rawQuestions)
+    ? rawQuestions as Question[]
+    : JSON.parse(rawQuestions as unknown as string) as Question[];
+  
+  // Parse answers properly (they might be stored as JSON)
+  const rawAnswers = attempt.answers;
+  let answers: Record<string, string> = {};
+  
+  try {
+    if (typeof rawAnswers === 'object' && rawAnswers !== null) {
+      // If it's already an object, use it directly
+      answers = rawAnswers as Record<string, string>;
+    } else if (typeof rawAnswers === 'string') {
+      // If it's a string, try to parse it as JSON
+      answers = JSON.parse(rawAnswers);
+    } else if (Array.isArray(rawAnswers)) {
+      // If it's an array (legacy format), convert to empty object
+      answers = {};
+    }
+  } catch (error) {
+    console.error("Error parsing answers:", error);
+    answers = {};
+  }
+
+  // Debug logging
+  console.log("ResultClient Debug:", {
+    attempt: attempt.id,
+    questionsCount: questions.length,
+    answersCount: Object.keys(answers).length,
+    storedStats: {
+      correctCount: attempt.correctCount,
+      incorrectCount: attempt.incorrectCount,
+      totalQuestions: attempt.totalQuestions,
+      percentage: attempt.percentage
+    },
+    sampleAnswers: Object.entries(answers).slice(0, 2)
+  });
+
+  // derive current question index from URL or use initialQuestion
   const qParam = parseInt(searchParams.get("q") ?? "1", 10);
-  const currentQuestionIndex = Math.max(0, qParam - 1);
+  const currentQuestionIndex = Math.max(0, Math.min(qParam - 1, questions.length - 1));
 
-  const questions = attempt.mockTest.questions as Question[];
-  const answers = attempt.answers as Record<string, string>;
-
-  // Stats
-  const totalQuestions = questions.length;
-  const correctCount = questions.filter((q) =>
+  // Use stored stats from database, fallback to calculated values
+  const totalQuestions = attempt.totalQuestions ?? questions.length;
+  const correctCount = attempt.correctCount ?? questions.filter((q) =>
     isCorrect(q, answers[q.id])
   ).length;
+  const incorrectCount = attempt.incorrectCount ?? (Object.keys(answers).length - correctCount);
+  const unansweredCount = attempt.unansweredCount ?? (totalQuestions - Object.keys(answers).length);
+  const scorePercentage = attempt.percentage ?? Math.round((correctCount / totalQuestions) * 100);
   const attemptedCount = Object.keys(answers).length;
-  const incorrectCount = attemptedCount - correctCount;
-  const unansweredCount = totalQuestions - attemptedCount;
-  const scorePercentage = Math.round((correctCount / totalQuestions) * 100);
 
   const startedAt = new Date(attempt.startedAt);
   const submittedAt = new Date(attempt.submittedAt ?? Date.now());
@@ -257,10 +347,16 @@ export default function ResultClient({
             !answers[currentQuestion.id]
               ? "outline"
               : isCorrect(currentQuestion, answers[currentQuestion.id])
-              ? "success"
+              ? "default"
               : "destructive"
           }
-          className="px-3 py-1 flex items-center gap-1"
+          className={`px-3 py-1 flex items-center gap-1 ${
+            !answers[currentQuestion.id]
+              ? ""
+              : isCorrect(currentQuestion, answers[currentQuestion.id])
+              ? "bg-green-600 text-white"
+              : ""
+          }`}
         >
           {!answers[currentQuestion.id] ? (
             <>

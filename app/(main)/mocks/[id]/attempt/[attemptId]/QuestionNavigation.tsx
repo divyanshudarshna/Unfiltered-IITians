@@ -61,31 +61,38 @@ export default function QuestionNavigation({
       </div>
 
       {/* Filters */}
-      <div className="p-3 border-b">
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {["ALL", "MCQ", "MSQ", "DESCRIPTIVE", "NAT"].map((type) => (
-            <Button
-              key={type}
-              size="sm"
-              variant={selectedType === type ? "default" : "outline"}
-              className={`rounded-full px-3 py-1 text-xs flex-shrink-0 ${
-                selectedType === type
-                  ? "bg-purple-600 hover:bg-purple-700 text-white"
-                  : "border-purple-300 text-purple-800 hover:border-purple-400"
-              }`}
-              onClick={() =>
-                setSelectedType(type === "ALL" ? "ALL" : (type as QuestionType))
-              }
-            >
-              {type === "ALL"
-                ? `All (${questions.length})`
-                : `${type} (${
-                    questions.filter((q) => q.type === type).length
-                  })`}
-            </Button>
-          ))}
-        </div>
-      </div>
+    {/* Filters */}
+<div className="p-3 border-b">
+  <div className="flex gap-2 overflow-x-auto pb-2">
+    {["ALL", "MCQ", "MSQ", "DESCRIPTIVE", "NAT"].map((type) => {
+      const count =
+        type === "ALL"
+          ? questions.length
+          : questions.filter((q) => q.type === type).length;
+
+      // Skip rendering if no questions for this type
+      if (count === 0) return null;
+
+      return (
+        <Button
+          key={type}
+          size="sm"
+          variant={selectedType === type ? "default" : "outline"}
+          className={`rounded-full px-3 py-1 text-xs flex-shrink-0 ${
+            selectedType === type
+              ? "bg-purple-600 hover:bg-purple-700 text-white"
+              : "border-purple-300 text-purple-800 hover:border-purple-400"
+          }`}
+          onClick={() =>
+            setSelectedType(type === "ALL" ? "ALL" : (type as QuestionType))
+          }
+        >
+          {type} ({count})
+        </Button>
+      );
+    })}
+  </div>
+</div>
 
       {/* Question Grid */}
       <div className="p-4">

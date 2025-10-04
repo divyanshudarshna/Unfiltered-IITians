@@ -27,27 +27,27 @@ export default function QuestionRenderer({
   totalQuestions,
 }: QuestionRendererProps) {
   const handleSelectOption = (option: string, index: number) => {
-    const letter = String.fromCharCode(65 + index); // A, B, C, D...
+    const cleanedOption = cleanOption(option);
 
     if (question.type === "MSQ") {
       const currentAnswers = (answers[question.id] as string[]) || [];
-      const newAnswers = currentAnswers.includes(letter)
-        ? currentAnswers.filter((a) => a !== letter)
-        : [...currentAnswers, letter];
+      const newAnswers = currentAnswers.includes(cleanedOption)
+        ? currentAnswers.filter((a) => a !== cleanedOption)
+        : [...currentAnswers, cleanedOption];
 
       setAnswers({ ...answers, [question.id]: newAnswers });
     } else {
-      setAnswers({ ...answers, [question.id]: letter });
+      setAnswers({ ...answers, [question.id]: cleanedOption });
     }
   };
 
   const isOptionSelected = (index: number) => {
-    const letter = String.fromCharCode(65 + index);
+    const cleanedOption = cleanOption(question.options[index]);
 
     if (question.type === "MSQ") {
-      return (answers[question.id] as string[])?.includes(letter) || false;
+      return (answers[question.id] as string[])?.includes(cleanedOption) || false;
     }
-    return answers[question.id] === letter;
+    return answers[question.id] === cleanedOption;
   };
 
   const getMSQAnswersDisplay = () => {

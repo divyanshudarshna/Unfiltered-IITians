@@ -35,8 +35,8 @@ interface MockBundlesListProps {
 }
 
 export default function MockBundlesList({
-  bundles,
-  userMockSubscriptions,
+  bundles = [],
+  userMockSubscriptions = [],
   userBundleSubscriptions = [],
   clerkUserId,
 }: Readonly<MockBundlesListProps>) {
@@ -200,7 +200,7 @@ export default function MockBundlesList({
 
       {/* Bundles Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-        {bundles.map((bundle) => {
+        {bundles && bundles.length > 0 ? bundles.map((bundle) => {
           const purchasedMockCount = bundle.mockIds.filter((id) =>
             userMockSubscriptions.includes(id)
           ).length;
@@ -356,11 +356,21 @@ export default function MockBundlesList({
               </Card>
             </div>
           );
-        })}
+        }) : (
+          <div className="col-span-full flex flex-col items-center justify-center min-h-[40vh] text-center">
+            <div className="bg-muted p-6 rounded-full mb-4">
+              <Award className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">No Mock Bundles Available</h2>
+            <p className="text-muted-foreground mb-4">
+              Check back later for new mock test bundles and preparation materials.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Empty State */}
-      {bundles.length === 0 && (
+      {bundles && bundles.length === 0 && (
         <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
           <div className="bg-muted p-6 rounded-full mb-4">
             <Award className="h-12 w-12 text-muted-foreground" />

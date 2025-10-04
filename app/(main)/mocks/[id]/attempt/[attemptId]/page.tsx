@@ -108,13 +108,21 @@ export default function MockAttemptPage() {
           const normalized = answerValue
             .filter((ans) => ans && ans.trim() !== "")
             .map((ans) => ans.replace(/"/g, "").trim())
-            .sort();
+            .sort((a, b) => a.localeCompare(b));
           formattedAnswers[questionId] = normalized.join(";");
         } else if (typeof answerValue === "string") {
           formattedAnswers[questionId] = answerValue.replace(/"/g, "").trim();
         } else {
           formattedAnswers[questionId] = answerValue;
         }
+      });
+
+      console.log("Attempt Submit Debug:", {
+        attemptId,
+        answersCount: Object.keys(formattedAnswers).length,
+        totalQuestions: mock.questions.length,
+        sampleAnswers: Object.entries(formattedAnswers).slice(0, 2),
+        formattedAnswers
       });
 
       const res = await fetch(`/api/mock/${id}/submit`, {

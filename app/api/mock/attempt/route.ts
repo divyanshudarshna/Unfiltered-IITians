@@ -52,7 +52,13 @@ export async function POST(req: Request) {
         userId: user.id,
         mockTestId,
         startedAt: new Date(),
-         answers: [], // ✅ Add this line to satisfy Prisma schema
+        answers: {}, // ✅ Initialize as empty object, not array
+        score: 0,
+        correctCount: 0,
+        incorrectCount: 0,
+        unansweredCount: 0,
+        totalQuestions: 0,
+        percentage: 0,
       },
     })
 
