@@ -17,13 +17,13 @@ import {
   Upload, 
   Plus, 
   Copy, 
-  Edit, 
+ 
   Trash2, 
   FileText, 
   Image, 
   Video, 
   File,
-  CheckCircle,
+
   Loader2
 } from "lucide-react";
 

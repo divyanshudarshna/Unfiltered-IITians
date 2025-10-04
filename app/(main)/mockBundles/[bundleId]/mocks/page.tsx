@@ -67,19 +67,6 @@ export default async function BundleMocksPage({ params }: Readonly<{ params: { b
           },
         })
       : [];
-
-  // Get user's individual mock subscriptions for fallback
-  const userMockSubscriptions = await prisma.subscription.findMany({
-    where: {
-      user: { clerkUserId: userId },
-      mockTestId: { in: bundle.mockIds },
-      paid: true,
-    },
-    select: { mockTestId: true }
-  });
-
-  const purchasedMockIds = userMockSubscriptions.map(sub => sub.mockTestId).filter(Boolean) as string[];
-
   const simplifiedMocks = mocks.map((m) => ({
     ...m,
     actualPrice: m.actualPrice ?? undefined,
@@ -129,8 +116,6 @@ export default async function BundleMocksPage({ params }: Readonly<{ params: { b
         {simplifiedMocks.length > 0 ? (
           <BundleMocksClient
             mocks={simplifiedMocks}
-            userId={userId}
-            purchasedMockIds={isPurchased ? bundle.mockIds : purchasedMockIds}
           />
         ) : (
           <p className="text-gray-500 text-center">No mocks available in this bundle yet.</p>

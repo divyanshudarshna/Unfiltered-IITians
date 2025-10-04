@@ -138,7 +138,7 @@ const Navbar = () => {
                     <Link href="/dashboard/courses" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
                       <User size={18} /> <span>My Courses</span>
                     </Link>
-                    <Link href="/mockBundles" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
+                    <Link href="/mocks" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
                       <FileText size={18} /> <span>Mocks</span>
                     </Link>
 

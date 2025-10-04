@@ -37,9 +37,49 @@ export default async function MockListPage() {
     },
   });
 
+  const mockBundles = await prisma.mockBundle.findMany({
+    where: { status: "PUBLISHED" },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      mockIds: true,
+      basePrice: true,
+      discountedPrice: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  // Fetch mock test details for all bundles
+  const bundlesWithMockDetails = await Promise.all(
+    mockBundles.map(async (bundle) => {
+      const mockTests = await prisma.mockTest.findMany({
+        where: {
+          id: { in: bundle.mockIds },
+          status: "PUBLISHED"
+        },
+        select: {
+          id: true,
+          title: true,
+          difficulty: true,
+          duration: true,
+          tags: true
+        }
+      });
+
+      return {
+        ...bundle,
+        mockTests
+      };
+    })
+  );
+
   const userSubscriptions = await prisma.subscription.findMany({
     where: { userId: dbUser.id, paid: true },
-    select: { mockTestId: true },
+    select: { mockTestId: true, mockBundleId: true },
   });
 
   return (
@@ -63,8 +103,10 @@ export default async function MockListPage() {
 
           <ClientMockList
             mocks={mocks}
+            bundles={bundlesWithMockDetails}
             userId={userId}
-            purchasedMockIds={userSubscriptions.map((sub) => sub.mockTestId)}
+            purchasedMockIds={userSubscriptions.map((sub) => sub.mockTestId).filter((id): id is string => id !== null)}
+            purchasedBundleIds={userSubscriptions.map((sub) => sub.mockBundleId).filter((id): id is string => id !== null)}
           />
 
           <FAQPage categories={["mocks"]}/>

@@ -30,12 +30,14 @@ interface MockBundle {
 interface MockBundlesListProps {
   bundles: MockBundle[];
   userMockSubscriptions: string[];
+  userBundleSubscriptions?: string[];
   clerkUserId?: string | null;
 }
 
 export default function MockBundlesList({
   bundles,
   userMockSubscriptions,
+  userBundleSubscriptions = [],
   clerkUserId,
 }: Readonly<MockBundlesListProps>) {
   const calculateDiscountPercentage = (basePrice: number, discountedPrice: number) => {
@@ -171,13 +173,13 @@ export default function MockBundlesList({
 
         <Link
           href={`/mockBundles/${bundle.id}/mocks`}
-          className="flex-1 inline-flex items-center justify-center 
+          className="flex-1 inline-flex items-center justify-center
                      border border-blue-500 text-blue-600 hover:bg-blue-50 
                      dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/20
                      transition-all duration-300 h-11 rounded-xl font-semibold
-                     transform hover:scale-105"
+                     transform hover:scale-105 mt-2 md:mt-0"
         >
-          <BookOpen className="h-4 w-4 mr-2" />
+          <BookOpen className="h-4 w-4 mr-2 " />
           Details
         </Link>
       </>
@@ -202,7 +204,8 @@ export default function MockBundlesList({
           const purchasedMockCount = bundle.mockIds.filter((id) =>
             userMockSubscriptions.includes(id)
           ).length;
-          const fullyPurchased = purchasedMockCount === bundle.mockIds.length;
+          const bundlePurchased = userBundleSubscriptions.includes(bundle.id);
+          const fullyPurchased = bundlePurchased || purchasedMockCount === bundle.mockIds.length;
           const remainingMocks = bundle.mockIds.filter(
             (id) => !userMockSubscriptions.includes(id)
           );
@@ -265,46 +268,44 @@ export default function MockBundlesList({
                     </div>
                   </div>
 
-                  {/* Mock Titles */}
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm flex items-center gap-2 text-left">
-                      <BookOpen className="h-4 w-4 text-blue-500" />
-                      Included Tests:
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {mockTitles.length > 0 ? (
-                        mockTitles.map((mock, index) => {
-                          const MockIcon = mock.icon;
-                          return (
-                            <Badge 
-                              key={`${bundle.id}-mock-${index}`}
-                              variant="secondary"
-                              className={`
-                                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
-                                border transition-all duration-200 hover:scale-105 cursor-default
-                                ${getColorClasses(mock.color)}
-                              `}
-                            >
-                              <MockIcon className="h-3 w-3" />
-                              <span className="line-clamp-1 max-w-[120px]">{mock.title}</span>
-                            </Badge>
-                          );
-                        })
-                      ) : (
-                        <div className="text-gray-500 dark:text-gray-400 text-sm italic">
-                          Mock test details loading...
-                        </div>
-                      )}
-                      {bundle.mockIds.length > 8 && (
-                        <Badge 
-                          variant="outline"
-                          className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800"
-                        >
-                          +{bundle.mockIds.length - 8} more
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
+   {/* Mock Titles */}
+<div>
+  <h4 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm flex items-center gap-2 text-left">
+    <BookOpen className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+    Included Tests:
+  </h4>
+  <div className="flex flex-wrap gap-2">
+    {mockTitles.length > 0 ? (
+      mockTitles.slice(0, 6).map((mock, index) => {
+        const MockIcon = mock.icon;
+        return (
+          <Badge 
+            key={`${bundle.id}-mock-${index}`}
+            variant="outline"
+            className="text-xs text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 flex items-center gap-1.5 cursor-default"
+          >
+            <MockIcon className="h-3 w-3 text-gray-500 dark:text-gray-400" />
+            <span className="line-clamp-1 max-w-[120px]">{mock.title}</span>
+          </Badge>
+        );
+      })
+    ) : (
+      <div className="text-gray-500 dark:text-gray-400 text-sm italic">
+        Mock test details loading...
+      </div>
+    )}
+    {mockTitles.length > 6 && (
+      <Badge 
+        variant="outline"
+        className="text-xs text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700"
+      >
+        +{mockTitles.length - 6} more
+      </Badge>
+    )}
+  </div>
+</div>
+
+
 
                   {/* Pricing Section */}
                   <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 rounded-xl">
