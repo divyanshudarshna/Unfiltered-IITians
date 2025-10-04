@@ -237,7 +237,7 @@ export default function MockBundlesList({
                 {/* Purchased Badge - Only show if purchased */}
                 {fullyPurchased && (
                   <div className="absolute top-4 right-4 z-10">
-                    <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1.5 shadow-lg shadow-green-500/25 flex items-center gap-1">
+                    <Badge className="bg-gradient-to-r from-green-700 to-emerald-800 text-white px-3 py-1.5  flex items-center gap-1">
                       <CheckCircle2 className="h-3 w-3" />
                       Purchased
                     </Badge>

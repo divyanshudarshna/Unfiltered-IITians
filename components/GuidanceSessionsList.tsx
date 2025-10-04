@@ -159,8 +159,8 @@ export default function GuidanceSessionsList({
                           shadow-lg border-0
                           transition-all duration-300 transform group-hover:scale-110
                           ${isOneOnOne 
-                            ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-amber-500/25" 
-                            : "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-green-500/25"
+                            ? "bg-gradient-to-r from-sky-700 to-blue-600 text-white " 
+                            : "bg-gradient-to-r from-purple-800 to-purple-800 text-white "
                           }
                           flex items-center gap-1.5
                         `}
@@ -233,40 +233,36 @@ export default function GuidanceSessionsList({
                         )}
                       </div>
 
-                      <Button
-                        className={`
-                          w-full mt-6 rounded-xl font-bold tracking-wide
-                          transition-all duration-500 ease-out
-                          transform group-hover:scale-105
-                          shadow-lg hover:shadow-xl
-                          relative overflow-hidden
-                          ${isEnrolled
-                            ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-blue-500/25"
-                            : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-emerald-500/25"
-                          }
-                          text-white border-0
-                          h-12
-                        `}
-                        size="lg"
-                        onClick={() => handleEnrollOrRedirect(session.id)}
-                      >
-                        {/* Shine Effect */}
-                        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-                        
-                        <span className="relative z-5 flex items-center justify-center gap-2">
-                          {isEnrolled ? (
-                            <>
-                              Go to Dashboard
-                              <span className="group-hover:translate-x-1 transition-transform duration-200">→</span>
-                            </>
-                          ) : (
-                            <>
-                              Enroll Now
-                              <span className="group-hover:translate-x-1 transition-transform duration-200">→</span>
-                            </>
-                          )}
-                        </span>
-                      </Button>
+                    <Button
+  className={`
+    w-full mt-6 rounded-xl font-bold tracking-wide
+    transition-all duration-300 ease-out
+    transform group-hover:scale-[1.02]
+    shadow-md hover:shadow-lg
+    relative overflow-hidden
+    h-12
+    ${isEnrolled
+      ? "bg-sky-600 hover:bg-sky-700 text-white"
+      : "bg-emerald-600 hover:bg-emerald-700 text-white"
+    }`}
+  size="lg"
+  onClick={() => handleEnrollOrRedirect(session.id)}
+>
+  <span className="relative z-5 flex items-center justify-center gap-2">
+    {isEnrolled ? (
+      <>
+        Go to Dashboard
+        <ArrowRight className="h-4 w-4" />
+      </>
+    ) : (
+      <>
+        Enroll Now
+        <ArrowRight className="h-4 w-4" />
+      </>
+    )}
+  </span>
+</Button>
+
                     </CardContent>
                   </Card>
                 </div>
