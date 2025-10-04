@@ -60,7 +60,7 @@ export function SectionCards() {
         <CardHeader>
           <CardDescription>Total Revenue</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            ${stats.totalRevenue.toLocaleString()}
+            ₹{stats.totalRevenue.toLocaleString()}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
