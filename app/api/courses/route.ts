@@ -5,7 +5,10 @@ export async function GET() {
   try {
     const courses = await prisma.course.findMany({
       where: { status: "PUBLISHED" },
-      orderBy: { price: "asc" },
+      orderBy: [
+        { order: "asc" },
+        { createdAt: "desc" }
+      ],
       select: {
         id: true,
         title: true,
@@ -13,6 +16,7 @@ export async function GET() {
         price: true,
         actualPrice: true,
         durationMonths: true,
+        order: true,
       },
     });
 

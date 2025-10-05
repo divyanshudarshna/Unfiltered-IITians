@@ -69,6 +69,7 @@ interface Course {
   status: PublishStatus;
   enrollments: number;
   contents: number;
+  order?: number;
 }
 
 // Custom tooltip for charts
@@ -503,6 +504,14 @@ export default function CoursesPage() {
                   ? `Manage your course catalog with ${courses.length} courses`
                   : "No courses created yet. Create your first course to get started"}
               </CardDescription>
+              {courses.length > 0 && (
+                <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    <strong>Course Ordering:</strong> Use the ↑↓ buttons in the Actions column to reorder courses. 
+                    Lower order numbers appear first on the frontend. You can also set custom order when creating/editing courses.
+                  </p>
+                </div>
+              )}
             </div>
             {courses.length > 0 && (
               <Badge variant="secondary" className="w-fit">

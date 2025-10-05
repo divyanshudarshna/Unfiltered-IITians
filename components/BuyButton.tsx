@@ -14,6 +14,7 @@ interface BuyButtonProps {
   mockIds?: string[];
   studentPhone?: string; // ✅ new
   onPurchaseSuccess?: () => void;
+  disabled?: boolean; // ✅ new
 }
 
 export const BuyButton = ({
@@ -25,6 +26,7 @@ export const BuyButton = ({
   mockIds,
   studentPhone, // ✅ new
   onPurchaseSuccess,
+  disabled = false,
 }: BuyButtonProps) => {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -131,10 +133,14 @@ export const BuyButton = ({
   return (
     <button
       onClick={handleBuy}
-      disabled={loading}
-      className="relative overflow-hidden group bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 dark:from-indigo-600 dark:to-indigo-700 dark:hover:from-indigo-700 dark:hover:to-indigo-800 text-white font-medium px-6 py-3 rounded-lg transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/25 dark:hover:shadow-indigo-600/20"
+      disabled={loading || disabled}
+      className={`relative overflow-hidden group ${
+        disabled
+          ? "bg-gray-400 cursor-not-allowed opacity-60"
+          : "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 dark:from-indigo-600 dark:to-indigo-700 dark:hover:from-indigo-700 dark:hover:to-indigo-800 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/25 dark:hover:shadow-indigo-600/20"
+      } text-white font-medium px-6 py-3 rounded-lg transition-all duration-300 transform`}
     >
-      <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full group-hover:duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+      <div className={`absolute inset-0 -translate-x-full ${!disabled ? 'group-hover:translate-x-full group-hover:duration-1000' : ''} bg-gradient-to-r from-transparent via-white/20 to-transparent`}></div>
       <span className="relative flex items-center justify-center">
         {loading ? (
           <>

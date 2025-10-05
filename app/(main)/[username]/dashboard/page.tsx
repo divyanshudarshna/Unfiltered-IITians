@@ -73,16 +73,6 @@ export default async function StudentDashboard({ params }: Props) {
     redirect("/unauthorized");
   }
 
-  // Fetch active subscriptions separately (with mockTest details)
-  const subscriptions = await prisma.subscription.findMany({
-    where: {
-      userId: dbUser.id,
-      paid: true,
-    },
-    include: { mockTest: true },
-    orderBy: { createdAt: "desc" },
-  });
-
   // ----- 📊 PERFORMANCE METRICS -----
   const attempts = dbUser.mockAttempts || [];
   const performance = calculatePerformance(attempts);
@@ -104,16 +94,12 @@ export default async function StudentDashboard({ params }: Props) {
     createdAt: user.createdAt,
   };
 
-  console.log("avgPercentage:", performance.avgPercentage);
-  console.log("attemptedMocks:", attemptedMocks);
-  console.log("totalMocks:", totalMocks);
-  console.log("lastAttemptDate:", lastAttemptDate);
+
 
   return (
     <DashboardClient
       safeUser={safeUser}
       initialProfile={dbUser}
-      subscription={subscriptions}
       averageScore={performance.avgPercentage}   // ✅ now real average % across attempts
       attemptedMocks={attemptedMocks}
       totalMocks={totalMocks}

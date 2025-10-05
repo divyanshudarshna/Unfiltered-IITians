@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { BuyButton } from "@/components/BuyButton";
 import { useUser } from "@clerk/nextjs";
@@ -19,8 +20,6 @@ import {
   Zap,
   Shield,
   BookOpen,
-  ArrowRight,
-  Loader2,
 } from "lucide-react";
 
 interface Session {
@@ -40,13 +39,55 @@ interface Session {
   updatedAt: string;
 }
 
+interface EnrollmentStatus {
+  isEnrolled: boolean;
+  paymentStatus?: string;
+}
+
 export default function SessionPage() {
   const { id } = useParams<{ id: string }>();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [enrollmentStatus, setEnrollmentStatus] = useState<EnrollmentStatus>({ isEnrolled: false });
   const { user, isLoaded } = useUser();
   const router = useRouter();
+
+  // Phone number validation
+  const validatePhone = (phoneNumber: string): boolean => {
+    const phoneRegex = /^[6-9]\d{9}$/; // Indian mobile number validation
+    return phoneRegex.test(phoneNumber.replace(/\D/g, ""));
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, ""); // Remove non-digits
+    if (value.length <= 10) {
+      setPhone(value);
+      setPhoneError("");
+      
+      if (value.length === 10 && !validatePhone(value)) {
+        setPhoneError("Please enter a valid 10-digit mobile number");
+      } else if (value.length > 0 && value.length < 10) {
+        setPhoneError("Phone number must be 10 digits");
+      }
+    }
+  };
+
+  // Check enrollment status
+  const checkEnrollmentStatus = async () => {
+    if (!user?.id || !id) return;
+    
+    try {
+      const res = await fetch(`/api/sessions/${id}/enrollment-status`);
+      if (res.ok) {
+        const data = await res.json();
+        setEnrollmentStatus(data);
+      }
+    } catch (error) {
+      console.error("Error checking enrollment status:", error);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -73,11 +114,85 @@ export default function SessionPage() {
     fetchSession();
   }, [id]);
 
+  useEffect(() => {
+    if (isLoaded && user) {
+      checkEnrollmentStatus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, user, id]);
+
   if (loading) {
     return (
-      //basic skeleton loader
-      <div className="flex justify-center items-center h-64 text-muted-foreground">
-        <Loader2 className="animate-spin h-6 w-6" />
+      <div className="min-h-screen bg-gradient-to-br py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto space-y-8">
+          {/* Header Skeleton */}
+          <div className="text-center space-y-4">
+            <Skeleton className="h-8 w-32 mx-auto" />
+            <Skeleton className="h-12 w-96 mx-auto" />
+            <Skeleton className="h-6 w-80 mx-auto" />
+          </div>
+
+          {/* Main Content Grid Skeleton */}
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Content Cards Skeleton */}
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="rounded-3xl shadow-xl">
+                <CardHeader>
+                  <Skeleton className="h-8 w-48" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="rounded-3xl shadow-xl">
+                <CardHeader>
+                  <Skeleton className="h-6 w-32" />
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-3">
+                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-8 w-24" />
+                    <Skeleton className="h-8 w-28" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar Skeleton */}
+            <div className="space-y-6">
+              <Card className="rounded-3xl shadow-xl">
+                <CardHeader>
+                  <Skeleton className="h-6 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <Skeleton className="h-12 w-32" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="rounded-3xl shadow-xl">
+                <CardHeader>
+                  <Skeleton className="h-6 w-32" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -93,7 +208,7 @@ export default function SessionPage() {
             Session Not Found
           </h2>
           <p className="text-gray-600 dark:text-gray-300">
-            The session you're looking for doesn't exist or has been removed.
+            The session you&apos;re looking for doesn&apos;t exist or has been removed.
           </p>
         </div>
       </div>
@@ -148,29 +263,31 @@ export default function SessionPage() {
               </CardContent>
             </Card>
 
-            {/* Tags Card */}
-            <Card className="rounded-3xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-white/20 dark:border-gray-700/50">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Tag className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    Topics Covered
-                  </h3>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-3">
-                  {session.tags.map((tag) => (
-                    <Badge
-                      key={tag}
-                      className="px-4 py-2 bg-slate-700  border-emerald-400 text-emerald-400  border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                    >
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Tags Card - only show if tags exist */}
+            {session.tags && session.tags.length > 0 && (
+              <Card className="rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-500 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-white/20 dark:border-gray-700/50">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                      Topics Covered
+                    </h3>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-3">
+                    {session.tags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        className="px-4 py-2 bg-slate-700  border-emerald-400 text-emerald-400  border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar - 1/3 width */}
@@ -212,44 +329,91 @@ export default function SessionPage() {
 
                 {/* Enrollment Form */}
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-purple-100 mb-2 block">
-                      Phone Number
-                    </label>
-                    <Input
-                      placeholder="+91 98765 43210"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="bg-white/20 border-white/30 text-white placeholder-purple-200 rounded-xl focus:bg-white/30 focus:border-white/50"
-                    />
-                  </div>
-                  {isLoaded && user ? (
-                    <BuyButton
-                      clerkUserId={user.id}
-                      itemId={session.id}
-                      itemType="session"
-                      title={session.title}
-                      amount={session.discountedPrice}
-                      studentPhone={phone}
-                      onPurchaseSuccess={() => {
-                        // Show toast first
-                        toast.success("🎉 Session enrolled successfully!");
-
-                        // Redirect to dashboard
-                        const encodedName = encodeURIComponent(
-                          user.firstName?.[0] || "user"
-                        );
-                        router.push(`/${encodedName}/dashboard`);
-                      }}
-                      className="w-full bg-white text-purple-600 hover:bg-purple-50 hover:scale-105 transform transition-all duration-300 font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl border-0"
-                    />
+                  {enrollmentStatus.isEnrolled ? (
+                    <div className="text-center space-y-3">
+                      <div className="bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg p-4">
+                        <div className="flex items-center justify-center gap-2 text-green-700 dark:text-green-300">
+                          <Shield className="h-5 w-5" />
+                          <span className="font-medium">Already Enrolled</span>
+                        </div>
+                        <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                          You have successfully enrolled in this session
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={() => {
+                          const encodedName = encodeURIComponent(user?.firstName?.[0] || "user");
+                          router.push(`/${encodedName}/dashboard`);
+                        }}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl"
+                      >
+                        Go to Dashboard
+                      </Button>
+                    </div>
                   ) : (
-                    <Button
-                      disabled
-                      className="w-full bg-white/30 text-purple-100 border-white/30 hover:bg-white/40 font-semibold py-3 rounded-xl"
-                    >
-                      Please sign in to enroll
-                    </Button>
+                    <>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mb-4">
+                        <p className="text-sm text-blue-700 dark:text-blue-300 text-center">
+                          📱 Phone number is required for session enrollment and communication
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label 
+                          htmlFor="phone-input"
+                          className="text-sm font-medium text-purple-100 mb-2 block"
+                        >
+                          Phone Number *
+                        </label>
+                        <Input
+                          id="phone-input"
+                          placeholder="Enter 10-digit mobile number"
+                          value={phone}
+                          onChange={handlePhoneChange}
+                          className={`bg-white/20 border-white/30 text-white placeholder-purple-200 rounded-xl focus:bg-white/30 focus:border-white/50 ${
+                            phoneError ? 'border-red-400 focus:border-red-400' : ''
+                          }`}
+                          maxLength={10}
+                        />
+                        {phoneError && (
+                          <p className="text-red-300 text-xs mt-1">{phoneError}</p>
+                        )}
+                        {phone.length === 10 && !phoneError && (
+                          <p className="text-green-300 text-xs mt-1">✓ Valid phone number</p>
+                        )}
+                      </div>
+                      
+                      {isLoaded && user ? (
+                        <BuyButton
+                          clerkUserId={user.id}
+                          itemId={session.id}
+                          itemType="session"
+                          title={session.title}
+                          amount={session.discountedPrice}
+                          studentPhone={phone}
+                          disabled={phone.length !== 10 || !!phoneError}
+                          onPurchaseSuccess={() => {
+                            toast.success("🎉 Session enrolled successfully!");
+                            setEnrollmentStatus({ isEnrolled: true, paymentStatus: "SUCCESS" });
+                          }}
+                        />
+                      ) : (
+                        <Button
+                          disabled
+                          className="w-full bg-white/30 text-purple-100 border-white/30 hover:bg-white/40 font-semibold py-3 rounded-xl"
+                        >
+                          Please sign in to enroll
+                        </Button>
+                      )}
+                      
+                      {phone.length !== 10 || phoneError ? (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3">
+                          <p className="text-xs text-amber-700 dark:text-amber-300 text-center">
+                            Please enter a valid 10-digit phone number to proceed
+                          </p>
+                        </div>
+                      ) : null}
+                    </>
                   )}
                 </div>
               </CardContent>

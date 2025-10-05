@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { RazorpayResponse } from "../types/razorpay";
+import { toast } from "sonner";
 
 interface Props {
   mockTestId: string;
@@ -17,23 +18,33 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, onPu
   const router = useRouter();
 
   const handleBuy = async () => {
-    if (!clerkUserId) return alert("Please sign in first.");
+    if (!clerkUserId) {
+      toast.error("Please sign in first.");
+      return;
+    }
 
     try {
       setLoading(true);
+      toast.loading("Creating payment order...");
 
       const res = await fetch("/api/payment/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clerkUserId, mockTestId }),
+        body: JSON.stringify({ 
+          clerkUserId, 
+          itemId: mockTestId,
+          itemType: "mockTest"
+        }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || "Something went wrong");
+        toast.dismiss();
+        toast.error(data.error || "Something went wrong");
         return;
       }
 
+      toast.dismiss();
       const { order } = data;
       const razorpay = new window.Razorpay({
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
@@ -51,7 +62,8 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, onPu
       razorpay.open();
     } catch (err) {
       console.error("Error in handleBuy:", err);
-      alert("Something went wrong");
+      toast.dismiss();
+      toast.error("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -59,6 +71,8 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, onPu
 
   const verifyPayment = async (response: RazorpayResponse) => {
     try {
+      toast.loading("Verifying payment...");
+      
       const verifyRes = await fetch("/api/payment/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,16 +85,19 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, onPu
 
       await verifyRes.json();
       if (!verifyRes.ok) {
-        alert("❌ Payment verification failed");
+        toast.dismiss();
+        toast.error("Payment verification failed");
         return;
       }
 
-      alert("✅ Payment verified and subscription updated!");
+      toast.dismiss();
+      toast.success("Payment verified and subscription updated!");
       onPurchaseSuccess?.(); // ✅ Update UI instantly
       router.refresh(); // ✅ Re-fetch server data to keep in sync
     } catch (err) {
       console.error("Verification error:", err);
-      alert("❌ Error during payment verification.");
+      toast.dismiss();
+      toast.error("Error during payment verification.");
     }
   };
 

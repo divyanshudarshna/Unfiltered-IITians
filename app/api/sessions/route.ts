@@ -16,10 +16,13 @@ export async function GET(req: Request) {
       });
 
       if (user) {
-        // Fetch sessions enrolled by the user
+        // Fetch sessions enrolled by the user with successful payment only
         const enrollments = await prisma.sessionEnrollment.findMany({
-          where: { userId: user.id },
-          select: { sessionId: true },
+          where: { 
+            userId: user.id,
+            paymentStatus: "SUCCESS" // Only show successfully paid sessions
+          },
+          select: { sessionId: true, completedAt: true, enrolledAt: true },
         });
         enrolledSessionIds = enrollments.map((e) => e.sessionId.toString());
       }

@@ -32,11 +32,11 @@ export async function GET(req: Request, { params }: Params) {
 export async function PUT(req: Request, { params }: Params) {
   try {
     const body = await req.json();
-    const { title, description, price, actualPrice, durationMonths, status } = body;
+    const { title, description, price, actualPrice, durationMonths, status, order } = body;
 
     const updated = await prisma.course.update({
       where: { id: params.id },
-      data: { title, description, price, actualPrice, durationMonths, status },
+      data: { title, description, price, actualPrice, durationMonths, status, order },
     });
 
     return NextResponse.json(updated);

@@ -91,8 +91,8 @@ export function UpcomingSessions() {
                     className={`h-6 px-3 py-1 text-xs rounded-full ${
                       s.expiryDate &&
                       new Date(s.expiryDate) > new Date()
-                        ? "border-emerald-600 bg-dark text-emerald-400"
-                        : "bg-amber-500 text-white"
+                        ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                        : "bg-amber-100 text-amber-700 border-amber-200"
                     }`}
                   >
                     {s.expiryDate &&

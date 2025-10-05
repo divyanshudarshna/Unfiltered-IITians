@@ -3,13 +3,13 @@
 import { useState,useMemo } from "react";
 import { UserWelcome } from "./UserWelcome";
 import { ProfileCard } from "./ProfileCard";
-import { SubscriptionCard } from "./SubscriptionCard";
 import { QuickActions } from "./QuickActions";
 import { UpcomingSessions } from "./UpcomingSessions";
 import { MockPerformance } from "./MockPerformance";
+import { ActiveItems } from "./ActiveItems";
 
 interface DashboardClientProps {
-  safeUser: {
+  readonly safeUser: {
     id: string;
     firstName: string;
     fullName: string;
@@ -18,18 +18,16 @@ interface DashboardClientProps {
     imageUrl: string;
     createdAt: Date;
   };
-  initialProfile: Record<string, unknown>;
-  subscription?: Record<string, unknown>[];
-  averageScore: number;
-  attemptedMocks: number;
-  totalMocks: number;
-  lastAttemptDate: Date | null;
+  readonly initialProfile: Record<string, unknown>;
+  readonly averageScore: number;
+  readonly attemptedMocks: number;
+  readonly totalMocks: number;
+  readonly lastAttemptDate: Date | null;
 }
 
 export default function DashboardClient({
   safeUser,
   initialProfile,
-  subscription = [],
   averageScore,
   attemptedMocks,
   totalMocks,
@@ -43,7 +41,7 @@ export default function DashboardClient({
     email: profile?.email || safeUser.email,
     name: profile?.name || `${safeUser.fullName}`.trim() || null,
     profileImageUrl:
-      profile?.profileImageUrl?.trim() ||
+      (typeof profile?.profileImageUrl === 'string' ? profile.profileImageUrl.trim() : '') ||
       safeUser.imageUrl ||
       "/default-avatar.png",
     createdAt: profile?.createdAt || safeUser.createdAt,
@@ -64,8 +62,6 @@ export default function DashboardClient({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <ProfileCard user={mergedProfile} onProfileUpdate={setProfile} />
 
-          <SubscriptionCard subscriptions={subscription} />
-
           {/* Performance Card with server-calculated metrics */}
           <MockPerformance
             averageScore={averageScore}
@@ -77,6 +73,11 @@ export default function DashboardClient({
 
           <QuickActions />
           <UpcomingSessions />
+        </div>
+
+        {/* Full-width Active Items Section */}
+        <div className="mt-8">
+          <ActiveItems />
         </div>
       </div>
     </main>

@@ -6,10 +6,20 @@ import { prisma } from "@/lib/prisma";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, description, price, actualPrice, durationMonths, status } = body;
+    const { title, description, price, actualPrice, durationMonths, status, order } = body;
 
     if (!title || !price || !durationMonths) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // If order not provided, set to next available order
+    let courseOrder = order;
+    if (!courseOrder) {
+      const lastCourse = await prisma.course.findFirst({
+        orderBy: { order: "desc" },
+        select: { order: true }
+      });
+      courseOrder = (lastCourse?.order || 0) + 1;
     }
 
     const course = await prisma.course.create({
@@ -20,6 +30,7 @@ export async function POST(req: Request) {
         actualPrice,
         durationMonths,
         status: status || "DRAFT",
+        order: courseOrder,
       },
     });
 
@@ -42,7 +53,10 @@ export async function GET() {
        
       },
 
-      orderBy: { createdAt: "desc" },
+      orderBy: [
+        { order: "asc" },
+        { createdAt: "desc" }
+      ],
     });
 
     return NextResponse.json(courses);

@@ -9,6 +9,8 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  SortingState,
+  ColumnFiltersState,
 } from "@tanstack/react-table";
 import {
   AlertDialog,
@@ -44,16 +46,19 @@ import {
   Trash2,
   Layers,
   Users,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 
 interface Course {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   price: number;
   actualPrice?: number | null;
   durationMonths: number;
   status: "PUBLISHED" | "DRAFT" | "ARCHIVED";
+  order?: number;
 }
 
 interface CourseTableProps {
@@ -62,10 +67,11 @@ interface CourseTableProps {
 }
 
 export default function CourseTable({ courses, refresh }: CourseTableProps) {
-  const [sorting, setSorting] = useState([]);
-  const [columnFilters, setColumnFilters] = useState([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
 
   const [contentCounts, setContentCounts] = useState<Record<string, number>>({});
   const [enrollCounts, setEnrollCounts] = useState<Record<string, number>>({});
@@ -121,7 +127,57 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
     }
   };
 
+  const handleReorderCourses = async (newOrder: Course[]) => {
+    try {
+      setIsReordering(true);
+      
+      const courseOrders = newOrder.map((course, index) => ({
+        id: course.id,
+        order: index + 1,
+      }));
+
+      const response = await fetch('/api/admin/courses/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseOrders }),
+      });
+
+      if (!response.ok) throw new Error('Failed to reorder courses');
+
+      toast.success('Course order updated successfully');
+      refresh();
+    } catch (error) {
+      console.error('Error reordering courses:', error);
+      toast.error('Failed to update course order');
+    } finally {
+      setIsReordering(false);
+    }
+  };
+
+  const moveUp = (index: number) => {
+    if (index === 0) return;
+    const newCourses = [...courses];
+    [newCourses[index], newCourses[index - 1]] = [newCourses[index - 1], newCourses[index]];
+    handleReorderCourses(newCourses);
+  };
+
+  const moveDown = (index: number) => {
+    if (index === courses.length - 1) return;
+    const newCourses = [...courses];
+    [newCourses[index], newCourses[index + 1]] = [newCourses[index + 1], newCourses[index]];
+    handleReorderCourses(newCourses);
+  };
+
   const columns: ColumnDef<Course>[] = [
+    {
+      accessorKey: "order",
+      header: "Order",
+      cell: ({ row }) => (
+        <Badge variant="outline" className="w-12 justify-center">
+          {row.original.order || 0}
+        </Badge>
+      ),
+    },
     {
       accessorKey: "title",
       header: "Title",
@@ -209,19 +265,42 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
       header: "Actions",
       cell: ({ row }) => {
         const course = row.original;
+        const courseIndex = courses.findIndex(c => c.id === course.id);
         return (
-          <div className="flex gap-2">
+          <div className="flex gap-1 flex-wrap">
+            {/* Reorder buttons */}
+            <div className="flex flex-col gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
+                onClick={() => moveUp(courseIndex)}
+                disabled={courseIndex === 0 || isReordering}
+                title="Move up"
+              >
+                <ChevronUp className="h-3 w-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
+                onClick={() => moveDown(courseIndex)}
+                disabled={courseIndex === courses.length - 1 || isReordering}
+                title="Move down"
+              >
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </div>
+
             <Link href={`/admin/courses/${course.id}/contents`}>
               <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-800">
                 <BookOpen className="h-4 w-4" />
-                Contents
               </Button>
             </Link>
 
             <Link href={`/admin/courses/${course.id}/coupons`}>
               <Button size="sm" variant="ghost" className="text-amber-600 hover:text-amber-800">
                 <TicketPercent className="h-4 w-4" />
-                Coupons
               </Button>
             </Link>
 

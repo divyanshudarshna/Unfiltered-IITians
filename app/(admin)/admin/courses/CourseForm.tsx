@@ -43,6 +43,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
     actualPrice: "",
     durationMonths: "",
     status: PublishStatus.DRAFT,
+    order: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -56,6 +57,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
         actualPrice: course.actualPrice?.toString() || "",
         durationMonths: course.durationMonths?.toString() || "",
         status: course.status || PublishStatus.DRAFT,
+        order: course.order?.toString() || "",
       });
     }
   }, [course]);
@@ -86,6 +88,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
           actualPrice: Number(form.actualPrice),
           durationMonths: Number(form.durationMonths),
           status: form.status,
+          order: form.order ? Number(form.order) : undefined,
         }),
       });
 
@@ -233,10 +236,10 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
             <div className="space-y-4">
               <h3 className="text-lg font-medium flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                Duration & Status
+                Duration, Order & Status
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="durationMonths" className="flex items-center gap-1">
                     <span>Duration (months)</span>
@@ -253,6 +256,25 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                     placeholder="3"
                     className="focus-visible:ring-primary"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="order" className="flex items-center gap-1">
+                    <span>Display Order</span>
+                  </Label>
+                  <Input 
+                    id="order"
+                    type="number" 
+                    name="order" 
+                    value={form.order} 
+                    onChange={handleChange} 
+                    min="1"
+                    placeholder="1"
+                    className="focus-visible:ring-primary"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Lower numbers appear first (leave empty for auto-order)
+                  </p>
                 </div>
 
                 <div className="space-y-2">
