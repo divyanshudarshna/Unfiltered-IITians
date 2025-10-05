@@ -362,11 +362,21 @@ export default function CourseSidebar({
 
       {/* FOOTER */}
       <SidebarFooter className="p-4 border-t bg-muted/40">
-        <div className="text-xs text-center text-muted-foreground">
+        <div className="text-xs text-center text-muted-foreground space-y-2">
           <p className="flex items-center justify-center gap-1">
             <Clock className="h-3 w-3" />
             Progress auto-saves as you learn
           </p>
+          {(course.enrollmentExpiresAt || course.subscriptionExpiresAt) && (
+            <div className="border-t pt-2 mt-2">
+              
+              {course.subscriptionExpiresAt && (
+                <p className="text-muted-foreground font-medium">
+                  Subscription expires: {new Date(course.subscriptionExpiresAt).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </SidebarFooter>
     </div>

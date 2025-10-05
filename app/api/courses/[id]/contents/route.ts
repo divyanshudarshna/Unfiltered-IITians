@@ -22,13 +22,47 @@ export async function GET(req: Request, { params }: Params) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // (Optional) ensure enrolled or staff
-    // const isEnrolled = await prisma.enrollment.findFirst({
-    //   where: { userId: user.id, courseId: params.id }
-    // });
-    // if (!isEnrolled) {
-    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    // }
+    // Check if user is enrolled in the course
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { 
+        userId: user.id, 
+        courseId: params.id 
+      }
+    });
+
+    if (!enrollment) {
+      return NextResponse.json({ 
+        error: "Access denied. You are not enrolled in this course.",
+        redirectTo: "/courses",
+        code: "NOT_ENROLLED"
+      }, { status: 403 });
+    }
+
+    // Check if enrollment has expired
+    if (enrollment.expiresAt && enrollment.expiresAt < new Date()) {
+      return NextResponse.json({ 
+        error: "Your course access has expired.",
+        redirectTo: "/courses",
+        code: "EXPIRED"
+      }, { status: 403 });
+    }
+
+    // Check if user has an active subscription for the course
+    const subscription = await prisma.subscription.findFirst({
+      where: { 
+        userId: user.id, 
+        courseId: params.id,
+        paid: true
+      }
+    });
+
+    if (subscription && subscription.expiresAt && subscription.expiresAt < new Date()) {
+      return NextResponse.json({ 
+        error: "Your course subscription has expired.",
+        redirectTo: "/courses",
+        code: "SUBSCRIPTION_EXPIRED"
+      }, { status: 403 });
+    }
 
     // Fetch course with contents + lectures + quiz
     const course = await prisma.course.findUnique({
@@ -53,6 +87,8 @@ export async function GET(req: Request, { params }: Params) {
       id: course.id,
       title: course.title,
       description: course.description,
+      enrollmentExpiresAt: enrollment.expiresAt,
+      subscriptionExpiresAt: subscription?.expiresAt,
       contents: course.contents.map((c) => ({
         id: c.id,
         title: c.title,

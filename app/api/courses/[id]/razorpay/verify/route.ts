@@ -50,10 +50,22 @@ export async function POST(req: Request, { params }: Params) {
     });
 
     if (!existing) {
+      // Get course to calculate expiry date
+      const course = await prisma.course.findUnique({
+        where: { id: sub.courseId! },
+        select: { durationMonths: true }
+      });
+      
+      // Calculate expiry date based on course duration
+      const enrollmentExpiresAt = course ? 
+        new Date(Date.now() + (course.durationMonths * 30 * 24 * 60 * 60 * 1000)) : // months to milliseconds
+        new Date(Date.now() + (12 * 30 * 24 * 60 * 60 * 1000)); // default 12 months
+
       await prisma.enrollment.create({
         data: {
           userId: sub.userId,
           courseId: sub.courseId!,
+          expiresAt: enrollmentExpiresAt,
         },
       });
     }

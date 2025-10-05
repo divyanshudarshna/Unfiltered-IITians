@@ -66,6 +66,20 @@ export async function GET(_req: Request, { params }: Params) {
       });
     }
 
+    // Check if enrollment has expired
+    const isExpired = enrollment.expiresAt && enrollment.expiresAt < new Date();
+    
+    // Check subscription status
+    const subscription = await prisma.subscription.findFirst({
+      where: { 
+        userId: dbUser.id, 
+        courseId,
+        paid: true
+      }
+    });
+    
+    const isSubscriptionExpired = subscription?.expiresAt && subscription.expiresAt < new Date();
+
     // ✅ Compute progress safely
     const totalContents = enrollment?.course?.contents?.length ?? 0;
     const completedContents = 0; // TODO: implement actual tracking
@@ -74,6 +88,10 @@ export async function GET(_req: Request, { params }: Params) {
     return NextResponse.json({
       isEnrolled: true,
       enrolledAt: enrollment.enrolledAt,
+      enrollmentExpiresAt: enrollment.expiresAt,
+      subscriptionExpiresAt: subscription?.expiresAt,
+      isExpired,
+      isSubscriptionExpired,
       progress,
       totalContents,
       completedContents,

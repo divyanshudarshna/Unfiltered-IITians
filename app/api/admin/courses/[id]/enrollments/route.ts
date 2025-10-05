@@ -31,10 +31,24 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 });
     }
 
+    // Get course to calculate expiry date
+    const course = await prisma.course.findUnique({
+      where: { id: params.id },
+      select: { durationMonths: true }
+    });
+    
+    if (!course) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
+
+    // Calculate expiry date based on course duration
+    const expiresAt = new Date(Date.now() + (course.durationMonths * 30 * 24 * 60 * 60 * 1000)); // months to milliseconds
+
     const enrollment = await prisma.enrollment.create({
       data: {
         userId,
         courseId: params.id,
+        expiresAt,
       },
     });
 

@@ -116,6 +116,7 @@ model Subscription {
   mockBundleId    String?     @db.ObjectId   // ✅ NEW: Bundle subscription support
   razorpayOrderId String
   paid            Boolean     @default(false)
+  expiresAt       DateTime?   // Subscription expiry date
   createdAt       DateTime    @default(now())
 
   // Relations
@@ -157,6 +158,7 @@ model Enrollment {
   userId     String     @db.ObjectId
   courseId   String     @db.ObjectId
   enrolledAt DateTime   @default(now())
+  expiresAt  DateTime?  // Course access expiry date
 
   user       User       @relation(fields: [userId], references: [id])
   course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)

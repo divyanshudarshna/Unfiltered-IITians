@@ -15,17 +15,37 @@ import { useCourse } from "@/app/contexts/CourseContext";
 import { Announcements, Notification } from "./components/Announcements";
 import { useAuth } from "@clerk/nextjs";
 import { FeedbackModal } from "./components/FeedbackModal";
+import { useCourseAccess } from "@/hooks/useCourseAccess";
+import { useParams } from "next/navigation";
 
 export default function CourseDetailPageContent() {
   const { course, selectedLecture, activeContent, setSelectedLecture, setActiveContent, loading, error, saveProgress, markLectureComplete } = useCourse();
   const { getToken } = useAuth();
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [currentQuizContentId, setCurrentQuizContentId] = useState<string | null>(null);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [isLoadingLecture, setIsLoadingLecture] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setIsSidebarCollapsed(true);
+        setIsMobileSidebarOpen(false);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Notifications & unread
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -261,17 +281,17 @@ export default function CourseDetailPageContent() {
   if (loading) {
     return (
       <div className="flex h-screen">
-        <div className="w-80 border-r p-4">
+        <div className="hidden md:block w-80 border-r p-4">
           <Skeleton className="h-8 w-32 mb-6" />
           <div className="space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton key={`skeleton-item-${i}`} className="h-12 w-full" />
             ))}
           </div>
         </div>
-        <div className="flex-1 p-6">
-          <Skeleton className="h-8 w-1/2 mb-4" />
-          <Skeleton className="h-64 w-full" />
+        <div className="flex-1 p-3 md:p-6">
+          <Skeleton className="h-6 md:h-8 w-1/2 mb-4" />
+          <Skeleton className="h-48 md:h-64 w-full" />
         </div>
       </div>
     );
@@ -280,44 +300,71 @@ export default function CourseDetailPageContent() {
   /** Render error state */
   if (error || !course) {
     return (
-      <div className="flex h-screen items-center justify-center text-center p-6">
-        <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-        <h2 className="text-xl font-semibold mb-2">
-          {error ? "Error Loading Course" : "Course Not Found"}
-        </h2>
-        <p className="text-muted-foreground mb-4">
-          {error || "The requested course could not be found."}
-        </p>
-        <Button onClick={() => window.location.reload()}>Try Again</Button>
+      <div className="flex h-screen items-center justify-center text-center p-4 md:p-6">
+        <div className="max-w-md w-full">
+          <AlertCircle className="h-10 w-10 md:h-12 md:w-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-lg md:text-xl font-semibold mb-2">
+            {error ? "Error Loading Course" : "Course Not Found"}
+          </h2>
+          <p className="text-muted-foreground mb-4 text-sm md:text-base">
+            {error || "The requested course could not be found."}
+          </p>
+          <Button onClick={() => window.location.reload()} size="lg">
+            Try Again
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden dark:bg-black ">
+    <div className="flex h-screen w-full overflow-hidden dark:bg-black">
+      {/* Mobile sidebar overlay */}
+      {isMobile && isMobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <div
         className={cn(
-          "h-full border-r overflow-hidden transition-[width,opacity] duration-300 ease-in-out",
-          isSidebarCollapsed ? "w-0 opacity-0 pointer-events-none" : "w-[350px] opacity-100"
+          "h-full border-r overflow-hidden transition-all duration-300 ease-in-out z-50",
+          isMobile
+            ? cn(
+                "fixed left-0 top-0 w-80 bg-background",
+                isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
+              )
+            : cn(
+                isSidebarCollapsed ? "w-0 opacity-0 pointer-events-none" : "w-80 lg:w-[350px] opacity-100"
+              )
         )}
       >
         <CourseSidebar
           course={course}
           selectedLecture={selectedLecture}
-          setSelectedLecture={(lecture) => {
-            const content = course.contents.find(c => 
-              c.lectures.some(l => l.id === lecture.id)
+          setSelectedLecture={(lecture: any) => {
+            const content = course.contents.find((c: any) => 
+              c.lectures.some((l: any) => l.id === lecture.id)
             );
             if (content) {
               handleLectureSelect(lecture, content.id);
             }
+            // Close mobile sidebar when lecture is selected
+            if (isMobile) {
+              setIsMobileSidebarOpen(false);
+            }
           }}
           activeContent={activeContent}
           setActiveContent={setActiveContent}
-          onStartQuiz={(quizId) => {
+          onStartQuiz={(quizId: string) => {
             setCurrentQuizContentId(quizId);
             setShowQuiz(true);
+            // Close mobile sidebar when quiz starts
+            if (isMobile) {
+              setIsMobileSidebarOpen(false);
+            }
           }}
           isLoadingLecture={isLoadingLecture}
         />
@@ -325,23 +372,32 @@ export default function CourseDetailPageContent() {
 
       {/* Main content */}
       <div className="flex flex-col flex-1 overflow-hidden">
-        <header className="flex items-center h-16 px-6 border-b gap-4 justify-between">
-          <div className="flex items-center gap-4">
-            <SidebarTrigger onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
-            <h1 className="text-xl font-semibold">{course.title}</h1>
+        <header className="flex items-center h-14 md:h-16 px-3 md:px-6 border-b gap-2 md:gap-4 justify-between">
+          <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
+            <SidebarTrigger 
+              onClick={() => {
+                if (isMobile) {
+                  setIsMobileSidebarOpen(!isMobileSidebarOpen);
+                } else {
+                  setIsSidebarCollapsed(!isSidebarCollapsed);
+                }
+              }} 
+            />
+            <h1 className="text-lg md:text-xl font-semibold truncate">{course.title}</h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
             {/* Announcements */}
             <Button
               variant="ghost"
               onClick={() => setShowAnnouncements(true)}
-              className="relative flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm hover:shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 ease-in-out"
+              className="relative flex items-center gap-1 md:gap-2 px-2 md:px-4 py-2 rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm hover:shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 ease-in-out text-xs md:text-sm"
             >
-              <Bell className="h-5 w-5" />
-              <span className="font-medium text-sm md:text-base">Announcements</span>
+              <Bell className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="font-medium hidden sm:inline">Announcements</span>
+              <span className="font-medium sm:hidden">News</span>
               {unreadCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-red-500 text-white shadow-md">
+                <Badge className="absolute -top-1 -right-1 h-4 w-4 md:h-5 md:w-5 p-0 flex items-center justify-center text-xs bg-red-500 text-white shadow-md">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </Badge>
               )}
@@ -351,14 +407,15 @@ export default function CourseDetailPageContent() {
             <Button
               variant="ghost"
               onClick={() => setShowFeedback(true)}
-              className="relative p-2 hover:bg-blue-500/10 transition-all rounded-md"
+              className="relative p-2 hover:bg-blue-500/10 transition-all rounded-md text-xs md:text-sm"
             >
-              Submit Question
+              <span className="hidden sm:inline">Submit Question</span>
+              <span className="sm:hidden">Help</span>
             </Button>
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-3 md:p-6">
           {showQuiz && currentQuizContentId ? (
             <Quiz
               courseId={course.id}
@@ -377,14 +434,14 @@ export default function CourseDetailPageContent() {
               isLoading={isLoadingLecture}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center p-6">
-              <div className="bg-primary/10 p-6 rounded-full mb-4">
-                <BookOpen className="h-12 w-12 text-primary" />
+            <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-6">
+              <div className="bg-primary/10 p-4 md:p-6 rounded-full mb-4">
+                <BookOpen className="h-8 w-8 md:h-12 md:w-12 text-primary" />
               </div>
-              <h2 className="text-xl font-semibold mb-2">
+              <h2 className="text-lg md:text-xl font-semibold mb-2">
                 Welcome to {course.title}
               </h2>
-              <p className="text-muted-foreground max-w-md mb-6">
+              <p className="text-muted-foreground max-w-md mb-6 text-sm md:text-base">
                 Select a lecture from the sidebar to begin your learning journey.
               </p>
               <Button
@@ -396,6 +453,7 @@ export default function CourseDetailPageContent() {
                 }}
                 className="gap-2"
                 disabled={isLoadingLecture}
+                size="lg"
               >
                 {isLoadingLecture ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

@@ -23,6 +23,8 @@ interface Course {
   title: string;
   contents: CourseContent[];
   progress?: number;
+  enrollmentExpiresAt?: Date | string | null;
+  subscriptionExpiresAt?: Date | string | null;
 }
 
 interface CourseContextType {
@@ -68,6 +70,11 @@ export const CourseProvider = ({ courseId, children }: Props) => {
       const courseJson = await res.json();
 
       if (!res.ok) {
+        if (courseJson.redirectTo && (courseJson.code === "NOT_ENROLLED" || courseJson.code === "EXPIRED" || courseJson.code === "SUBSCRIPTION_EXPIRED")) {
+          // Redirect to courses page if user is not enrolled or access has expired
+          window.location.href = courseJson.redirectTo;
+          return;
+        }
         setError(courseJson.error || "Failed to load course");
         return;
       }

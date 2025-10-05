@@ -79,12 +79,15 @@ export async function POST(req: Request, { params }: Params) {
     });
 
     // ✅ Create a pending subscription entry
+    const subscriptionExpiresAt = new Date(Date.now() + (course.durationMonths * 30 * 24 * 60 * 60 * 1000)); // months to milliseconds
+    
     await prisma.subscription.create({
       data: {
         userId: user.id,
         courseId: course.id,
         razorpayOrderId: order.id,
         paid: false,
+        expiresAt: subscriptionExpiresAt,
       },
     });
 

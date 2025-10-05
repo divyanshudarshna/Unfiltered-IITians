@@ -83,6 +83,14 @@ export default function VideoContent({
   }, []);
 
   // Security functions
+  const detectScreenRecording = useCallback(() => {
+    if (document.visibilityState === 'hidden' && !document.fullscreenElement) {
+      handleSecurityViolation();
+      return true;
+    }
+    return false;
+  }, []);
+
   const handleSecurityViolation = useCallback(() => {
     setIsScreenProtected(true);
     if (videoRef.current) {
@@ -93,14 +101,6 @@ export default function VideoContent({
       setIsScreenProtected(false);
     }, 3000);
   }, []);
-
-  const detectScreenRecording = useCallback(() => {
-    if (document.visibilityState === 'hidden' && !document.fullscreenElement) {
-      handleSecurityViolation();
-      return true;
-    }
-    return false;
-  }, [handleSecurityViolation]);
 
   const startSecurityMonitoring = useCallback(() => {
     if (securityCheckRef.current) {
@@ -191,6 +191,16 @@ export default function VideoContent({
     if (!videoRef.current) return;
     videoRef.current.muted = !videoRef.current.muted;
   }, []);
+
+  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current || isScreenProtected) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    const seekTime = percent * duration;
+    
+    videoRef.current.currentTime = seekTime;
+  }, [duration, isScreenProtected]);
 
   const skip = useCallback((seconds: number) => {
     if (!videoRef.current || isScreenProtected) return;
@@ -389,58 +399,33 @@ export default function VideoContent({
       "bg-black border-slate-700 overflow-hidden shadow-lg relative transition-all duration-300",
       isFullscreen && "fixed inset-0 z-[9999] rounded-none border-none"
     )}>
-      {/* Security indicator - Less prominent on mobile */}
-      {!isMobile && (
-        <div className="absolute top-2 right-2 z-40 bg-black/70 rounded-full p-2">
-          <Shield className="h-4 w-4 md:h-5 md:w-5 text-green-400" />
-        </div>
-      )}
-      {isMobile && (
-        <div className="absolute top-2 right-2 z-40 bg-black/40 rounded-full p-1">
-          <Shield className="h-3 w-3 text-green-400/70" />
-        </div>
-      )}
+      {/* Security indicator */}
+      <div className="absolute top-2 right-2 z-40 bg-black/70 rounded-full p-2">
+        <Shield className="h-4 w-4 md:h-5 md:w-5 text-green-400" />
+      </div>
 
       <CardContent className="p-0">
-        <section
+        <div
           ref={containerRef}
           className={cn(
-            "relative bg-black group",
+            "relative bg-black group cursor-none",
             isFullscreen ? "h-screen" : "aspect-video"
           )}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
-          onTouchStart={() => showControlsTemporarily()}
-          onTouchEnd={() => showControlsTemporarily()}
-          aria-label="Video player container"
+          onClick={showControlsTemporarily}
         >
-          {/* Invisible overlay for click handling */}
-          <button
-            className="absolute inset-0 z-10 bg-transparent border-none cursor-default"
-            onClick={showControlsTemporarily}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                showControlsTemporarily();
-              }
-            }}
-            aria-label="Show video controls"
-          />
-          
           {/* Video element */}
           <video
             ref={videoRef}
             src={videoUrl}
-            className="w-full h-full object-contain relative z-0"
+            className="w-full h-full object-contain"
             preload="metadata"
             playsInline
             disablePictureInPicture
             controlsList="nodownload nofullscreen noremoteplayback"
             onContextMenu={(e) => e.preventDefault()}
-            aria-describedby="video-title"
-          >
-            <track kind="captions" srcLang="en" label="English captions" />
-          </video>
+          />
 
           {/* Loading spinner */}
           {isLoading && (
@@ -465,21 +450,13 @@ export default function VideoContent({
             </div>
           )}
 
-          {/* Video title overlay - Less intrusive on mobile */}
+          {/* Video title overlay */}
           {!isScreenProtected && (
-            <div 
-              id="video-title"
-              className={cn(
-                "absolute top-4 left-4 transition-opacity duration-300 z-20",
-                showControls ? (isMobile ? "opacity-80" : "opacity-100") : "opacity-0"
-              )}
-            >
-              <h3 className={cn(
-                "text-white font-medium backdrop-blur-sm",
-                isMobile 
-                  ? "text-xs max-w-[180px] truncate bg-black/40 px-2 py-1 rounded" 
-                  : "text-sm md:text-base bg-black/60 px-3 py-1.5 rounded-md"
-              )}>
+            <div className={cn(
+              "absolute top-4 left-4 transition-opacity duration-300 z-20",
+              showControls ? "opacity-100" : "opacity-0"
+            )}>
+              <h3 className="text-white text-sm md:text-base font-medium bg-black/60 px-3 py-1.5 rounded-md backdrop-blur-sm">
                 {title}
               </h3>
             </div>
@@ -506,35 +483,24 @@ export default function VideoContent({
               )}
             >
               {/* Progress bar */}
-              <div className="px-4 pb-2 relative">
-                {/* Background track */}
-                <div className="h-1 md:h-1.5 bg-white/20 rounded-full relative">
+              <div className="px-4 pb-2">
+                <div 
+                  className="h-1 md:h-1.5 bg-white/20 rounded-full cursor-pointer group/progress"
+                  onClick={handleSeek}
+                >
                   {/* Buffered progress */}
                   <div 
-                    className="h-full bg-white/40 rounded-full absolute top-0 left-0"
+                    className="h-full bg-white/40 rounded-full"
                     style={{ width: `${buffered * 100}%` }}
                   />
                   {/* Current progress */}
                   <div 
-                    className="h-full bg-purple-500 rounded-full absolute top-0 left-0"
+                    className="h-full bg-purple-500 rounded-full relative -mt-1 md:-mt-1.5 group-hover/progress:h-1.5 md:group-hover/progress:h-2 transition-all"
                     style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }}
-                  />
+                  >
+                    <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-3 h-3 bg-purple-500 rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
+                  </div>
                 </div>
-                
-                {/* Invisible input for accessibility */}
-                <input
-                  type="range"
-                  min={0}
-                  max={duration || 100}
-                  value={currentTime}
-                  onChange={(e) => {
-                    if (videoRef.current && !isScreenProtected) {
-                      videoRef.current.currentTime = parseFloat(e.target.value);
-                    }
-                  }}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  aria-label="Video progress"
-                />
               </div>
 
               {/* Controls bar */}
@@ -572,7 +538,6 @@ export default function VideoContent({
                       <button
                         onClick={toggleMute}
                         className="text-white p-1.5 md:p-2 hover:bg-white/20 rounded-full transition-colors"
-                        aria-label={isMuted ? "Unmute" : "Mute"}
                       >
                         {isMuted || volume === 0 ? (
                           <VolumeX className="h-4 w-4 md:h-5 md:w-5" />
@@ -581,7 +546,6 @@ export default function VideoContent({
                         )}
                       </button>
                       
-                      {/* Volume slider - show on desktop and tablets */}
                       {!isMobile && (
                         <input
                           type="range"
@@ -591,15 +555,7 @@ export default function VideoContent({
                           value={isMuted ? 0 : volume}
                           onChange={(e) => handleVolumeSliderChange(parseFloat(e.target.value))}
                           className="w-16 md:w-20 accent-purple-500 cursor-pointer"
-                          aria-label="Volume"
                         />
-                      )}
-                      
-                      {/* Mobile volume display */}
-                      {isMobile && (
-                        <span className="text-white text-xs">
-                          {Math.round((isMuted ? 0 : volume) * 100)}%
-                        </span>
                       )}
                     </div>
 
@@ -623,10 +579,7 @@ export default function VideoContent({
 
                     {/* Settings menu */}
                     {showSettings && (
-                      <div className={cn(
-                        "absolute bottom-12 md:bottom-14 right-0 bg-black/95 border border-white/20 rounded-lg p-3 text-white text-sm backdrop-blur-sm z-50",
-                        isMobile ? "w-36" : "w-40 md:w-44"
-                      )}>
+                      <div className="absolute bottom-12 md:bottom-14 right-0 bg-black/95 border border-white/20 rounded-lg p-3 text-white text-sm w-40 md:w-44 backdrop-blur-sm z-50">
                         <div className="space-y-3">
                           {/* Playback speed */}
                           <div>
@@ -637,7 +590,7 @@ export default function VideoContent({
                                   key={rate}
                                   onClick={() => changePlaybackRate(rate)}
                                   className={cn(
-                                    "block w-full text-left px-2 py-1.5 rounded hover:bg-white/20 transition-colors text-xs md:text-sm",
+                                    "block w-full text-left px-2 py-1 rounded hover:bg-white/20 transition-colors",
                                     playbackRate === rate && "bg-purple-600/50 text-purple-200"
                                   )}
                                 >
@@ -656,7 +609,7 @@ export default function VideoContent({
                                   key={quality}
                                   onClick={() => changeQuality(quality)}
                                   className={cn(
-                                    "block w-full text-left px-2 py-1.5 rounded hover:bg-white/20 transition-colors text-xs md:text-sm",
+                                    "block w-full text-left px-2 py-1 rounded hover:bg-white/20 transition-colors",
                                     selectedQuality === quality && "bg-purple-600/50 text-purple-200"
                                   )}
                                 >
@@ -665,26 +618,6 @@ export default function VideoContent({
                               ))}
                             </div>
                           </div>
-
-                          {/* Mobile volume control */}
-                          {isMobile && (
-                            <div className="border-t border-white/20 pt-3">
-                              <p className="text-white/80 text-xs font-medium mb-2">Volume</p>
-                              <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.05"
-                                value={isMuted ? 0 : volume}
-                                onChange={(e) => handleVolumeSliderChange(parseFloat(e.target.value))}
-                                className="w-full accent-purple-500 cursor-pointer"
-                                aria-label="Volume"
-                              />
-                              <div className="text-center text-xs text-white/60 mt-1">
-                                {Math.round((isMuted ? 0 : volume) * 100)}%
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     )}
@@ -706,13 +639,11 @@ export default function VideoContent({
             </div>
           )}
 
-          {/* Watermark - Hidden on mobile to avoid interrupting the view */}
-          {!isMobile && (
-            <div className="absolute bottom-16 md:bottom-20 right-4 pointer-events-none text-white/10 text-xs font-mono z-20">
-              Unfiltered-IITians • {sessionId.current}
-            </div>
-          )}
-        </section>
+          {/* Watermark */}
+          <div className="absolute bottom-16 md:bottom-20 right-4 pointer-events-none text-white/10 text-xs font-mono z-20">
+            Unfiltered-IITians • {sessionId.current}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
