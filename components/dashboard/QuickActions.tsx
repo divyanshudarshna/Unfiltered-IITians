@@ -8,7 +8,10 @@ const actions = [
   { label: "Book Session", icon: "👨‍🏫", href: "/guidance" },
   { label: "Resources", icon: "📂", href: "/resources" },
   { label: "Mocks", icon: "🏆", href: "/mocks" },
+  { label: "Courses", icon: "🎓", href: "/courses" },
+  { label: "Faqs", icon: "❓", href: "/faqs" },
 ];
+
 
 export function QuickActions() {
   return (

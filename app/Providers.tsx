@@ -2,8 +2,9 @@
 
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { ReactNode } from "react";
+import { UserProfileProvider } from "@/contexts/UserProfileContext";
 
-export default function Providers({ children }: { children: ReactNode }) {
+export default function Providers({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <>
       <ProgressBar
@@ -12,7 +13,9 @@ export default function Providers({ children }: { children: ReactNode }) {
         options={{ showSpinner: false }}
         shallowRouting
       />
-      {children}
+      <UserProfileProvider>
+        {children}
+      </UserProfileProvider>
     </>
   );
 }

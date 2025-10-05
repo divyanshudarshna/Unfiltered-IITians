@@ -1,44 +1,31 @@
 "use client"
 
-import { useClerk } from "@clerk/nextjs"
 import Link from "next/link"
-import { useTheme } from "next-themes"
 import { useState, useEffect } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useUser, SignedIn, SignedOut } from "@clerk/nextjs"
 import {
   LayoutDashboard,
   User,
   FileText,
-  LogOut,
-  Moon,
-  Sun,
   Menu,
   X,
-  ChevronDown,
-  Monitor,
-  Palette,
-  ChevronRight,
   Download,
   LogIn
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
+import { UserMenu } from "@/components/UserMenu"
+import { UserAvatar } from "@/components/UserAvatar"
+import { MobileLogoutButton } from "@/components/MobileLogoutButton"
 
 const Navbar = () => {
-  const { signOut } = useClerk()
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [userMenuOpen, setUserMenuOpen] = useState(false)
-  const [themeMenuOpen, setThemeMenuOpen] = useState(false)
   const { user } = useUser()
   const router = useRouter()
 
   // ✅ Preload critical routes once
   useEffect(() => {
-    setMounted(true)
     const prefetchRoutes = ["/courses", "/mocks", "/resources", "/dashboard", "/guidance", "/youtube", "/contact"]
     prefetchRoutes.forEach((route) => router.prefetch(route))
   }, [router])
@@ -107,103 +94,22 @@ const Navbar = () => {
 
           {/* Signed In - User Dropdown */}
           <SignedIn>
-            <div className="relative dark:text-white text-black">
-              <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium capitalize">
-                    {user?.firstName || "User"}
-                  </span>
-                  <ChevronDown size={16} className={`transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
-                </div>
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
-                  <UserButton appearance={{ elements: { avatarBox: "w-6 h-6" } }} />
-                </div>
-              </button>
-
-              {/* Dropdown Menu */}
-              {userMenuOpen && (
-                <div className="absolute right-0 top-12 w-56 bg-popover border rounded-lg shadow-lg py-2 z-50 animate-in fade-in-50">
-                  <div className="px-4 py-3 border-b">
-                    <p className="font-medium text-sm capitalize">{user?.fullName || "User"}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user?.primaryEmailAddress?.emailAddress}</p>
-                  </div>
-
-                  <div className="py-2">
-                    <Link href={`/${user?.firstName || "user"}/dashboard`} prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
-                      <LayoutDashboard size={18} /> <span>Dashboard</span>
-                    </Link>
-                    <Link href="/dashboard/courses" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
-                      <User size={18} /> <span>My Courses</span>
-                    </Link>
-                    <Link href="/mocks" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
-                      <FileText size={18} /> <span>Mocks</span>
-                    </Link>
-
-                    {/* Free Resources moved here */}
-                    <Link href="/resources" prefetch className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" onClick={() => setUserMenuOpen(false)}>
-                      <Download size={18} /> <span>Free Resources</span>
-                    </Link>
-                  </div>
-
-                  {/* Theme Selection */}
-                  <div className="py-2 border-t relative">
-                    <button
-                      onClick={() => setThemeMenuOpen(!themeMenuOpen)}
-                      className="flex items-center justify-between w-full px-4 py-2 hover:bg-accent transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Palette size={18} />
-                        <span>Theme</span>
-                      </div>
-                      <ChevronRight size={16} className={`transition-transform ${themeMenuOpen ? "rotate-90" : ""}`} />
-                    </button>
-
-                    {themeMenuOpen && (
-                      <div className="ml-4 mt-1 border-l-2 border-accent pl-1">
-                        {["light", "dark", "system"].map((mode) => (
-                          <button
-                            key={mode}
-                            onClick={() => {
-                              setTheme(mode)
-                              setThemeMenuOpen(false)
-                            }}
-                            className={`flex items-center gap-3 w-full px-4 py-2 rounded-md hover:bg-accent transition-colors ${
-                              theme === mode ? "bg-accent" : ""
-                            }`}
-                          >
-                            {mode === "light" && <Sun size={16} />}
-                            {mode === "dark" && <Moon size={16} />}
-                            {mode === "system" && <Monitor size={16} />}
-                            <span className="capitalize">{mode}</span>
-                            {theme === mode && <div className="ml-auto w-2 h-2 bg-violet-700 rounded-full"></div>}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Logout */}
-                  <div className="py-2 border-t">
-                    <button
-                      onClick={() => signOut()}
-                      className="flex items-center gap-3 w-full px-4 py-2 text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      <LogOut size={18} /> <span>Logout</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <UserMenu />
           </SignedIn>
         </div>
 
-        {/* Mobile Toggle */}
-        <button className="md:hidden ml-2 p-1.5 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(!menuOpen)}>
-          {menuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        {/* Mobile Toggle with User Avatar */}
+        <div className="md:hidden flex items-center gap-2">
+          {/* Show User Avatar when signed in */}
+          <SignedIn>
+            <UserAvatar size={32} className="border border-primary/20" />
+          </SignedIn>
+          
+          {/* Hamburger Menu */}
+          <button className="ml-2 p-1.5 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(!menuOpen)}>
+            {menuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu */}
@@ -228,9 +134,7 @@ const Navbar = () => {
                   <Download size={18} /> <span>Free Resources</span>
                 </Link>
 
-                <button onClick={() => { signOut(); setMenuOpen(false) }} className="flex items-center gap-3 px-3 py-2 text-destructive hover:bg-destructive/10 rounded-md transition-colors">
-                  <LogOut size={18} /> <span>Logout</span>
-                </button>
+                <MobileLogoutButton onClick={() => setMenuOpen(false)} />
               </div>
             </SignedIn>
 

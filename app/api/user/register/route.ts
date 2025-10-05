@@ -6,7 +6,7 @@ import { currentUser } from "@clerk/nextjs/server"; // 👈 Import Clerk server-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { clerkUserId, email, name, phoneNumber, dob, fieldOfStudy } = body;
+    const { clerkUserId, email, name, phoneNumber, dob, fieldOfStudy, profileImageUrl } = body;
 
     console.log("📦 Registering user:", { clerkUserId, email, name });
 
@@ -29,9 +29,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ user: existingUser, created: false });
     }
 
-    // 🔹 Fetch Clerk user to get the provider's profile image
+    // 🔹 Use profileImageUrl from request body first, then fallback to Clerk user
     const clerkUser = await currentUser();
-    const clerkImageUrl = clerkUser?.imageUrl || null;
+    const finalProfileImageUrl = profileImageUrl || clerkUser?.imageUrl || null;
 
     // Create user with Clerk's image as default
   const newUser = await prisma.user.upsert({
@@ -42,14 +42,14 @@ export async function POST(req: Request) {
     phoneNumber,
     dob: dob ? new Date(dob) : undefined,
     fieldOfStudy,
-    profileImageUrl: clerkImageUrl,
+    profileImageUrl: finalProfileImageUrl,
   },
   create: {
     clerkUserId,
     email: normalizedEmail,
     name: name?.trim() || null,
     role: "STUDENT",
-    profileImageUrl: clerkImageUrl,
+    profileImageUrl: finalProfileImageUrl,
     phoneNumber,
     dob: dob ? new Date(dob) : undefined,
     fieldOfStudy,
@@ -59,10 +59,10 @@ export async function POST(req: Request) {
 
     console.log("✅ User created and stored:", newUser.email);
     return NextResponse.json({ user: newUser, created: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error creating user:", error);
 
-    if (error.code === "P2002") {
+    if (error && typeof error === 'object' && 'code' in error && error.code === "P2002") {
       return NextResponse.json({ error: "Duplicate user" }, { status: 409 });
     }
 

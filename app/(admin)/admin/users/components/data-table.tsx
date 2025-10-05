@@ -169,7 +169,7 @@ export function DataTable({
     <div className="w-full space-y-4">
       {/* Enhanced Statistics Cards - Responsive */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Card className="col-span-2 lg:col-span-1 border-0 shadow-sm bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+        <Card className="col-span-2 lg:col-span-1 border-0 shadow-sm bg-gradient-to-br from-blue-700 to-blue-800 text-white">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -183,7 +183,7 @@ export function DataTable({
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-amber-500 to-orange-500 text-white">
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-amber-700 to-orange-800 text-white">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -197,7 +197,7 @@ export function DataTable({
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-purple-700 to-pink-800 text-white">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -225,7 +225,7 @@ export function DataTable({
           </CardContent>
         </Card> */}
 
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-500 to-teal-500 text-white">
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-700 to-teal-800 text-white">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -241,9 +241,9 @@ export function DataTable({
       </div>
 
       {/* Main Table Card */}
-      <Card className="border-0 shadow-lg  bg-slate-950 backdrop-blur-sm px-4">
+      <Card className="border-0 shadow-lg bg-dark backdrop-blur-sm ">
         <CardHeader className="pb-4">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex  flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="space-y-1">
               <CardTitle className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 User Management

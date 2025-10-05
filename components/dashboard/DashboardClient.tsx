@@ -1,6 +1,6 @@
 "use client";
 
-import { useState,useMemo } from "react";
+import { useState, useMemo } from "react";
 import { UserWelcome } from "./UserWelcome";
 import { ProfileCard } from "./ProfileCard";
 import { QuickActions } from "./QuickActions";
@@ -38,15 +38,26 @@ export default function DashboardClient({
   // Merge DB profile (priority) + Clerk user (fallbacks)
   const mergedProfile = useMemo(() => ({
     ...profile,
-    email: profile?.email || safeUser.email,
-    name: profile?.name || `${safeUser.fullName}`.trim() || null,
+    email: (profile?.email as string) || safeUser.email,
+    name: (profile?.name as string) || `${safeUser.fullName}`.trim() || null,
     profileImageUrl:
       (typeof profile?.profileImageUrl === 'string' ? profile.profileImageUrl.trim() : '') ||
       safeUser.imageUrl ||
       "/default-avatar.png",
-    createdAt: profile?.createdAt || safeUser.createdAt,
+    createdAt: (profile?.createdAt as Date) || safeUser.createdAt,
     clerkImageUrl: safeUser.imageUrl,
+    clerkUserId: (profile?.clerkUserId as string) || safeUser.id,
   }), [profile, safeUser]);
+
+  // Handle profile updates - update local state and refresh global context
+  const handleProfileUpdate = async (updatedUser: unknown) => {
+    console.log('🔄 Dashboard received profile update:', updatedUser);
+    
+    // Update local state immediately for dashboard UI
+    setProfile(updatedUser as Record<string, unknown>);
+    
+    console.log('✅ Local dashboard state updated');
+  };
 
   return (
     <main className="p-6 md:p-10  min-h-screen">
@@ -60,7 +71,7 @@ export default function DashboardClient({
         <UserWelcome user={mergedProfile} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <ProfileCard user={mergedProfile} onProfileUpdate={setProfile} />
+          <ProfileCard user={mergedProfile} onProfileUpdate={handleProfileUpdate} />
 
           {/* Performance Card with server-calculated metrics */}
           <MockPerformance

@@ -4,18 +4,24 @@ import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { PencilIcon } from "lucide-react";
 import { UserProfileForm } from "./UserProfileForm";
-import Image from "next/image";
+import { UserAvatar } from "@/components/UserAvatar";
 
-export function ProfileCard({ user, onProfileUpdate }) {
+interface ProfileCardProps {
+  user: {
+    name?: string | null
+    email?: string
+    phoneNumber?: string | null
+    dob?: Date | string | null
+    fieldOfStudy?: string | null
+    profileImageUrl?: string | null
+    imageUrl?: string | null
+    clerkUserId?: string
+  }
+  onProfileUpdate: (updatedUser: unknown) => void
+}
+
+export function ProfileCard({ user, onProfileUpdate }: Readonly<ProfileCardProps>) {
   const [open, setOpen] = useState(false);
-
-  // Decide the image to show: uploaded → Clerk image → fallback
-  const imageSrc =
-    user?.profileImageUrl?.trim()
-      ? user.profileImageUrl
-      : user?.imageUrl?.trim()
-      ? user.imageUrl
-      : "/default-avatar.png";
 
   return (
     <>
@@ -31,13 +37,11 @@ export function ProfileCard({ user, onProfileUpdate }) {
         </CardHeader>
 
         <CardContent className="space-y-3 text-sm">
-          <div className="relative w-20 h-20 rounded-full overflow-hidden border">
-            <Image
-              src={imageSrc}
-              alt="Profile"
-              width={80}
-              height={80}
-              className="w-20 h-20 rounded-full object-cover"
+          <div className="relative w-20 h-20">
+            <UserAvatar 
+              key={user.profileImageUrl || user.imageUrl || user.name} 
+              size={80} 
+              className="border-2 border-gray-200 dark:border-gray-700" 
             />
           </div>
 

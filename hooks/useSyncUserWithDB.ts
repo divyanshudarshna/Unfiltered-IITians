@@ -15,6 +15,7 @@ export const useSyncUserWithDB = () => {
           clerkUserId: user.id,
           email: user.emailAddresses[0]?.emailAddress,
           name: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+          profileImageUrl: user.imageUrl, // Include Clerk profile image
         }),
       }).catch((err) => console.error('❌ User sync failed:', err))
     }
