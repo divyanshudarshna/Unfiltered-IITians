@@ -23,12 +23,16 @@ interface AnnouncementsProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   notifications: Notification[];
+  courseId?: string; // Add optional courseId prop
+  setNotifications?: (notifications: Notification[]) => void; // Add optional setter
 }
 
 export function Announcements({
   open,
   onOpenChange,
   notifications,
+  courseId,
+  setNotifications,
 }: AnnouncementsProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 

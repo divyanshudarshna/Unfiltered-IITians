@@ -117,6 +117,7 @@ interface ResultClientProps {
       id: string;
       title: string;
       questions: any;
+      price: number;
     };
   };
   readonly attemptCount: number;
@@ -238,8 +239,8 @@ export default function ResultClient({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Score / Time / Attempted */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Score / Time / Attempted / Total Attempts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-muted-foreground">
                   Score
@@ -279,7 +280,56 @@ export default function ResultClient({
                   </span>
                 </div>
               </div>
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Total Attempts
+                </h3>
+                <div className="flex items-center gap-2">
+                  <ListChecks className="w-5 h-5 text-primary" />
+                  <span className="text-xl font-medium">
+                    {attemptCount} of {attempt.mockTest.price > 0 ? '10' : '3'}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {attempt.mockTest.price > 0 ? 'Paid' : 'Free'} test limit
+                </p>
+              </div>
             </div>
+            <Separator />
+            
+            {/* Attempt Limit Warning */}
+            {(() => {
+              const maxAttempts = attempt.mockTest.price > 0 ? 10 : 3;
+              const attemptsRemaining = maxAttempts - attemptCount;
+              
+              if (attemptsRemaining <= 0) {
+                return (
+                  <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="h-5 w-5 text-red-500" />
+                      <span className="font-semibold text-red-700 dark:text-red-300">Attempts Exhausted</span>
+                    </div>
+                    <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                      You have used all {maxAttempts} attempts for this {attempt.mockTest.price > 0 ? 'paid' : 'free'} test.
+                    </p>
+                  </div>
+                );
+              } else if (attemptsRemaining <= 2) {
+                return (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-amber-500" />
+                      <span className="font-semibold text-amber-700 dark:text-amber-300">Limited Attempts Remaining</span>
+                    </div>
+                    <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+                      You have {attemptsRemaining} attempt{attemptsRemaining > 1 ? 's' : ''} remaining for this test.
+                    </p>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+            
             <Separator />
             {/* Correct / Incorrect / Unanswered */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

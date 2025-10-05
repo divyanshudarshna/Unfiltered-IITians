@@ -286,6 +286,8 @@ model CourseAnnouncement {
 
   course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   recipients  AnnouncementRecipient[]
+
+  @@index([courseId, createdAt(sort: Desc)])
 }
 
 model AnnouncementRecipient {

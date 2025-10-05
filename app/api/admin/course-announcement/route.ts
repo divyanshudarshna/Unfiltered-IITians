@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import nodemailer from "nodemailer";
 
+// Helper function to validate email
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
 // ================== GET ==================
 export async function GET(req: NextRequest) {
   try {
@@ -89,7 +95,20 @@ export async function POST(req: NextRequest) {
 
     // Send email
     let emailsSent = 0;
+    let emailErrors = 0;
     if (sendEmail && enrollments.length > 0) {
+      // Validate SMTP configuration
+      if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.warn("SMTP configuration missing, skipping email sending");
+        return NextResponse.json({ 
+          success: true, 
+          announcement, 
+          recipientsCreated, 
+          emailsSent: 0,
+          warning: "Email sending skipped: SMTP not configured"
+        });
+      }
+
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: Number(process.env.SMTP_PORT),
@@ -97,8 +116,23 @@ export async function POST(req: NextRequest) {
         auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
       });
 
+      // Verify transporter connection
+      try {
+        await transporter.verify();
+      } catch (error) {
+        console.error("SMTP connection failed:", error);
+        return NextResponse.json({ 
+          success: true, 
+          announcement, 
+          recipientsCreated, 
+          emailsSent: 0,
+          warning: "Email sending failed: SMTP connection error"
+        });
+      }
+
+      // Send emails with rate limiting
       for (const e of enrollments) {
-        if (e.user.email) {
+        if (e.user.email && isValidEmail(e.user.email)) {
           try {
             await transporter.sendMail({
               from: `"Course Announcements" <${process.env.SMTP_FROM}>`,
@@ -107,14 +141,33 @@ export async function POST(req: NextRequest) {
               html: `<h2>${title}</h2><p>${message}</p>`,
             });
             emailsSent++;
+            
+            // Update deliveredEmail status
+            await prisma.announcementRecipient.updateMany({
+              where: { 
+                announcementId: announcement.id,
+                userId: e.user.id 
+              },
+              data: { deliveredEmail: true }
+            });
+            
+            // Add small delay to avoid overwhelming SMTP server
+            await new Promise(resolve => setTimeout(resolve, 100));
           } catch (error) {
-            console.error("Failed to send email:", error);
+            console.error(`Failed to send email to ${e.user.email}:`, error);
+            emailErrors++;
           }
         }
       }
     }
 
-    return NextResponse.json({ success: true, announcement, recipientsCreated, emailsSent });
+    return NextResponse.json({ 
+      success: true, 
+      announcement, 
+      recipientsCreated, 
+      emailsSent,
+      emailErrors: emailErrors > 0 ? emailErrors : undefined
+    });
   } catch (err) {
     console.error("Error creating announcement:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

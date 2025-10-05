@@ -5,54 +5,50 @@ import AttemptsList from "@/components/dashboard/AttemptsList";
 import { ObjectId } from "mongodb";
 
 
-// Compute attempt metrics
+// Compute attempt metrics using stored database values
 function computeAttemptMetrics(attempt: any) {
-
-  const { answers = {}, mockTest, startedAt, submittedAt } = attempt;
-  const questions = mockTest?.questions ?? [];
-  const totalQuestions = questions.length;
-
-
-  let correctCount = 0;
-  let incorrectCount = 0;
-
-  questions.forEach((q: any, i: number) => {
-    const questionId = q.id ?? `q-${i}`;
-    const userAnswer = answers?.[questionId];
-    const correctAnswer = q.correctAnswer ?? q.answer;
-
-    if (userAnswer !== undefined) {
-      if (JSON.stringify(userAnswer) === JSON.stringify(correctAnswer)) {
-        correctCount++;
-      } else {
-        incorrectCount++;
-      }
-    }
+  console.log('Computing metrics for attempt:', attempt.id);
+  
+  const { startedAt, submittedAt } = attempt;
+  
+  // Use stored values from database instead of recalculating
+  const storedCorrectCount = attempt.correctCount || 0;
+  const storedIncorrectCount = attempt.incorrectCount || 0;
+  const storedUnansweredCount = attempt.unansweredCount || 0;
+  const storedTotalQuestions = attempt.totalQuestions || 0;
+  const storedScore = attempt.score || 0;
+  const storedPercentage = attempt.percentage || 0;
+  
+  console.log('Stored values:', {
+    correctCount: storedCorrectCount,
+    incorrectCount: storedIncorrectCount,
+    unansweredCount: storedUnansweredCount,
+    totalQuestions: storedTotalQuestions,
+    score: storedScore,
+    percentage: storedPercentage
   });
 
-  const unansweredCount = totalQuestions - (correctCount + incorrectCount);
-  const percentage =
-    totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
-
+  // Calculate time taken
   let timeTaken = 0;
   if (startedAt && submittedAt) {
-    timeTaken =
-      (new Date(submittedAt).getTime() - new Date(startedAt).getTime()) / 1000;
+    timeTaken = (new Date(submittedAt).getTime() - new Date(startedAt).getTime()) / 1000;
   }
 
   return {
     ...attempt,
-    score: correctCount,
-    correctCount,
-    incorrectCount,
-    unansweredCount,
-    totalQuestions,
-    percentage,
+    score: storedScore,
+    correctCount: storedCorrectCount,
+    incorrectCount: storedIncorrectCount,
+    unansweredCount: storedUnansweredCount,
+    totalQuestions: storedTotalQuestions,
+    percentage: storedPercentage,
     timeTaken,
   };
 }
 
-export default async function MockAttemptsPage(props: { params: { id: string } }) {
+export default async function MockAttemptsPage(props: { 
+  readonly params: Promise<{ id: string }> 
+}) {
   // ✅ Await params for Next.js 15 App Router
   const resolvedParams = await props.params;
   const mockTestIdParam = resolvedParams.id;

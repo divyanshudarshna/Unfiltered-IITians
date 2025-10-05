@@ -28,7 +28,16 @@ export default async function MockResultPage({
 
   const attempt = await prisma.mockAttempt.findUnique({
     where: { id: attemptId },
-    include: { mockTest: true },
+    include: { 
+      mockTest: {
+        select: {
+          id: true,
+          title: true,
+          questions: true,
+          price: true
+        }
+      }
+    },
   });
 
   if (!attempt) {

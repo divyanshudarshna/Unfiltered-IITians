@@ -64,18 +64,37 @@ export async function POST(req: NextRequest) {
       data: { read: true, readAt: new Date() },
     });
 
-    // Optional safety: if recipient row didn't exist, create it and mark read.
-    // This avoids silent no-ops if recipients were not created on announcement publish.
+    // If recipient row didn't exist, create it and mark read
+    // Use upsert to handle potential race conditions
     if (updated.count === 0) {
-      await prisma.announcementRecipient.create({
-        data: {
-          announcementId,
-          userId: user.id,
-          read: true,
-          readAt: new Date(),
-          deliveredEmail: false,
-        },
-      });
+      try {
+        await prisma.announcementRecipient.upsert({
+          where: {
+            announcementId_userId: {
+              announcementId,
+              userId: user.id,
+            },
+          },
+          update: {
+            read: true,
+            readAt: new Date(),
+          },
+          create: {
+            announcementId,
+            userId: user.id,
+            read: true,
+            readAt: new Date(),
+            deliveredEmail: false,
+          },
+        });
+      } catch (upsertError) {
+        // If upsert fails due to concurrent creation, try update again
+        console.warn("Upsert failed, retrying with update:", upsertError);
+        await prisma.announcementRecipient.updateMany({
+          where: { announcementId, userId: user.id },
+          data: { read: true, readAt: new Date() },
+        });
+      }
     }
 
     return NextResponse.json({ success: true });

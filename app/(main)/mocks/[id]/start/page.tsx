@@ -7,18 +7,50 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Clock, FileText, AlertCircle, CheckCircle, BookOpen, Target, Award, Zap, Brain, Calendar, BarChart3, Play, Star, Shield, Timer, Lightbulb, ChevronRight } from "lucide-react";
+import { FileText, AlertCircle, CheckCircle, BookOpen, Target, Award, Zap, BarChart3, Play, Star, Shield, Timer, Lightbulb, ChevronRight, Lock, ShoppingCart, Ban } from "lucide-react";
+import { toast } from "sonner";
 
-export default function StartMockPage({ params }: { params: Promise<{ id: string }> }) {
+interface Question {
+  type: string;
+  [key: string]: unknown;
+}
+
+interface MockData {
+  id: string;
+  title: string;
+  description?: string;
+  price: number;
+  actualPrice?: number;
+  duration?: number;
+  questions: Question[];
+  tags: string[];
+  difficulty: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface StartMockPageProps {
+  readonly params: Promise<{ id: string }>;
+}
+
+export default function StartMockPage({ params }: StartMockPageProps) {
   const { id } = use(params);
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [mock, setMock] = useState<any>(null);
+  const [mock, setMock] = useState<MockData | null>(null);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [accessReason, setAccessReason] = useState<string>("");
+  const [subscriptionType, setSubscriptionType] = useState<string>("");
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [maxAttempts, setMaxAttempts] = useState(0);
+  const [attemptsRemaining, setAttemptsRemaining] = useState(0);
+  const [canAttempt, setCanAttempt] = useState(true);
   const [error, setError] = useState("");
 
   // Calculate question types
-  const calculateQuestionTypes = (questions: any[]) => {
+  const calculateQuestionTypes = (questions: Question[]) => {
     const types: Record<string, number> = {};
     questions?.forEach(q => {
       types[q.type] = (types[q.type] || 0) + 1;
@@ -42,27 +74,148 @@ export default function StartMockPage({ params }: { params: Promise<{ id: string
     }
   };
 
-  // Fetch mock details
+  // Helper functions for better readability
+  const getDifficultyBadgeStyles = (difficulty: string) => {
+    switch (difficulty) {
+      case "EASY":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+      case "MEDIUM":
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+      default:
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+    }
+  };
+
+  const getSubscriptionTypeLabel = (type: string) => {
+    switch (type) {
+      case 'free':
+        return 'Free Test';
+      case 'bundle':
+        return 'Bundle Access';
+      default:
+        return 'Individual Purchase';
+    }
+  };
+
+  const getStartButtonContent = () => {
+    if (loading) {
+      return (
+        <>
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+          Preparing Your Test...
+        </>
+      );
+    }
+    
+    if (!hasAccess) {
+      return (
+        <>
+          <Lock className="h-5 w-5 mr-2" />
+          Purchase Required
+        </>
+      );
+    }
+    
+    if (!canAttempt) {
+      return (
+        <>
+          <Ban className="h-5 w-5 mr-2" />
+          Attempts Exhausted
+        </>
+      );
+    }
+    
+    return (
+      <>
+        <Play className="h-5 w-5 mr-2 transition-transform group-hover:scale-110" />
+        Start Test Now
+        <div className="absolute inset-0 bg-white/10 transform -skew-x-12 transition-all duration-500 group-hover:translate-x-full"></div>
+      </>
+    );
+  };
+
+  // Check authentication and redirect if needed
   useEffect(() => {
+    if (isLoaded && !user) {
+      toast.error("Please sign in to access mock tests");
+      router.push("/sign-in");
+    }
+  }, [isLoaded, user, router]);
+
+  // Fetch mock details and access control
+  useEffect(() => {
+    if (!isLoaded) return;
+    
     const fetchMock = async () => {
       try {
         const res = await fetch(`/api/mock/${id}`);
         const data = await res.json();
+        
         if (!res.ok) throw new Error(data.error || "Failed to load mock");
+        
         setMock(data.mock);
-      } catch (err: any) {
-        setError(err.message);
+        setHasAccess(data.hasAccess);
+        setAccessReason(data.reason || "");
+        setSubscriptionType(data.subscriptionType || "");
+        setAttemptCount(data.attemptCount || 0);
+        setMaxAttempts(data.maxAttempts || 0);
+        setAttemptsRemaining(data.attemptsRemaining || 0);
+        setCanAttempt(data.canAttempt !== false);
+
+        // Handle access control redirects
+        if (!data.hasAccess) {
+          const getMessageForReason = (reason: string) => {
+            switch (reason) {
+              case 'authentication_required':
+                return "Please sign in to access this mock test.";
+              case 'no_subscription':
+                return "You need to purchase this mock test or a bundle containing it.";
+              case 'user_not_found':
+                return "User account not found. Please try signing in again.";
+              default:
+                return "You don't have access to this mock test.";
+            }
+          };
+
+          const message = getMessageForReason(data.reason);
+          toast.error(message);
+          
+          // Redirect based on reason
+          if (data.reason === 'authentication_required' || data.reason === 'user_not_found') {
+            setTimeout(() => router.push("/sign-in"), 2000);
+          } else {
+            // Redirect to mocks page after showing message
+            setTimeout(() => router.push("/mocks"), 3000);
+          }
+        }
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to load mock test";
+        setError(errorMessage);
+        toast.error(errorMessage);
       } finally {
         setLoading(false);
       }
     };
+    
     fetchMock();
-  }, [id]);
+  }, [id, isLoaded, router]);
 
   // Start attempt
   const startAttempt = async () => {
     if (!user?.id) {
-      setError("You must be logged in to start the test");
+      toast.error("Please sign in to start the test");
+      router.push("/sign-in");
+      return;
+    }
+
+    if (!hasAccess) {
+      toast.error("You need to purchase this mock test to attempt it");
+      router.push("/mocks");
+      return;
+    }
+
+    if (!canAttempt) {
+      toast.error(`You have reached the maximum of ${maxAttempts} attempts for this test`);
       return;
     }
 
@@ -77,11 +230,24 @@ export default function StartMockPage({ params }: { params: Promise<{ id: string
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to start attempt");
+      
+      if (!res.ok) {
+        // Handle specific error codes
+        if (data.code === 'ACCESS_DENIED') {
+          toast.error(data.error);
+          router.push("/mocks");
+          return;
+        }
+        throw new Error(data.error || "Failed to start attempt");
+      }
 
+      // Success - redirect to attempt page
+      toast.success("Mock test started successfully!");
       router.push(`/mocks/${id}/attempt/${data.attempt.id}`);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to start mock test";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -320,15 +486,47 @@ export default function StartMockPage({ params }: { params: Promise<{ id: string
                   
                   <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
                     <span className="font-medium">Difficulty</span>
-                    <Badge className={
-                      mock.difficulty === "EASY" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" :
-                      mock.difficulty === "MEDIUM" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" :
-                      "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                    }>
+                    <Badge className={getDifficultyBadgeStyles(mock.difficulty)}>
                       {mock.difficulty}
                     </Badge>
                   </div>
+                  
+                  <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
+                    <span className="font-medium">Attempts</span>
+                    <Badge variant="outline" className={`${
+                      canAttempt 
+                        ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
+                        : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+                    }`}>
+                      {attemptCount}/{maxAttempts}
+                    </Badge>
+                  </div>
                 </div>
+                
+                {/* Attempt limit warning */}
+                {!canAttempt && (
+                  <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <div className="flex items-center mb-2">
+                      <Ban className="h-5 w-5 text-red-500 mr-2" />
+                      <span className="font-semibold text-red-700 dark:text-red-300">Attempts Exhausted</span>
+                    </div>
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      You have used all {maxAttempts} attempts for this {mock.price > 0 ? 'paid' : 'free'} test.
+                    </p>
+                  </div>
+                )}
+                
+                {canAttempt && attemptsRemaining <= 2 && attemptsRemaining > 0 && (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <div className="flex items-center mb-2">
+                      <AlertCircle className="h-5 w-5 text-amber-500 mr-2" />
+                      <span className="font-semibold text-amber-700 dark:text-amber-300">Limited Attempts</span>
+                    </div>
+                    <p className="text-sm text-amber-600 dark:text-amber-400">
+                      You have {attemptsRemaining} attempt{attemptsRemaining > 1 ? 's' : ''} remaining.
+                    </p>
+                  </div>
+                )}
                 
                 <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
                   <h4 className="font-medium mb-3 flex items-center">
@@ -348,25 +546,74 @@ export default function StartMockPage({ params }: { params: Promise<{ id: string
                   </div>
                 </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex flex-col space-y-4">
+                {/* Access Control Information */}
+                {!hasAccess && mock.price > 0 && (
+                  <div className="w-full p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <div className="flex items-center mb-2">
+                      <Lock className="h-5 w-5 text-red-500 mr-2" />
+                      <span className="font-semibold text-red-700 dark:text-red-300">Access Required</span>
+                    </div>
+                    <p className="text-sm text-red-600 dark:text-red-400 mb-3">
+                      {accessReason === 'no_subscription' 
+                        ? "You need to purchase this mock test or a bundle containing it to start attempting."
+                        : "You don't have access to this mock test. Please purchase to continue."
+                      }
+                    </p>
+                    <div className="flex space-x-2">
+                      <Button 
+                        onClick={() => router.push("/mocks")} 
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                      >
+                        <ShoppingCart className="h-4 w-4 mr-1" />
+                        Purchase Test
+                      </Button>
+                      <Button 
+                        onClick={() => router.push("/mockBundles")} 
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                      >
+                        View Bundles
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Access Status Badge */}
+                {hasAccess && (
+                  <div className="w-full p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="flex items-center">
+                      <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                      <span className="font-semibold text-green-700 dark:text-green-300">
+                        Access Granted
+                      </span>
+                      {subscriptionType && (
+                        <Badge variant="outline" className="ml-2 text-xs bg-green-100 dark:bg-green-900/30">
+                          {getSubscriptionTypeLabel(subscriptionType)}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                      You can start this mock test now!
+                    </p>
+                  </div>
+                )}
+
+                {/* Start Test Button */}
                 <Button 
                   onClick={startAttempt} 
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 py-6 text-white font-medium text-lg relative overflow-hidden group"
+                  disabled={loading || !hasAccess || !canAttempt}
+                  className={`w-full py-6 text-white font-medium text-lg relative overflow-hidden group ${
+                    hasAccess && canAttempt
+                      ? "bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700" 
+                      : "bg-gray-400 cursor-not-allowed"
+                  }`}
                   size="lg"
                 >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Preparing Your Test...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-5 w-5 mr-2 transition-transform group-hover:scale-110" />
-                      Start Test Now
-                      <div className="absolute inset-0 bg-white/10 transform -skew-x-12 transition-all duration-500 group-hover:translate-x-full"></div>
-                    </>
-                  )}
+                  {getStartButtonContent()}
                 </Button>
               </CardFooter>
             </Card>

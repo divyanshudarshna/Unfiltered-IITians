@@ -282,7 +282,7 @@ export default function SubscriptionsClient({
               size="sm" 
               variant="outline" 
               className="flex-1"
-              onClick={() => router.push(`/bundleMocks/${item.itemId}/mocks`)}
+              onClick={() => router.push(`/mockBundles/${item.itemId}/mocks`)}
             >
               <Target className="h-4 w-4 mr-2" />
               Take Mock Bundle

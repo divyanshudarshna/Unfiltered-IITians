@@ -92,6 +92,8 @@ export default function PerformanceDashboardClient({
   // attempts,
 
 }) {
+  console.log('PerformanceDashboardClient - performance data:', performance);
+  
   const COLORS = ["#10b981", "#ef4444", "#3b82f6", "#f59e0b", "#8b5cf6"];
 
 
