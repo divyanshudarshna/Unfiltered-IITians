@@ -9,7 +9,7 @@ export async function GET(req: Request, { params }: Params) {
   try {
     const lecture = await prisma.lecture.findUnique({
       where: { id: params.id },
-      select: { id: true, title: true, summary: true, pdfUrl: true, videoUrl: true },
+      select: { id: true, title: true, summary: true, pdfUrl: true, videoUrl: true, youtubeEmbedUrl: true },
     });
 
     if (!lecture) return NextResponse.json({ error: "Lecture not found" }, { status: 404 });

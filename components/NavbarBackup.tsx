@@ -74,7 +74,7 @@ const Navbar = () => {
           </div>
          <div className="flex flex-col">
   <span className="font-bold text-lg text-gray-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-    Unfiltered IITians
+    UnFiltered IITians 
   </span>
   <span className="text-xs text-muted-foreground mt-[-2px]">
     by Divyanshu Darshna

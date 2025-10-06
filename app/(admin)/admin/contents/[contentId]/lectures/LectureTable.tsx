@@ -62,6 +62,7 @@ interface Lecture {
   id: string;
   title: string;
   videoUrl?: string;
+  youtubeEmbedUrl?: string;
   pdfUrl?: string;
   summary?: string;
   order: number;
@@ -142,22 +143,50 @@ export default function LectureTable({
       header: "Video",
       cell: ({ row }) => {
         const lecture = row.original;
-        return lecture.videoUrl ? (
-          <div className="flex justify-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handlePlayVideo(lecture.videoUrl!)}
-              className="h-10 w-10 rounded-full transition-all duration-200 hover:scale-110 hover:bg-blue-100 dark:hover:bg-blue-900/30 group relative"
-              title="Preview Video"
-            >
-              <Play className="h-5 w-5 text-blue-500 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-              <span className="absolute -bottom-7 left-1/2 transform -translate-x-1/2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity bg-background px-2 py-1 rounded-md border shadow-sm">
-                Preview Video
-              </span>
-            </Button>
-          </div>
-        ) : (
+        const hasCloudinaryVideo = !!lecture.videoUrl;
+        const hasYouTubeVideo = !!lecture.youtubeEmbedUrl;
+        
+        if (hasCloudinaryVideo) {
+          return (
+            <div className="flex justify-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handlePlayVideo(lecture.videoUrl!)}
+                className="h-10 w-10 rounded-full transition-all duration-200 hover:scale-110 hover:bg-blue-100 dark:hover:bg-blue-900/30 group relative"
+                title="Preview Cloudinary Video"
+              >
+                <Play className="h-5 w-5 text-blue-500 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                <span className="absolute -bottom-7 left-1/2 transform -translate-x-1/2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity bg-background px-2 py-1 rounded-md border shadow-sm">
+                  Cloudinary Video
+                </span>
+              </Button>
+            </div>
+          );
+        }
+        
+        if (hasYouTubeVideo) {
+          return (
+            <div className="flex justify-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => window.open(lecture.youtubeEmbedUrl!, '_blank')}
+                className="h-10 w-10 rounded-full transition-all duration-200 hover:scale-110 hover:bg-red-100 dark:hover:bg-red-900/30 group relative"
+                title="Open YouTube Video"
+              >
+                <svg className="h-5 w-5 text-red-500 transition-colors group-hover:text-red-600 dark:group-hover:text-red-400" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+                <span className="absolute -bottom-7 left-1/2 transform -translate-x-1/2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity bg-background px-2 py-1 rounded-md border shadow-sm">
+                  YouTube Video
+                </span>
+              </Button>
+            </div>
+          );
+        }
+        
+        return (
           <div className="flex justify-center text-muted-foreground/50">
             <Video className="h-5 w-5" />
           </div>

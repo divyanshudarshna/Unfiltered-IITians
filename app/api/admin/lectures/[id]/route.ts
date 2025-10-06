@@ -26,11 +26,11 @@ export async function GET(req: Request, { params }: Params) {
 // ✏️ Update lecture
 export async function PUT(req: Request, { params }: Params) {
   try {
-    const { title, videoUrl, pdfUrl, summary, order } = await req.json();
+    const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order } = await req.json();
 
     const updated = await prisma.lecture.update({
       where: { id: params.id },
-      data: { title, videoUrl, pdfUrl, summary, order },
+      data: { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order },
     });
 
     return NextResponse.json(updated);

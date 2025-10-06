@@ -98,6 +98,7 @@ export async function GET(req: Request, { params }: Params) {
           title: l.title,
           summary: l.summary ?? "",
           videoUrl: l.videoUrl ?? "",
+          youtubeEmbedUrl: l.youtubeEmbedUrl ?? "",
           pdfUrl: l.pdfUrl ?? "",
           order: l.order,
         })),

@@ -188,15 +188,16 @@ model Content {
 }
 
 model Lecture {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  title       String
-  videoUrl    String?
-  pdfUrl      String?
-  summary     String?
-  order       Int
-  contentId   String    @db.ObjectId
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  videoUrl        String?   // Cloudinary video URL
+  youtubeEmbedUrl String?   // YouTube embed URL (optional)
+  pdfUrl          String?
+  summary         String?
+  order           Int
+  contentId       String    @db.ObjectId
 
-  content     Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  content         Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
 }
 
 model Quiz {

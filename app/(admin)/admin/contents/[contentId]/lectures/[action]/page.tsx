@@ -70,6 +70,7 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
   
   const [title, setTitle] = useState<string>("");
   const [videoUrl, setVideoUrl] = useState<string>("");
+  const [youtubeEmbedUrl, setYoutubeEmbedUrl] = useState<string>("");
   const [pdfUrl, setPdfUrl] = useState<string>("");
   const [saving, setSaving] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(action === "edit");
@@ -135,6 +136,7 @@ const [showPdfPreview, setShowPdfPreview] = useState(false);
           
           setTitle(data.title);
           setVideoUrl(data.videoUrl || "");
+          setYoutubeEmbedUrl(data.youtubeEmbedUrl || "");
           setPdfUrl(data.pdfUrl || "");
           if (editor && data.summary) {
             editor.commands.setContent(data.summary);
@@ -212,7 +214,10 @@ console.log("PDF Preview URL:", pdfPreviewUrl);
 
 
   const removeFile = (type: "video" | "pdf") => {
-    if (type === "video") setVideoUrl("");
+    if (type === "video") {
+      setVideoUrl("");
+      // Don't clear YouTube URL when removing video file, they're separate options
+    }
     if (type === "pdf") setPdfUrl("");
     toast.info(`${type.toUpperCase()} removed`);
   };
@@ -229,6 +234,7 @@ console.log("PDF Preview URL:", pdfPreviewUrl);
       const payload = {
         title: title.trim(),
         videoUrl,
+        youtubeEmbedUrl,
         pdfUrl,
         summary: editor?.getHTML() || "",
         order: 0
@@ -326,10 +332,42 @@ console.log("PDF Preview URL:", pdfPreviewUrl);
               Video Content
             </CardTitle>
             <CardDescription>
-              Upload a video file for this lecture
+              Upload a video file or provide a YouTube embed link for this lecture
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {/* YouTube Embed URL Input */}
+            <div className="space-y-3">
+              <Label htmlFor="youtube-url" className="text-sm font-medium flex items-center gap-2">
+                <svg className="h-4 w-4 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+                YouTube Embed URL (Optional)
+              </Label>
+              <Input
+                id="youtube-url"
+                type="url"
+                value={youtubeEmbedUrl}
+                onChange={(e) => setYoutubeEmbedUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Paste a YouTube URL here. Supports watch URLs, share URLs, and embed URLs.
+              </p>
+            </div>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/30" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">OR</span>
+              </div>
+            </div>
+
+            {/* Video File Upload */}
             {videoUrl ? (
               <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/30">
                 <div className="flex items-center space-x-3">

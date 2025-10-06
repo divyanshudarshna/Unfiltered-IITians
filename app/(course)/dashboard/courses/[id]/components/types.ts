@@ -3,6 +3,7 @@ export interface Lecture {
   title: string;
   summary?: string;
   videoUrl?: string;
+  youtubeEmbedUrl?: string;
   pdfUrl?: string;
   order: number;
   duration?: number;

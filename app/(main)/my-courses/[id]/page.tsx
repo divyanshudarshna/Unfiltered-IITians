@@ -11,6 +11,7 @@ type Lecture = {
   title: string;
   order?: number | null;
   videoUrl?: string | null;
+  youtubeEmbedUrl?: string | null;
   pdfUrl?: string | null;
   summary?: string | null;
 };

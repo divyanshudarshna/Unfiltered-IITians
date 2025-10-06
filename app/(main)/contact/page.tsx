@@ -84,7 +84,7 @@ const Contact = () => {
         <Card className="w-full rounded-xl shadow-sm border">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center font-semibold">
-              Connect with <span className="text-purple-600">Unfiltered IITians</span>
+              Connect with <span className="text-purple-600">UnFiltered IITians </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">

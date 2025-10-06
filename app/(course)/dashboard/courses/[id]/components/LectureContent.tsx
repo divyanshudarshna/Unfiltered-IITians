@@ -23,6 +23,7 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import VideoContent from "./VideoContent";
+import YouTubeEmbed from "@/components/YouTubeEmbed";
 import { cn } from "@/lib/utils";
 
 interface Lecture {
@@ -30,6 +31,7 @@ interface Lecture {
   title: string;
   summary?: string;
   videoUrl?: string;
+  youtubeEmbedUrl?: string;
   pdfUrl?: string;
   order: number;
   duration?: number;
@@ -80,17 +82,37 @@ const handleMarkComplete = () => {
   }
 };
 
-  return (
-    <div className="mx-auto p-2 md:p-4 lg:p-6 space-y-4 md:space-y-8">
-      {/* Video Section */}
-      {lecture.videoUrl && (
+  // Determine which video component to render (Cloudinary takes preference)
+  const renderVideoContent = () => {
+    if (lecture.videoUrl) {
+      return (
         <VideoContent
           videoUrl={lecture.videoUrl}
           title={lecture.title}
           onPlaybackChange={handlePlaybackChange}
           onEnded={handleVideoEnd}
         />
-      )}
+      );
+    }
+    
+    if (lecture.youtubeEmbedUrl) {
+      return (
+        <YouTubeEmbed
+          url={lecture.youtubeEmbedUrl}
+          title={lecture.title}
+          onPlay={() => handlePlaybackChange(true)}
+          onEnded={handleVideoEnd}
+        />
+      );
+    }
+    
+    return null;
+  };
+
+  return (
+    <div className="mx-auto p-2 md:p-4 lg:p-6 space-y-4 md:space-y-8">
+      {/* Video Section */}
+      {renderVideoContent()}
 
       {/* Header */}
       <div className="flex flex-col gap-4 p-4 md:p-5 rounded-xl md:rounded-2xl border bg-card/70 backdrop-blur shadow-sm">

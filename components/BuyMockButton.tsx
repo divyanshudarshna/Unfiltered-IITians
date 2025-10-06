@@ -50,7 +50,7 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, onPu
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount: order.amount,
         currency: "INR",
-        name: "Unfiltered IITians",
+        name: "UnFiltered IITians ",
         description: mockTitle,
         order_id: order.id,
         handler: function (response: RazorpayResponse) {

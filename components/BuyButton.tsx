@@ -79,7 +79,7 @@ export const BuyButton = ({
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount: order.amount,
         currency: "INR",
-        name: "Unfiltered IITians",
+        name: "UnFiltered IITians ",
         description: title,
         order_id: order.id,
         handler: function (response: RazorpayResponse) {

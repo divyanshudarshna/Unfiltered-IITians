@@ -8,7 +8,7 @@ interface Params {
 // ➕ Create lecture
 export async function POST(req: Request, { params }: Params) {
   try {
-    const { title, videoUrl, pdfUrl, summary, order } = await req.json();
+    const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order } = await req.json();
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -18,6 +18,7 @@ export async function POST(req: Request, { params }: Params) {
       data: {
         title,
         videoUrl,
+        youtubeEmbedUrl,
         pdfUrl,
         summary,
         order,

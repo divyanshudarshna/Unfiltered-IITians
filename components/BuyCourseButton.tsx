@@ -38,7 +38,7 @@ export const BuyCourseButton = ({ courseId, courseTitle, amount, onPurchaseSucce
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount: order.amount,
         currency: "INR",
-        name: "Unfiltered IITians",
+        name: "UnFiltered IITians ",
         description: courseTitle,
         order_id: order.id,
         handler: function (response: RazorpayResponse) {
