@@ -6,17 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { DataTable } from "./components/data-table"
+import { EnrollmentStats } from "@/components/admin/enrollment-stats"
 
 import { RoleUpdateDialog } from "@/components/admin/role-update-dialog"
 import { UserData } from "./components/types"
-import { Users, Shield, CreditCard, RefreshCw, User, TrendingUp } from "lucide-react"
+import { Users, Shield, CreditCard, RefreshCw, TrendingUp } from "lucide-react"
 
 export default function AdminUsersPage() {
   const { getToken } = useAuth()
   const [users, setUsers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
-  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [roleDialogOpen, setRoleDialogOpen] = useState(false)
 
   const fetchUsers = useCallback(async () => {
@@ -61,7 +61,7 @@ export default function AdminUsersPage() {
 
   const handleViewDetails = (user: UserData) => {
     setSelectedUser(user)
-    setDetailsDialogOpen(true)
+    // Details dialog implementation can be added here
   }
 
   const handleUpdateRole = (user: UserData) => {
@@ -225,6 +225,11 @@ export default function AdminUsersPage() {
           onUpdateRole={handleUpdateRole}
           onDeleteUser={handleDeleteUser}
         />
+      </div>
+
+      {/* Enrollment Statistics */}
+      <div className="w-full">
+        <EnrollmentStats />
       </div>
 
       {/* Dialogs
