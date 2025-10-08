@@ -119,7 +119,7 @@ const Navbar = () => {
             <SignedIn>
               <div className="flex flex-col gap-2 border-b pb-3 mb-3">
                 <p className="font-medium text-sm px-3">Hello, {user?.firstName || "User"}</p>
-                <Link href="/dashboard" prefetch className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(false)}>
+                <Link href={`/${user?.firstName || "user"}/dashboard`} prefetch className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(false)}>
                   <LayoutDashboard size={18} /> <span>Dashboard</span>
                 </Link>
                 <Link href="/dashboard/courses" prefetch className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors" onClick={() => setMenuOpen(false)}>
