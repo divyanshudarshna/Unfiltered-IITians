@@ -36,6 +36,19 @@ export async function GET(req: Request, { params }: Params) {
   try {
     const coupons = await prisma.coupon.findMany({
       where: { courseId: params.id },
+      include: {
+        _count: {
+          select: { usages: true }
+        },
+        usages: {
+          include: {
+            user: {
+              select: { name: true, email: true }
+            }
+          },
+          orderBy: { usedAt: 'desc' }
+        }
+      },
       orderBy: { validTill: "asc" },
     });
 

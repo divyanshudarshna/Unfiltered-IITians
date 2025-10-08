@@ -22,12 +22,27 @@ import {
 } from '@/components/ui/select';
 import { Edit, Trash2, Search, Filter, Calendar, Percent, Hash, X } from 'lucide-react';
 
+interface CouponUsage {
+  id: string;
+  discountAmount: number;
+  usedAt: string;
+  user: {
+    name: string | null;
+    email: string;
+  };
+}
+
 interface Coupon {
   id: string;
   code: string;
   discountPct: number;
   validTill: Date;
   courseId: string;
+  usageCount: number;
+  _count?: {
+    usages: number;
+  };
+  usages?: CouponUsage[];
 }
 
 interface CouponsTableProps {
@@ -216,6 +231,20 @@ export default function CouponsTable({ coupons, onEdit, onDelete }: CouponsTable
                     )}
                   </div>
                 </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-accent"
+                  onClick={() => requestSort('usageCount')}
+                >
+                  <div className="flex items-center">
+                    <Hash className="h-4 w-4 mr-1" />
+                    Usage Count
+                    {sortConfig.key === 'usageCount' && (
+                      <span className="ml-1 text-xs">
+                        {sortConfig.direction === 'ascending' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -243,6 +272,16 @@ export default function CouponsTable({ coupons, onEdit, onDelete }: CouponsTable
                         <span className={expired ? 'text-muted-foreground line-through' : ''}>
                           {formatDate(coupon.validTill)}
                         </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center">
+                        <Badge 
+                          variant="outline" 
+                          className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800"
+                        >
+                          {coupon.usageCount || coupon._count?.usages || 0} uses
+                        </Badge>
                       </div>
                     </TableCell>
                     <TableCell>

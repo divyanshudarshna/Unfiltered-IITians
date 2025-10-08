@@ -69,6 +69,7 @@ model User {
   receivedFeedbackReplies FeedbackReplyRecipient[] // replies received by this student
   //need to add the relation for the sessions enrollments
   sessionEnrollments SessionEnrollment[]
+  couponUsages       CouponUsage[]   // Track coupon usages by this user
 }
 
 // ================== MOCKS ==================
@@ -124,6 +125,7 @@ model Subscription {
   mockTest   MockTest?   @relation(fields: [mockTestId], references: [id])
   course     Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   mockBundle MockBundle? @relation(fields: [mockBundleId], references: [id])
+  couponUsage CouponUsage? // Track if this subscription used a coupon
 }
 
 
@@ -165,13 +167,29 @@ model Enrollment {
 }
 
 model Coupon {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  code        String   @unique
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  code        String        @unique
   discountPct Int
   validTill   DateTime
-  courseId    String   @db.ObjectId
+  courseId    String        @db.ObjectId
+  usageCount  Int           @default(0) // Track total usage count
 
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  usages      CouponUsage[] // Relation to individual usages
+}
+
+// New model to track individual coupon usages
+model CouponUsage {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  couponId        String   @db.ObjectId
+  userId          String   @db.ObjectId
+  subscriptionId  String   @unique @db.ObjectId // Make unique for one-to-one relation
+  discountAmount  Float    // Amount discounted in this usage
+  usedAt          DateTime @default(now())
+
+  coupon         Coupon       @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }
 
 model Content {

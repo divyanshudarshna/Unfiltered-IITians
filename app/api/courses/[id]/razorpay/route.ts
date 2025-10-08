@@ -52,7 +52,8 @@ export async function POST(req: Request, { params }: Params) {
 
     // ✅ Base price = actualPrice (fallback to price)
     let finalPrice = course.actualPrice ?? course.price;
-    let appliedCoupon: string | null = null;
+    let appliedCoupon: any = null;
+    let discountAmount = 0;
 
     // ✅ Apply coupon if provided
     if (couponCode) {
@@ -61,9 +62,9 @@ export async function POST(req: Request, { params }: Params) {
       });
 
       if (coupon && coupon.validTill > new Date() && coupon.courseId === course.id) {
-        const discountAmount = Math.floor((finalPrice * coupon.discountPct) / 100);
+        discountAmount = Math.floor((finalPrice * coupon.discountPct) / 100);
         finalPrice = Math.max(0, finalPrice - discountAmount);
-        appliedCoupon = coupon.code;
+        appliedCoupon = coupon;
       }
     }
 
@@ -81,7 +82,7 @@ export async function POST(req: Request, { params }: Params) {
     // ✅ Create a pending subscription entry
     const subscriptionExpiresAt = new Date(Date.now() + (course.durationMonths * 30 * 24 * 60 * 60 * 1000)); // months to milliseconds
     
-    await prisma.subscription.create({
+    const subscription = await prisma.subscription.create({
       data: {
         userId: user.id,
         courseId: course.id,
@@ -91,7 +92,23 @@ export async function POST(req: Request, { params }: Params) {
       },
     });
 
-    return NextResponse.json({ order, finalPrice }, { status: 201 });
+    // Store coupon and discount info in response for frontend
+    const responseData: any = { 
+      order, 
+      finalPrice,
+      subscriptionId: subscription.id 
+    };
+
+    if (appliedCoupon) {
+      responseData.couponData = {
+        couponId: appliedCoupon.id,
+        code: appliedCoupon.code,
+        discountAmount,
+        discountPct: appliedCoupon.discountPct
+      };
+    }
+
+    return NextResponse.json(responseData, { status: 201 });
   } catch (err: any) {
     console.error("❌ Razorpay Order Error:", err);
     return NextResponse.json(

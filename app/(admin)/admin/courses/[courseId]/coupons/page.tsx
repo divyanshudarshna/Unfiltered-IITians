@@ -17,12 +17,27 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 
+interface CouponUsage {
+  id: string;
+  discountAmount: number;
+  usedAt: string;
+  user: {
+    name: string | null;
+    email: string;
+  };
+}
+
 interface Coupon {
   id: string;
   code: string;
   discountPct: number;
   validTill: string;
   courseId: string;
+  usageCount: number;
+  _count?: {
+    usages: number;
+  };
+  usages?: CouponUsage[];
 }
 
 export default function CouponsPage() {

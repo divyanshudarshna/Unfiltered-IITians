@@ -9,7 +9,7 @@ interface Params {
 
 export async function POST(req: Request, { params }: Params) {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, couponCode } =
       await req.json();
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
@@ -29,6 +29,7 @@ export async function POST(req: Request, { params }: Params) {
     // ✅ Find the subscription
     const sub = await prisma.subscription.findFirst({
       where: { razorpayOrderId: razorpay_order_id },
+      include: { course: true }
     });
 
     if (!sub) {
@@ -43,6 +44,35 @@ export async function POST(req: Request, { params }: Params) {
       where: { razorpayOrderId: razorpay_order_id },
       data: { paid: true },
     });
+
+    // ✅ Handle coupon usage tracking if coupon was used
+    if (couponCode && sub.course) {
+      const coupon = await prisma.coupon.findFirst({
+        where: { code: couponCode, courseId: sub.courseId! }
+      });
+
+      if (coupon) {
+        // Calculate discount amount
+        const basePrice = sub.course.actualPrice ?? sub.course.price;
+        const discountAmount = Math.floor((basePrice * coupon.discountPct) / 100);
+
+        // Increment coupon usage count
+        await prisma.coupon.update({
+          where: { id: coupon.id },
+          data: { usageCount: { increment: 1 } }
+        });
+
+        // Create coupon usage record
+        await prisma.couponUsage.create({
+          data: {
+            couponId: coupon.id,
+            userId: sub.userId,
+            subscriptionId: sub.id,
+            discountAmount
+          }
+        });
+      }
+    }
 
     // ✅ Ensure enrollment exists
     const existing = await prisma.enrollment.findFirst({
