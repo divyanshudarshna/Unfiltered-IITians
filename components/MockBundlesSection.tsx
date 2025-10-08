@@ -42,7 +42,10 @@ export default async function MockBundlesSection() {
   try {
     bundles = await prisma.mockBundle.findMany({
       where: { status: "PUBLISHED" },
-      orderBy: { createdAt: "desc" },
+      orderBy: [
+        { order: "asc" },
+        { createdAt: "desc" }
+      ],
     });
 
     // Fetch mock test details for all bundles

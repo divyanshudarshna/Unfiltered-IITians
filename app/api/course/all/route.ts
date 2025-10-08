@@ -5,7 +5,10 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     const courses = await prisma.course.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' }
+      ]
     })
 
     return NextResponse.json({ courses }, { status: 200 })

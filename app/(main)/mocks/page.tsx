@@ -39,7 +39,10 @@ export default async function MockListPage() {
 
   const mockBundles = await prisma.mockBundle.findMany({
     where: { status: "PUBLISHED" },
-    orderBy: { createdAt: "desc" },
+    orderBy: [
+      { order: "asc" },
+      { createdAt: "desc" }
+    ],
     select: {
       id: true,
       title: true,

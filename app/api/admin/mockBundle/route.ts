@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(req: NextRequest) {
-  // Fetch all bundles
+export async function GET() {
+  // Fetch all bundles ordered by display order
   try {
-    const bundles = await prisma.mockBundle.findMany();
+    const bundles = await prisma.mockBundle.findMany({
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    });
     return NextResponse.json({ bundles });
   } catch (err) {
     console.error(err);

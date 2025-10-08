@@ -11,10 +11,14 @@ export async function GET() {
         description: true,
         status: true,
         createdAt: true,
+        order: true,
         details: { select: { id: true } }, // count of course details
         actualPrice: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' }
+      ],
     });
 
     const lightweight = courses.map((course) => ({

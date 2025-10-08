@@ -415,6 +415,7 @@ model MockBundle {
   basePrice       Int
   discountedPrice Int?
   status          PublishStatus @default(DRAFT)
+  order          Int           @default(0) // ✅ NEW: Order field for bundle display sequence
 
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now()) @updatedAt

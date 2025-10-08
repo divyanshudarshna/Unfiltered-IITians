@@ -17,19 +17,34 @@ import {
   Filter,
   Package
 } from "lucide-react";
+import { toast } from "sonner";
+
+interface MockBundle {
+  id: string;
+  title: string;
+  description?: string;
+  mockIds: string[];
+  basePrice: number;
+  discountedPrice?: number | null;
+  status: "PUBLISHED" | "DRAFT" | "ARCHIVED";
+  order?: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface Props {
-  bundles: any[];
+  bundles: MockBundle[];
   loading: boolean;
-  onEdit: (bundle: any) => void;
+  onEdit: (bundle: MockBundle) => void;
   onRefresh: () => void;
 }
 
 export const MockBundleTable = ({ bundles, loading, onEdit, onRefresh }: Props) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortField, setSortField] = useState<"title" | "price" | "status">("title");
+  const [sortField, setSortField] = useState<"title" | "price" | "status" | "order">("order");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isReordering, setIsReordering] = useState(false);
   const itemsPerPage = 10;
 
   const handleDelete = async (id: string) => {
@@ -49,7 +64,51 @@ export const MockBundleTable = ({ bundles, loading, onEdit, onRefresh }: Props) 
     }
   };
 
-  const handleSort = (field: "title" | "price" | "status") => {
+  // 🔄 Handle reordering mock bundles
+  const handleReorderBundles = async (newOrder: MockBundle[]) => {
+    try {
+      setIsReordering(true);
+      
+      const mockBundleOrders = newOrder.map((bundle, index) => ({
+        id: bundle.id,
+        order: index + 1,
+      }));
+
+      const response = await fetch('/api/admin/mockBundle/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mockBundleOrders }),
+      });
+
+      if (!response.ok) throw new Error('Failed to reorder mock bundles');
+
+      toast.success('Mock bundle order updated successfully');
+      onRefresh();
+    } catch (error) {
+      console.error('Error reordering mock bundles:', error);
+      toast.error('Failed to update mock bundle order');
+    } finally {
+      setIsReordering(false);
+    }
+  };
+
+  // Move bundle up in order
+  const moveUp = (index: number) => {
+    if (index === 0) return;
+    const newBundles = [...filteredAndSortedBundles];
+    [newBundles[index], newBundles[index - 1]] = [newBundles[index - 1], newBundles[index]];
+    handleReorderBundles(newBundles);
+  };
+
+  // Move bundle down in order
+  const moveDown = (index: number) => {
+    if (index === filteredAndSortedBundles.length - 1) return;
+    const newBundles = [...filteredAndSortedBundles];
+    [newBundles[index], newBundles[index + 1]] = [newBundles[index + 1], newBundles[index]];
+    handleReorderBundles(newBundles);
+  };
+
+  const handleSort = (field: "title" | "price" | "status" | "order") => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
@@ -60,7 +119,7 @@ export const MockBundleTable = ({ bundles, loading, onEdit, onRefresh }: Props) 
 
   // Filter and sort bundles
   const filteredAndSortedBundles = useMemo(() => {
-    let filtered = bundles.filter(bundle =>
+    const filtered = bundles.filter(bundle =>
       bundle.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bundle.status.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -77,6 +136,10 @@ export const MockBundleTable = ({ bundles, loading, onEdit, onRefresh }: Props) 
         case "status":
           aValue = a.status;
           bValue = b.status;
+          break;
+        case "order":
+          aValue = a.order || 0;
+          bValue = b.order || 0;
           break;
         case "title":
         default:
@@ -99,7 +162,7 @@ export const MockBundleTable = ({ bundles, loading, onEdit, onRefresh }: Props) 
     return filteredAndSortedBundles.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredAndSortedBundles, currentPage, itemsPerPage]);
 
-  const SortIcon = ({ field }: { field: "title" | "price" | "status" }) => {
+  const SortIcon = ({ field }: { field: "title" | "price" | "status" | "order" }) => {
     if (sortField !== field) return <ChevronUp className="h-4 w-4 opacity-30" />;
     return sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />;
   };
@@ -166,6 +229,15 @@ export const MockBundleTable = ({ bundles, loading, onEdit, onRefresh }: Props) 
           <TableHeader>
             <TableRow className="hover:bg-transparent bg-slate-900 my-3">
               <TableHead 
+                className="cursor-pointer hover:bg-accent/50 transition-colors w-20"
+                onClick={() => handleSort("order")}
+              >
+                <div className="flex items-center gap-2">
+                  Order
+                  <SortIcon field="order" />
+                </div>
+              </TableHead>
+              <TableHead 
                 className="cursor-pointer hover:bg-accent/50 transition-colors "
                 onClick={() => handleSort("title")}
               >
@@ -199,7 +271,7 @@ export const MockBundleTable = ({ bundles, loading, onEdit, onRefresh }: Props) 
           <TableBody>
             {paginatedBundles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-10 text-muted-foreground ">
+                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground ">
                   {searchTerm ? (
                     <div className="flex flex-col items-center space-y-2">
                       <Search className="h-8 w-8" />
@@ -217,8 +289,33 @@ export const MockBundleTable = ({ bundles, loading, onEdit, onRefresh }: Props) 
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedBundles.map((bundle) => (
+              paginatedBundles.map((bundle, index) => (
                 <TableRow key={bundle.id} className="hover:bg-accent/50 transition-colors">
+                  <TableCell className="w-20">
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium">{bundle.order || 0}</span>
+                      <div className="flex flex-col gap-1 ml-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => moveUp(index)}
+                          disabled={index === 0 || isReordering}
+                          className="h-6 w-6 p-0"
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => moveDown(index)}
+                          disabled={index === paginatedBundles.length - 1 || isReordering}
+                          className="h-6 w-6 p-0"
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </TableCell>
                   <TableCell className="font-medium">
                     <div>
                       <div className="font-semibold">{bundle.title}</div>
