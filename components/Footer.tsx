@@ -1,8 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { FaGithub, FaLinkedin, FaTwitter, FaYoutube } from 'react-icons/fa'
-import { useTheme } from 'next-themes'
+import { FaInstagram, FaLinkedin, FaYoutube, FaEnvelope } from 'react-icons/fa'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -32,6 +31,7 @@ function NewsletterForm() {
         toast.error(data.error)
       }
     } catch (error) {
+      console.error('Newsletter subscription error:', error)
       toast.error('Something went wrong. Please try again.')
     } finally {
       setIsLoading(false)
@@ -65,8 +65,6 @@ function NewsletterForm() {
 }
 
 export default function Footer() {
-  const { theme } = useTheme()
-
   return (
     <>
     <div className="h-1 bg-purple-600 w-full"></div>
@@ -131,23 +129,23 @@ export default function Footer() {
           <h4 className="text-lg font-semibold text-foreground dark:text-white mb-3">Connect</h4>
           <ul className="space-y-2">
             <li>
-              <a href="https://github.com/rajrabidas001" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline">
-                <FaGithub className="w-4 h-4" /> GitHub
+              <a href="https://www.instagram.com/divyanshudarshna_" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline">
+                <FaInstagram className="w-4 h-4" /> Instagram
               </a>
             </li>
             <li>
-              <a href="https://linkedin.com/in/yourprofile" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline">
+              <a href="https://www.linkedin.com/in/divyanshudarshna" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline">
                 <FaLinkedin className="w-4 h-4" /> LinkedIn
               </a>
             </li>
             <li>
-              <a href="https://twitter.com/yourhandle" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline">
-                <FaTwitter className="w-4 h-4" /> Twitter
+              <a href="https://youtube.com/@divyanshudarshna" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline">
+                <FaYoutube className="w-4 h-4" /> YouTube
               </a>
             </li>
             <li>
-              <a href="https://youtube.com/yourchannel" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline">
-                <FaYoutube className="w-4 h-4" /> YouTube
+              <a href="/contact" className="flex items-center gap-2 hover:underline">
+                <FaEnvelope className="w-4 h-4" /> Contact
               </a>
             </li>
           </ul>
