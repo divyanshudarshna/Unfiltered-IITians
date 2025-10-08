@@ -46,7 +46,10 @@ export async function GET(req: NextRequest) {
           orderBy: { enrolledAt: 'desc' }
         }
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' }
+      ],
       skip: (page - 1) * limit,
       take: limit
     });

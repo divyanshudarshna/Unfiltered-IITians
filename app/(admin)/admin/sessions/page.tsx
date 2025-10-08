@@ -147,6 +147,7 @@ export default function SessionsAdminPage() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               loading={loading}
+              onRefresh={fetchSessions}
             />
           </CardContent>
         </Card>

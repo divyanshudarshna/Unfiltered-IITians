@@ -29,7 +29,10 @@ export async function GET(req: Request) {
     }
 
     const sessions = await prisma.session.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: [
+        { order: "asc" },
+        { createdAt: "desc" }
+      ],
     });
 
     const sessionsData = sessions.map((s) => ({

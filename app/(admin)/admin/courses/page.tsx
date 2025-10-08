@@ -1,6 +1,5 @@
 // app/(admin)/admin/courses/page.tsx
 "use client";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,11 +24,9 @@ import {
   BookOpen,
   Plus,
   RotateCcw,
-  DollarSign,
   Users,
   TrendingUp,
   FileText,
-  Archive,
   PlayCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -45,10 +42,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
 } from "recharts";
 
 enum PublishStatus {
@@ -71,19 +64,6 @@ interface Course {
   contents: number;
   order?: number;
 }
-
-// Custom tooltip for charts
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="rounded-lg border bg-background p-3 shadow-sm">
-        <p className="font-medium">{`${label}`}</p>
-        <p className="text-sm">{`Value: ${payload[0].value}`}</p>
-      </div>
-    );
-  }
-  return null;
-};
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -177,16 +157,6 @@ export default function CoursesPage() {
     totalContents: courses.reduce((sum, c) => sum + (c.contents || 0), 0),
   };
 
-  // Chart data for price distribution
-  const priceData = courses.map((course) => ({
-    name:
-      course.title.length > 12
-        ? `${course.title.substring(0, 12)}...`
-        : course.title,
-    price: course.price,
-    fullName: course.title,
-  }));
-
   // Data for course status pie chart
   const statusData = [
     { name: "Published", value: stats.published, color: "#10b981" },
@@ -207,8 +177,6 @@ export default function CoursesPage() {
     }))
     .sort((a, b) => b.enrollments - a.enrollments)
     .slice(0, 5);
-
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-7xl">
@@ -366,11 +334,11 @@ export default function CoursesPage() {
                       dataKey="value"
                       animationDuration={1000}
                       label={({ name, percent }) =>
-                        `${name}: ${(percent * 100).toFixed(0)}%`
+                        `${name}: ${((percent || 0) * 100).toFixed(0)}%`
                       }
                     >
                       {statusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`status-${entry.name}-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <RechartsTooltip />
@@ -378,7 +346,7 @@ export default function CoursesPage() {
                 </ResponsiveContainer>
                 <div className="flex gap-4 mt-2">
                   {statusData.map((status, index) => (
-                    <div key={index} className="flex items-center">
+                    <div key={`status-legend-${status.name}-${index}`} className="flex items-center">
                       <div
                         className="w-3 h-3 rounded-full mr-1"
                         style={{ backgroundColor: status.color }}
@@ -449,7 +417,7 @@ export default function CoursesPage() {
                   >
                     {enrollmentData.map((entry, index) => (
                       <Cell
-                        key={`cell-${index}`}
+                        key={`enrollment-${entry.name}-${index}`}
                         fill={`url(#colorGradient${index})`}
                       />
                     ))}
@@ -457,7 +425,7 @@ export default function CoursesPage() {
                   <defs>
                     {enrollmentData.map((entry, index) => (
                       <linearGradient
-                        key={index}
+                        key={`gradient-${entry.name}-${index}`}
                         id={`colorGradient${index}`}
                         x1="0"
                         y1="0"
