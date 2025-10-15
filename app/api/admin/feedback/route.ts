@@ -19,7 +19,21 @@ export async function GET(req: NextRequest) {
       where: courseId ? { courseId } : {},
       orderBy: { createdAt: "desc" },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { 
+          select: { 
+            id: true, 
+            name: true, 
+            email: true, 
+            profileImageUrl: true 
+          } 
+        },
+        course: {
+          select: {
+            id: true,
+            title: true,
+            description: true
+          }
+        },
         replies: {
           include: {
             admin: { select: { id: true, name: true, email: true } },
