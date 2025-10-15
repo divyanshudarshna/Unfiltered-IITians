@@ -2,10 +2,12 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
 export async function GET() {
-  // Calculate actual revenue from paid subscriptions
+  // ✅ Calculate actual revenue from paid subscriptions using actualAmountPaid
   const paidSubscriptions = await prisma.subscription.findMany({
     where: { paid: true },
-    include: {
+    select: {
+      actualAmountPaid: true,  // ✅ NEW: Use actual payment amount
+      originalPrice: true,     // ✅ NEW: For reference
       mockTest: {
         select: {
           price: true,
@@ -21,8 +23,14 @@ export async function GET() {
     }
   });
 
-  // Calculate total revenue based on actual prices
-  const totalRevenue = paidSubscriptions.reduce((sum, sub) => {
+  // ✅ Calculate subscription revenue using actualAmountPaid
+  const subscriptionRevenue = paidSubscriptions.reduce((sum, sub) => {
+    // Use actualAmountPaid if available (new field), otherwise fallback to old method
+    if (sub.actualAmountPaid) {
+      return sum + (sub.actualAmountPaid / 100); // Convert from paise to rupees
+    }
+    
+    // Fallback for old records (before actualAmountPaid was implemented)
     let itemPrice = 0;
     if (sub.mockTest) {
       itemPrice = sub.mockTest.actualPrice || sub.mockTest.price;
@@ -31,6 +39,19 @@ export async function GET() {
     }
     return sum + itemPrice;
   }, 0);
+
+  // ✅ Calculate session enrollment revenue
+  const sessionRevenue = await prisma.sessionEnrollment.aggregate({
+    where: { 
+      paymentStatus: "SUCCESS",
+      amountPaid: { not: null }
+    },
+    _sum: {
+      amountPaid: true
+    }
+  });
+
+  const totalRevenue = subscriptionRevenue + (sessionRevenue._sum.amountPaid || 0);
 
   const newCustomersCount = await prisma.user.count({
     where: {

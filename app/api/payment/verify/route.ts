@@ -44,6 +44,8 @@ export async function POST(req: Request) {
       where: { razorpayOrderId: razorpay_order_id },
       data: {
         paid: true,
+        razorpayPaymentId: razorpay_payment_id,
+        paidAt: new Date(),
       },
     });
 

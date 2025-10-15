@@ -9,11 +9,11 @@ import {
   IconBook,
   IconFolder,
   IconStar,
- 
   IconAddressBook,
   IconHelpCircle,
   IconTestPipe,
   IconChevronDown,
+  IconChartBar,
 } from "@tabler/icons-react";
 
 import {
@@ -38,6 +38,7 @@ const data = {
   navMain: [
     { title: "Dashboard", url: "/admin/dashboard", icon: IconDashboard },
     { title: "Users", url: "/admin/users", icon: IconUsers },
+    { title: "Transaction Stats", url: "/admin/stats", icon: IconChartBar },
     {
       title: "Mocks",
       icon: IconTestPipe,

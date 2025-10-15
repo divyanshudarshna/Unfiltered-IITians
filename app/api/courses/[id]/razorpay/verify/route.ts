@@ -42,7 +42,11 @@ export async function POST(req: Request, { params }: Params) {
     // ✅ Mark subscription as paid
     await prisma.subscription.updateMany({
       where: { razorpayOrderId: razorpay_order_id },
-      data: { paid: true },
+      data: { 
+        paid: true,
+        razorpayPaymentId: razorpay_payment_id,
+        paidAt: new Date(),
+      },
     });
 
     // ✅ Handle coupon usage tracking if coupon was used

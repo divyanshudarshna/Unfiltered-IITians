@@ -87,6 +87,10 @@ export async function POST(req: Request, { params }: Params) {
         userId: user.id,
         courseId: course.id,
         razorpayOrderId: order.id,
+        originalPrice: (course.actualPrice ?? course.price) * 100, // Store in paise
+        actualAmountPaid: finalPrice * 100, // Store final amount in paise
+        discountApplied: discountAmount * 100, // Store discount in paise
+        couponCode: appliedCoupon?.code || null, // Store coupon code
         paid: false,
         expiresAt: subscriptionExpiresAt,
       },

@@ -114,10 +114,16 @@ model Subscription {
   userId          String      @db.ObjectId
   mockTestId      String?     @db.ObjectId
   courseId        String?     @db.ObjectId
-  mockBundleId    String?     @db.ObjectId   // ✅ NEW: Bundle subscription support
+  mockBundleId    String?     @db.ObjectId   // ✅ Bundle subscription support
   razorpayOrderId String
+  razorpayPaymentId String?   // ✅ NEW: Store Razorpay payment ID
   paid            Boolean     @default(false)
+  actualAmountPaid Int?       // ✅ NEW: Store actual amount paid (in paise)
+  originalPrice   Int?        // ✅ NEW: Store original price for reference
+  discountApplied Int?        // ✅ NEW: Store discount amount
+  couponCode      String?     // ✅ NEW: Store coupon code used
   expiresAt       DateTime?   // Subscription expiry date
+  paidAt          DateTime?   // ✅ NEW: When payment was completed
   createdAt       DateTime    @default(now())
 
   // Relations

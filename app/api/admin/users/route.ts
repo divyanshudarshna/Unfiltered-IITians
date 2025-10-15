@@ -32,14 +32,22 @@ export async function GET() {
           select: {
             id: true,
             paid: true,
+            actualAmountPaid: true, // ✅ NEW: Use actual amount paid
+            originalPrice: true,    // ✅ NEW: For reference
+            discountApplied: true,  // ✅ NEW: For analytics
+            paidAt: true,          // ✅ NEW: Payment timestamp
             mockTest: {
               select: {
+                id: true,
+                title: true,
                 price: true,
                 actualPrice: true,
               }
             },
             course: {
               select: {
+                id: true,
+                title: true,
                 price: true,
                 actualPrice: true,
               }
@@ -50,6 +58,14 @@ export async function GET() {
           select: {
             id: true,
           }
+        },
+        sessionEnrollments: { // ✅ NEW: Include session enrollments for revenue
+          select: {
+            id: true,
+            amountPaid: true,
+            paymentStatus: true,
+            enrolledAt: true,
+          }
         }
       },
       orderBy: {
@@ -58,11 +74,16 @@ export async function GET() {
     });
 
     const formattedUsers = users.map((u) => {
-      // Calculate actual revenue from paid subscriptions
-      const totalRevenue = u.subscriptions.reduce((sum: number, sub) => {
+      // ✅ Calculate actual revenue from paid subscriptions using actualAmountPaid
+      const subscriptionRevenue = u.subscriptions.reduce((sum: number, sub) => {
         if (!sub.paid) return sum;
         
-        // Get the actual price paid (actualPrice if exists, otherwise price)
+        // Use actualAmountPaid if available (new field), otherwise fallback to old method
+        if (sub.actualAmountPaid) {
+          return sum + (sub.actualAmountPaid / 100); // Convert from paise to rupees
+        }
+        
+        // Fallback for old records (before actualAmountPaid was implemented)
         let itemPrice = 0;
         if (sub.mockTest) {
           itemPrice = sub.mockTest.actualPrice || sub.mockTest.price;
@@ -72,6 +93,35 @@ export async function GET() {
         
         return sum + itemPrice;
       }, 0);
+
+      // ✅ Calculate revenue from session enrollments
+      const sessionRevenue = u.sessionEnrollments.reduce((sum: number, enrollment) => {
+        if (enrollment.paymentStatus !== "SUCCESS") return sum;
+        return sum + (enrollment.amountPaid || 0);
+      }, 0);
+
+      const totalRevenue = subscriptionRevenue + sessionRevenue;
+
+      // ✅ Get detailed paid subscriptions
+      const paidSubscriptions = [
+        ...u.subscriptions
+          .filter(sub => sub.paid)
+          .map(sub => ({
+            type: sub.course ? 'course' as const : sub.mockTest ? 'mock' as const : 'bundle' as const,
+            title: sub.course?.title || sub.mockTest?.title || 'Bundle',
+            amount: sub.actualAmountPaid ? sub.actualAmountPaid / 100 : 
+              (sub.course?.price || sub.mockTest?.price || 0),
+            paidAt: sub.paidAt?.toISOString() || new Date().toISOString()
+          })),
+        ...u.sessionEnrollments
+          .filter(enrollment => enrollment.paymentStatus === "SUCCESS")
+          .map(enrollment => ({
+            type: 'session' as const,
+            title: 'Guidance Session',
+            amount: enrollment.amountPaid || 0,
+            paidAt: enrollment.enrolledAt.toISOString()
+          }))
+      ]
 
       return {
         id: u.id,
@@ -86,7 +136,8 @@ export async function GET() {
         joinedAt: u.createdAt.toISOString().split("T")[0],
         subscriptionsCount: u.subscriptions.length,
         enrollmentsCount: u.enrollments.length,
-        totalRevenue: totalRevenue,
+        totalRevenue: Math.round(totalRevenue * 100) / 100, // Round to 2 decimal places
+        paidSubscriptions
       };
     });
 

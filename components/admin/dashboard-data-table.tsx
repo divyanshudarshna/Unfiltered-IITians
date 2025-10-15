@@ -42,6 +42,15 @@ export type DashboardUser = {
   fieldOfStudy?: string
   isSubscribed: boolean
   joinedAt: string
+  subscriptionsCount: number
+  enrollmentsCount: number
+  totalRevenue: number
+  paidSubscriptions: Array<{
+    type: 'course' | 'mock' | 'bundle' | 'session'
+    title: string
+    amount: number
+    paidAt: string
+  }>
 }
 
 export const dashboardColumns: ColumnDef<DashboardUser>[] = [
@@ -92,7 +101,7 @@ export const dashboardColumns: ColumnDef<DashboardUser>[] = [
     cell: ({ row }) => (
       <div className="flex items-center gap-1">
         <Shield className="h-4 w-4 text-blue-500" />
-        <Badge variant={row.getValue("role") === "ADMIN" ? "" : "secondary"}>
+        <Badge variant={row.getValue("role") === "ADMIN" ? "default" : "secondary"}>
           {row.getValue("role")}
         </Badge>
       </div>
@@ -119,26 +128,73 @@ export const dashboardColumns: ColumnDef<DashboardUser>[] = [
     ),
   },
   {
-    accessorKey: "isSubscribed",
-    header: "Status",
-    cell: ({ row }) =>
-      row.getValue("isSubscribed") ? (
-        <Badge
-          variant="outline"
-          className="bg-green-100 text-green-700 border-green-300 flex items-center gap-1"
+    accessorKey: "subscriptionStatus",
+    header: "Subscription Status",
+    cell: ({ row }) => {
+      const user = row.original
+      const hasSubscriptions = user.subscriptionsCount > 0
+      const totalRevenue = user.totalRevenue || 0
+      
+      if (totalRevenue > 0) {
+        return (
+          <div className="flex flex-col gap-1">
+            <Badge
+              variant="outline"
+              className="bg-green-100 text-green-700 border-green-300 flex items-center gap-1 w-fit"
+            >
+              <CheckCircle className="h-3 w-3" />
+              Paid Customer
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              ₹{totalRevenue.toLocaleString()} revenue
+            </span>
+          </div>
+        )
+      } else if (hasSubscriptions) {
+        return (
+          <Badge
+            variant="outline"
+            className="bg-yellow-100 text-yellow-700 border-yellow-300 flex items-center gap-1"
+          >
+            <Gift className="h-3 w-3" />
+            Subscribed (Unpaid)
+          </Badge>
+        )
+      } else {
+        return (
+          <Badge
+            variant="outline"
+            className="bg-gray-100 text-gray-600 border-gray-300 flex items-center gap-1"
+          >
+            <User className="h-3 w-3" />
+            Free User
+          </Badge>
+        )
+      }
+    },
+  },
+  {
+    accessorKey: "totalRevenue",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          <CheckCircle className="h-3 w-3" />
-          Premium
-        </Badge>
-      ) : (
-        <Badge
-          variant="outline"
-          className="bg-gray-100 text-gray-600 border-gray-300 flex items-center gap-1"
-        >
-          <Gift className="h-3 w-3" />
-          Free
-        </Badge>
-      ),
+          Revenue
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => {
+      const revenue = row.getValue("totalRevenue") as number
+      return (
+        <div className="text-center">
+          <span className="font-medium">₹{revenue.toLocaleString()}</span>
+          <span className="text-xs text-muted-foreground block">earned</span>
+        </div>
+      )
+    },
   },
   {
     accessorKey: "joinedAt",

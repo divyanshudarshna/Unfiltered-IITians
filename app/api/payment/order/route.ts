@@ -45,7 +45,12 @@ export async function POST(req: Request) {
         );
       }
       amount = mock.price * 100;
-      subscriptionData.push({ mockTestId: mock.id });
+      subscriptionData.push({ 
+        mockTestId: mock.id,
+        originalPrice: mock.price,
+        actualAmountPaid: mock.price, // Same as original for individual mocks
+        discountApplied: 0
+      });
     }
 
     // --- 2) Mock Bundle Purchase ---
@@ -68,15 +73,26 @@ export async function POST(req: Request) {
         );
       }
 
+      // Calculate original total price
+      const originalTotalPrice = mocks.reduce((acc, m) => acc + (m.price || 0), 0);
+      
       // ✅ Use frontend amount (discounted price) if provided, otherwise fallback to sum of mock prices
+      let finalAmount = originalTotalPrice;
       if (frontendAmount !== undefined && frontendAmount !== null) {
+        finalAmount = frontendAmount;
         amount = frontendAmount * 100; // Convert to paise
       } else {
-        amount = mocks.reduce((acc, m) => acc + (m.price || 0), 0) * 100;
+        amount = originalTotalPrice * 100;
       }
+
+      const discountApplied = originalTotalPrice - finalAmount;
+      const amountPerMock = finalAmount / mocks.length; // Split equally among mocks
 
       subscriptionData = mocks.map((m) => ({
         mockTestId: m.id,
+        originalPrice: m.price || 0,
+        actualAmountPaid: Math.round(amountPerMock), // Split the discounted amount
+        discountApplied: Math.round(((m.price || 0) - amountPerMock)), // Individual discount
       }));
     }
 
@@ -146,6 +162,9 @@ export async function POST(req: Request) {
           mockTestId: sub.mockTestId,
           mockBundleId: itemType === "mockBundle" ? itemId : undefined,
           razorpayOrderId: order.id,
+          originalPrice: (sub.originalPrice || 0) * 100, // Store in paise
+          actualAmountPaid: (sub.actualAmountPaid || 0) * 100, // Store in paise
+          discountApplied: (sub.discountApplied || 0) * 100, // Store in paise
           paid: false,
         },
       });
