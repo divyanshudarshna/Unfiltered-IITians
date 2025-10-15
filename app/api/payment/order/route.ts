@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       itemType,
       mockIds,
       studentPhone,
-      amount: frontendAmount, // ✅ receive optional frontend amount
+      amount: frontendAmount, // ✅ receive frontend amount (discounted price)
     } = await req.json();
 
     if (!clerkUserId || !itemId || !itemType) {
@@ -68,8 +68,12 @@ export async function POST(req: Request) {
         );
       }
 
-      // ✅ Use frontend amount if provided, otherwise fallback to sum of mock prices
-      amount = frontendAmount ? frontendAmount * 100 : mocks.reduce((acc, m) => acc + (m.price || 0), 0) * 100;
+      // ✅ Use frontend amount (discounted price) if provided, otherwise fallback to sum of mock prices
+      if (frontendAmount !== undefined && frontendAmount !== null) {
+        amount = frontendAmount * 100; // Convert to paise
+      } else {
+        amount = mocks.reduce((acc, m) => acc + (m.price || 0), 0) * 100;
+      }
 
       subscriptionData = mocks.map((m) => ({
         mockTestId: m.id,

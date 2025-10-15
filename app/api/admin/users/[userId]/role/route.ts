@@ -1,28 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@clerk/nextjs/server"
+import { adminAuth } from "@/lib/adminAuth"
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId: clerkUserId } = await auth()
+    // Use adminAuth instead of manual auth check
+    await adminAuth()
     const resolvedParams = await params
-    
-    if (!clerkUserId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    // Check if the current user is an admin
-    const currentUser = await prisma.user.findUnique({
-      where: { clerkUserId },
-      select: { role: true }
-    })
-
-    if (!currentUser || currentUser.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
-    }
 
     const { role, password } = await request.json()
     
@@ -31,7 +18,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid password" }, { status: 400 })
     }
     
-    if (!role || !["USER", "INSTRUCTOR", "ADMIN"].includes(role)) {
+    if (!role || !["STUDENT", "INSTRUCTOR", "ADMIN"].includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 })
     }
 

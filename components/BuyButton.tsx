@@ -61,6 +61,7 @@ export const BuyButton = ({
           itemType,
           mockIds,
           studentPhone, // ✅ include phone here
+          amount, // ✅ send the amount (discounted price) to API
         }),
       });
 

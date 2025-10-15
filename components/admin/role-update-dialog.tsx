@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useAuth } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -40,9 +41,18 @@ export function RoleUpdateDialog({
   user,
   onUpdate,
 }: RoleUpdateDialogProps) {
+  const { getToken } = useAuth()
   const [newRole, setNewRole] = React.useState(user.role)
   const [password, setPassword] = React.useState("")
   const [loading, setLoading] = React.useState(false)
+
+  // Reset form when dialog opens with a new user
+  React.useEffect(() => {
+    if (open) {
+      setNewRole(user.role)
+      setPassword("")
+    }
+  }, [open, user.role])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,16 +69,19 @@ export function RoleUpdateDialog({
 
     setLoading(true)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/users/${user.id}/role`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({ role: newRole }),
+        body: JSON.stringify({ role: newRole, password }),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to update role")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to update role")
       }
 
       toast.success(`Successfully updated ${user.name}'s role to ${newRole}`)
@@ -77,7 +90,8 @@ export function RoleUpdateDialog({
       setPassword("")
     } catch (error) {
       console.error("Error updating role:", error)
-      toast.error("Failed to update role. Please try again.")
+      const errorMessage = error instanceof Error ? error.message : "Failed to update role. Please try again."
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -116,6 +130,11 @@ export function RoleUpdateDialog({
                 <SelectItem value="ADMIN">Admin</SelectItem>
               </SelectContent>
             </Select>
+            {newRole !== user.role && (
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                Role will be changed from {user.role} to {newRole}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
