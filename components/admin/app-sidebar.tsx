@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { NavSecondary } from "@/components/admin/nav-secondary";
 import { NavUser } from "@/components/admin/nav-user";
-import { GraduationCap, MailOpen, MessageSquare } from "lucide-react";
+import { GraduationCap, MailOpen, MessageSquare, Video } from "lucide-react";
 
 const data = {
   user: {
@@ -60,7 +60,7 @@ const data = {
     { title: "Free Materials", url: "/admin/materials", icon: IconFolder },
     { title: "Success Stories", url: "/admin/successStories", icon: IconStar },
     { title: "Sessions", url: "/admin/sessions", icon: GraduationCap },
-  
+    { title: "Manage YouTube", url: "/admin/youtube", icon: Video },
     { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquare },
     { title: "Contacts", url: "/admin/contact-us", icon: IconAddressBook },
     { title: "Newsletter", url: "/admin/newsletter", icon: MailOpen },
