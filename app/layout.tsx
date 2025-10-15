@@ -9,6 +9,7 @@ import { AuthSync } from "@/components/AuthSync";
 import { Toaster } from "@/components/ui/sonner";
 import TopProgress from "@/components/TopProgress";
 import Providers from "./Providers";
+import { SpeedInsights } from "@vercel/speed-insights/next"; // ✅ Added import
 
 export const metadata: Metadata = {
   title: "Unfiltered IITIans",
@@ -77,6 +78,8 @@ export default function RootLayout({
           src="https://checkout.razorpay.com/v1/checkout.js"
           strategy="afterInteractive"
         />
+           {/* ✅ Vercel Speed Insights */}
+        <SpeedInsights />
       </body>
     </html>
   );
