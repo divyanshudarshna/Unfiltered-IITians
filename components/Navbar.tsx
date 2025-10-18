@@ -105,24 +105,11 @@ const Navbar = () => {
             </SignedIn>
           </div>
 
-          {/* Tablet Nav */}
-          <div className="hidden md:flex xl:hidden items-center gap-4">
-            <Link href="/courses" prefetch className="relative font-medium text-foreground group/navlink text-sm hover:text-primary">
-              Courses
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
-            </Link>
-            <Link href="/guidance" prefetch className="relative font-medium text-foreground group/navlink text-sm hover:text-primary">
-              Guidance
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover/navlink:w-full"></span>
-            </Link>
-
-            <button 
-              className="p-2 rounded-md hover:bg-accent transition-colors"
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Toggle menu"
-            >
-              {menuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
+          {/* Tablet Nav - Mobile style with hamburger menu */}
+          <div className="flex md:flex xl:hidden items-center gap-3 z-50">
+            <SignedIn>
+              <UserAvatar size={32} className="border border-primary/20" />
+            </SignedIn>
 
             <SignedOut>
               <Link href="/sign-in" prefetch>
@@ -133,19 +120,8 @@ const Navbar = () => {
               </Link>
             </SignedOut>
 
-            <SignedIn>
-              <UserMenu />
-            </SignedIn>
-          </div>
-
-          {/* Mobile Nav Toggle */}
-          <div className="flex md:hidden items-center gap-3 z-50">
-            <SignedIn>
-              <UserAvatar size={32} className="border border-primary/20" />
-            </SignedIn>
-
             <button 
-              className="p-2 rounded-md hover:bg-accent transition-colors relative z-50" 
+              className="p-2 rounded-md hover:bg-accent transition-colors relative z-50"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Toggle menu"
             >
