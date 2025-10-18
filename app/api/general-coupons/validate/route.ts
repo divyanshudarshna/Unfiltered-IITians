@@ -5,11 +5,7 @@ import { ProductType, DiscountType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("🔍 Validating coupon...");
-    
     const body = await req.json();
-    console.log("📄 Request body:", body);
-    
     const { 
       code, 
       userId, 
@@ -20,27 +16,43 @@ export async function POST(req: NextRequest) {
 
     // Validation
     if (!code || !userId || !productType || orderValue === undefined) {
-      console.log("❌ Missing required fields");
       return NextResponse.json(
         { error: "Missing required fields: code, userId, productType, orderValue" },
         { status: 400 }
       );
     }
 
-    console.log("✅ Basic validation passed");
-
     // Check if ProductType enum includes the provided value
     if (!Object.values(ProductType).includes(productType as ProductType)) {
-      console.log("❌ Invalid product type:", productType);
-      console.log("📝 Available ProductType values:", Object.values(ProductType));
       return NextResponse.json({ 
         error: `Invalid product type. Must be one of: ${Object.values(ProductType).join(', ')}` 
       }, { status: 400 });
     }
 
-    console.log("🔍 Looking for coupon with code:", code.toUpperCase());
+    // First, find the actual database user ID from Clerk user ID
+    let dbUser;
+    try {
+      dbUser = await prisma.user.findUnique({
+        where: { clerkUserId: userId },
+        select: { id: true }
+      });
+      
+      if (!dbUser) {
+        return NextResponse.json({
+          valid: false,
+          error: "User not found. Please sign in again."
+        }, { status: 400 });
+      }
+      
+    } catch (error) {
+      console.error("User lookup failed:", error);
+      return NextResponse.json({
+        valid: false,
+        error: "Failed to verify user. Please try again."
+      }, { status: 500 });
+    }
 
-    // Check if GeneralCoupon model exists by testing a simple query first
+    // Now look for coupon with proper user ID
     let coupon;
     try {
       coupon = await prisma.generalCoupon.findUnique({
@@ -50,16 +62,16 @@ export async function POST(req: NextRequest) {
             select: { usages: true }
           },
           usages: {
-            where: { userId },
+            where: { userId: dbUser.id }, // Use database user ID instead of Clerk ID
             select: { id: true }
           }
         }
       });
-      console.log("🎫 Coupon lookup result:", coupon ? "Found" : "Not found");
+      
     } catch (modelError) {
-      console.error("❌ GeneralCoupon model error:", modelError);
       return NextResponse.json({ 
-        error: "Coupon system is not yet available. Please ensure the database schema is updated." 
+        error: "Coupon system is not yet available. Please ensure the database schema is updated.",
+        details: modelError instanceof Error ? modelError.message : 'Unknown error'
       }, { status: 503 });
     }
 
@@ -73,8 +85,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("🎫 Coupon validation started");
-
     // Check if coupon is active
     if (!coupon.isActive) {
       return NextResponse.json({
@@ -83,16 +93,23 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check validity dates
+    // Check validity dates with timezone buffer (5 minutes)
     const now = new Date();
-    if (new Date(coupon.validFrom) > now) {
+    const validFrom = new Date(coupon.validFrom);
+    const validTill = new Date(coupon.validTill);
+    
+    // Add buffer for timezone issues
+    const bufferMs = 5 * 60 * 1000; // 5 minutes in milliseconds
+    const adjustedValidFrom = new Date(validFrom.getTime() - bufferMs);
+    
+    if (adjustedValidFrom > now) {
       return NextResponse.json({
         valid: false,
-        error: "This coupon is not yet active"
+        error: `This coupon will be active from ${validFrom.toLocaleDateString()}`
       }, { status: 400 });
     }
 
-    if (new Date(coupon.validTill) <= now) {
+    if (validTill <= now) {
       return NextResponse.json({
         valid: false,
         error: "This coupon has expired"
@@ -156,9 +173,6 @@ export async function POST(req: NextRequest) {
 
     const finalAmount = Math.max(0, orderValue - discountAmount);
 
-    console.log("✅ Coupon validation successful");
-    console.log("💰 Discount calculated:", { discountAmount, finalAmount, orderValue });
-
     return NextResponse.json({
       valid: true,
       coupon: {
@@ -171,20 +185,14 @@ export async function POST(req: NextRequest) {
       },
       discount: {
         amount: discountAmount,
-        originalAmount: orderValue,
-        finalAmount,
+        finalPrice: finalAmount,
         savings: discountAmount,
         percentage: (discountAmount / orderValue) * 100
       }
     });
 
-  } catch (err) {
-    console.error("❌ Validate General Coupon Error:", err);
-    console.error("Error details:", {
-      name: err instanceof Error ? err.name : 'Unknown',
-      message: err instanceof Error ? err.message : 'Unknown error',
-      stack: err instanceof Error ? err.stack : 'No stack trace'
-    });
+  } catch (error) {
+    console.error("Validate General Coupon Error:", error);
     return NextResponse.json({ 
       error: "Failed to validate coupon. Please try again later." 
     }, { status: 500 });

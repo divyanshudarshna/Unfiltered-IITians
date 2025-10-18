@@ -51,13 +51,12 @@ export async function POST(
       return NextResponse.json({ error: 'Session has expired' }, { status: 400 });
     }
 
-    // Check if user is already enrolled
-    const existingEnrollment = await prisma.sessionEnrollment.findUnique({
+    // Check if user is already enrolled (only SUCCESS payments)
+    const existingEnrollment = await prisma.sessionEnrollment.findFirst({
       where: {
-        sessionId_userId: {
-          sessionId: params.id,
-          userId: user.id
-        }
+        sessionId: params.id,
+        userId: user.id,
+        paymentStatus: "SUCCESS"
       }
     });
 

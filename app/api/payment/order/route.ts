@@ -116,13 +116,12 @@ export async function POST(req: Request) {
         );
       }
 
-      // Check if already enrolled
-      const alreadyEnrolled = await prisma.sessionEnrollment.findUnique({
+      // Check if already enrolled (only SUCCESS payments)
+      const alreadyEnrolled = await prisma.sessionEnrollment.findFirst({
         where: {
-          sessionId_userId: {
-            sessionId: sessionRecord.id,
-            userId: user.id,
-          },
+          sessionId: sessionRecord.id,
+          userId: user.id,
+          paymentStatus: "SUCCESS"
         },
       });
 
@@ -133,7 +132,21 @@ export async function POST(req: Request) {
         );
       }
 
-      amount = (sessionRecord.discountedPrice || sessionRecord.price) * 100;
+      // Clean up any existing PENDING enrollments for this user-session
+      await prisma.sessionEnrollment.deleteMany({
+        where: {
+          sessionId: sessionRecord.id,
+          userId: user.id,
+          paymentStatus: { in: ["PENDING", "FAILED"] }
+        },
+      });
+
+      // ✅ Use frontend amount (discounted price) if provided for sessions
+      if (frontendAmount !== undefined && frontendAmount !== null) {
+        amount = frontendAmount * 100; // Convert to paise
+      } else {
+        amount = (sessionRecord.discountedPrice || sessionRecord.price) * 100;
+      }
 
       enrollmentData.push({
         sessionId: sessionRecord.id,
@@ -177,9 +190,7 @@ export async function POST(req: Request) {
           ...enr,
           razorpayOrderId: order.id,
           paymentStatus: "PENDING",
-          amountPaid: sessionRecord
-            ? sessionRecord.discountedPrice || sessionRecord.price
-            : null,
+          amountPaid: amount / 100, // Use the actual amount being paid (converted back from paise)
         },
       });
     }

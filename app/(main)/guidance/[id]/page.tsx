@@ -55,8 +55,7 @@ interface CouponValidation {
   };
   discount?: {
     amount: number;
-    originalAmount: number;
-    finalAmount: number;
+    finalPrice: number;
     savings: number;
     percentage: number;
   };
@@ -160,7 +159,7 @@ export default function SessionPage() {
   // Calculate final price with coupon
   const getFinalPrice = () => {
     if (appliedCoupon?.valid && appliedCoupon.discount) {
-      return appliedCoupon.discount.finalAmount;
+      return appliedCoupon.discount.finalPrice;
     }
     return session?.discountedPrice || 0;
   };

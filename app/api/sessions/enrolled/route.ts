@@ -10,7 +10,13 @@ export async function GET() {
 
     const dbUser = await prisma.user.findUnique({
       where: { clerkUserId: user.id },
-      include: { sessionEnrollments: true },
+      include: { 
+        sessionEnrollments: {
+          where: {
+            paymentStatus: "SUCCESS" // ✅ Only include successfully paid enrollments
+          }
+        }
+      },
     });
 
     if (!dbUser) return NextResponse.json({ sessionIds: [] });

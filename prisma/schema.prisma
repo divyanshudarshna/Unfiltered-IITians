@@ -504,7 +504,8 @@ model SessionEnrollment {
   razorpayOrderId     String?
   razorpayPaymentId   String?
   paymentStatus       PaymentStatus  @default(PENDING)
-  amountPaid          Float?
+  amountPaid          Float?         // Actual amount paid by user (discounted or original)
+  couponCode          String?        // Coupon code used for this enrollment
   enrolledAt          DateTime       @default(now())
   completedAt         DateTime?
 
