@@ -135,17 +135,17 @@ export default function Form({ type, item, onClose }: Props) {
           
           {type === "video" && (
             <div className="space-y-2">
-              <Label htmlFor="link">YouTube Embed Link *</Label>
+              <Label htmlFor="link">YouTube Link *</Label>
               <Input
                 id="link"
                 type="url"
                 value={link}
                 onChange={e => setLink(e.target.value)}
                 required
-                placeholder="https://www.youtube.com/embed/..."
+                placeholder="https://youtu.be/... or https://www.youtube.com/watch?v=... or https://www.youtube.com/embed/..."
               />
               <p className="text-xs text-muted-foreground">
-                Use the embed URL format: https://www.youtube.com/embed/VIDEO_ID
+                Supports all YouTube URL formats: embed, watch, and short links (youtu.be)
               </p>
             </div>
           )}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getYouTubeEmbedUrl } from "@/lib/youtube";
 
 // CREATE Video
 export async function POST(req: Request) {
@@ -11,8 +12,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // Convert the provided YouTube URL to a proper embed URL
+    const embedUrl = getYouTubeEmbedUrl(link);
+    if (!embedUrl) {
+      return NextResponse.json({ error: "Invalid YouTube URL" }, { status: 400 });
+    }
+
     const video = await prisma.youtubeVideo.create({
-      data: { title, description, link, categoryId },
+      data: { title, description, link: embedUrl, categoryId },
     });
 
     return NextResponse.json(video, { status: 201 });

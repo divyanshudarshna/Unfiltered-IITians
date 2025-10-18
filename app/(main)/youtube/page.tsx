@@ -7,6 +7,7 @@ import { FaYoutube } from "react-icons/fa";
 import { useTheme } from "next-themes";
 import { Typewriter } from "react-simple-typewriter";
 import { Skeleton } from "@/components/ui/skeleton"; // <-- import skeleton
+import { getYouTubeEmbedUrl } from "@/lib/youtube";
 
 interface Video {
   id: string;
@@ -145,7 +146,7 @@ export default function YoutubePage() {
                   >
                     <div className="aspect-video overflow-hidden rounded-md">
                       <iframe
-                        src={video.link}
+                        src={getYouTubeEmbedUrl(video.link) || video.link}
                         loading="lazy"
                         allowFullScreen
                         className="w-full h-full rounded-md"
