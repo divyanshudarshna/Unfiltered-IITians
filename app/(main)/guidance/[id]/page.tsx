@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { BuyButton } from "@/components/BuyButton";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import {
   Clock,
   Users,
@@ -44,6 +43,26 @@ interface EnrollmentStatus {
   paymentStatus?: string;
 }
 
+interface CouponValidation {
+  valid: boolean;
+  coupon?: {
+    id: string;
+    code: string;
+    name?: string;
+    description?: string;
+    discountType: string;
+    discountValue: number;
+  };
+  discount?: {
+    amount: number;
+    originalAmount: number;
+    finalAmount: number;
+    savings: number;
+    percentage: number;
+  };
+  error?: string;
+}
+
 export default function SessionPage() {
   const { id } = useParams<{ id: string }>();
   const [session, setSession] = useState<Session | null>(null);
@@ -51,17 +70,24 @@ export default function SessionPage() {
   const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [enrollmentStatus, setEnrollmentStatus] = useState<EnrollmentStatus>({ isEnrolled: false });
+  
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [couponValidation, setCouponValidation] = useState<CouponValidation | null>(null);
+  const [isCouponLoading, setIsCouponLoading] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
+  
   const { user, isLoaded } = useUser();
   const router = useRouter();
 
   // Phone number validation
   const validatePhone = (phoneNumber: string): boolean => {
     const phoneRegex = /^[6-9]\d{9}$/; // Indian mobile number validation
-    return phoneRegex.test(phoneNumber.replace(/\D/g, ""));
+    return phoneRegex.test(phoneNumber.replaceAll(/\D/g, ""));
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ""); // Remove non-digits
+    const value = e.target.value.replaceAll(/\D/g, ""); // Remove non-digits
     if (value.length <= 10) {
       setPhone(value);
       setPhoneError("");
@@ -72,6 +98,78 @@ export default function SessionPage() {
         setPhoneError("Phone number must be 10 digits");
       }
     }
+  };
+
+  // Coupon validation function
+  const validateCoupon = async (code: string) => {
+    if (!code.trim() || !session || !user?.id) return;
+
+    setIsCouponLoading(true);
+    setCouponValidation(null);
+
+    try {
+      const response = await fetch('/api/general-coupons/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: code.trim().toUpperCase(),
+          userId: user.id,
+          productType: 'GUIDANCE_SESSION',
+          productId: session.id,
+          orderValue: session.discountedPrice,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.valid) {
+        setCouponValidation(data);
+        toast.success(`🎉 Coupon applied! You saved ₹${data.discount.savings.toFixed(2)}`);
+      } else {
+        setCouponValidation({ valid: false, error: data.error || 'Invalid coupon code' });
+        toast.error(data.error || 'Invalid coupon code');
+      }
+    } catch (error) {
+      console.error('Coupon validation error:', error);
+      setCouponValidation({ valid: false, error: 'Failed to validate coupon. Please try again.' });
+      toast.error('Failed to validate coupon. Please try again.');
+    } finally {
+      setIsCouponLoading(false);
+    }
+  };
+
+  // Apply coupon function
+  const applyCoupon = () => {
+    if (couponValidation?.valid) {
+      setAppliedCoupon(couponValidation);
+      setCouponCode('');
+      setCouponValidation(null);
+    }
+  };
+
+  // Remove applied coupon
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponValidation(null);
+    toast.info('Coupon removed');
+  };
+
+  // Calculate final price with coupon
+  const getFinalPrice = () => {
+    if (appliedCoupon?.valid && appliedCoupon.discount) {
+      return appliedCoupon.discount.finalAmount;
+    }
+    return session?.discountedPrice || 0;
+  };
+
+  const getSavings = () => {
+    if (appliedCoupon?.valid && appliedCoupon.discount) {
+      return appliedCoupon.discount.savings;
+    }
+    return 0;
   };
 
   // Check enrollment status
@@ -247,7 +345,7 @@ export default function SessionPage() {
           {/* Session Details - 2/3 width */}
           <div className="lg:col-span-2 space-y-6">
             {/* Content Card */}
-            <Card className="rounded-3xl border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-white/20 dark:border-gray-700/50">
+            <Card className="rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-500 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-white/20 dark:border-gray-700/50">
               <CardHeader className="pb-4">
                 <div className="flex items-center gap-2 mb-2">
                   <BookOpen className="h-5 w-5 text-purple-600 dark:text-purple-400" />
@@ -314,7 +412,7 @@ export default function SessionPage() {
                 <div className="text-center space-y-2">
                   <div className="flex items-center justify-center gap-3">
                     <span className="text-4xl font-bold text-emerald-400">
-                      ₹{session.discountedPrice}
+                      ₹{getFinalPrice()}
                     </span>
                     {isDiscounted && (
                       <span className="text-lg line-through text-purple-200">
@@ -322,6 +420,24 @@ export default function SessionPage() {
                       </span>
                     )}
                   </div>
+                  {appliedCoupon?.valid && (
+                    <div className="bg-green-100/20 border border-green-400/30 rounded-lg p-2 mb-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-green-300 text-sm font-medium">
+                          🎫 {appliedCoupon.coupon?.code}
+                        </span>
+                        <button
+                          onClick={removeCoupon}
+                          className="text-green-300 hover:text-green-200 text-sm"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <p className="text-green-200 text-xs">
+                        You saved ₹{getSavings().toFixed(2)}!
+                      </p>
+                    </div>
+                  )}
                   <p className="text-purple-100 text-sm">
                     One-time payment • Lifetime access
                   </p>
@@ -352,6 +468,77 @@ export default function SessionPage() {
                     </div>
                   ) : (
                     <>
+                      {/* Coupon Code Section */}
+                      {!appliedCoupon?.valid && (
+                        <div className="bg-blue-50/20 border border-blue-400/30 rounded-lg p-4 mb-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Badge className="bg-yellow-600 text-white text-xs px-2 py-1">
+                              💰 DISCOUNT
+                            </Badge>
+                            <span className="text-purple-100 text-sm font-medium">
+                              Have a coupon code?
+                            </span>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <Input
+                                placeholder="Enter coupon code"
+                                value={couponCode}
+                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                className="bg-white/20 border-white/30 text-white placeholder-purple-200 rounded-xl focus:bg-white/30 focus:border-white/50"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    validateCoupon(couponCode);
+                                  }
+                                }}
+                              />
+                            </div>
+                            <Button
+                              onClick={() => validateCoupon(couponCode)}
+                              disabled={!couponCode.trim() || isCouponLoading}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 rounded-xl disabled:opacity-50"
+                            >
+                              {isCouponLoading ? '...' : 'Apply'}
+                            </Button>
+                          </div>
+                          
+                          {couponValidation && !couponValidation.valid && (
+                            <p className="text-red-300 text-xs mt-2">
+                              {couponValidation.error}
+                            </p>
+                          )}
+                          
+                          {couponValidation?.valid && (
+                            <div className="mt-3 p-3 bg-green-100/20 border border-green-400/30 rounded-lg">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-green-300 text-sm font-medium">
+                                  ✅ {couponValidation.coupon?.code}
+                                </span>
+                                <span className="text-green-200 text-sm">
+                                  -₹{couponValidation.discount?.savings.toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={applyCoupon}
+                                  className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 rounded-lg"
+                                >
+                                  Apply Coupon
+                                </Button>
+                                <Button
+                                  onClick={() => setCouponValidation(null)}
+                                  variant="outline"
+                                  className="border-green-400/30 text-green-300 hover:bg-green-100/10 text-xs px-3 py-1 rounded-lg"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mb-4">
                         <p className="text-sm text-blue-700 dark:text-blue-300 text-center">
                           📱 Phone number is required for session enrollment and communication
@@ -389,7 +576,7 @@ export default function SessionPage() {
                           itemId={session.id}
                           itemType="session"
                           title={session.title}
-                          amount={session.discountedPrice}
+                          amount={getFinalPrice()}
                           studentPhone={phone}
                           disabled={phone.length !== 10 || !!phoneError}
                           onPurchaseSuccess={() => {
@@ -420,7 +607,7 @@ export default function SessionPage() {
             </Card>
 
             {/* Session Info Card */}
-            <Card className="rounded-3xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-white/20 dark:border-gray-700/50">
+            <Card className="rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-white/20 dark:border-gray-700/50">
               <CardHeader>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                   Session Details

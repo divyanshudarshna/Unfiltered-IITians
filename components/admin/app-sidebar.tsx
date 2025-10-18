@@ -14,6 +14,7 @@ import {
   IconTestPipe,
   IconChevronDown,
   IconChartBar,
+  IconTicket,
 } from "@tabler/icons-react";
 
 import {
@@ -57,6 +58,7 @@ const data = {
         { title: "Feedbacks", url: "/admin/feedbacks"},
       ],
     },
+    { title: "Coupons", url: "/admin/general-coupons", icon: IconTicket },
     { title: "Free Materials", url: "/admin/materials", icon: IconFolder },
     { title: "Success Stories", url: "/admin/successStories", icon: IconStar },
     { title: "Sessions", url: "/admin/sessions", icon: GraduationCap },

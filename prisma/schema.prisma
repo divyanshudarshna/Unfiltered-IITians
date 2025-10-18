@@ -69,7 +69,8 @@ model User {
   receivedFeedbackReplies FeedbackReplyRecipient[] // replies received by this student
   //need to add the relation for the sessions enrollments
   sessionEnrollments SessionEnrollment[]
-  couponUsages       CouponUsage[]   // Track coupon usages by this user
+  couponUsages       CouponUsage[]         // Track coupon usages by this user
+  generalCouponUsages GeneralCouponUsage[] @relation("GeneralCouponUsages") // Track general coupon usages
 }
 
 // ================== MOCKS ==================
@@ -554,6 +555,86 @@ model Newsletter {
   @@map("newsletter")
 }
 
-// npx prisma db push
-// npx prisma generate
-// npx prisma studio
+// ================== GENERALIZED COUPON SYSTEM ==================
+
+enum ProductType {
+  MOCK_BUNDLE
+  GUIDANCE_SESSION
+  INDIVIDUAL_MOCK
+  SUBSCRIPTION
+  OTHER
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model GeneralCoupon {
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  code            String           @unique
+  name            String?          // Optional display name for the coupon
+  description     String?          // Optional description
+  
+  // Discount Configuration
+  discountType    DiscountType     @default(PERCENTAGE)
+  discountValue   Float            // Percentage (0-100) or fixed amount
+  maxDiscountAmt  Float?           // Maximum discount amount (for percentage coupons)
+  minOrderValue   Float?           // Minimum order value to apply coupon
+  
+  // Usage Configuration
+  usageLimit      Int?             // Total usage limit (null = unlimited)
+  usageCount      Int              @default(0) // Current usage count
+  userLimit       Int?             // Per-user usage limit (null = unlimited)
+  
+  // Product Configuration
+  productType     ProductType      // Type of product this coupon applies to
+  productIds      String[]         // Array of specific product IDs (empty = all products of type)
+  
+  // Validity
+  validFrom       DateTime         @default(now())
+  validTill       DateTime
+  isActive        Boolean          @default(true)
+  
+  // Metadata
+  createdBy       String?          @db.ObjectId // Admin who created this coupon
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  // Relations
+  usages          GeneralCouponUsage[]
+  
+  @@index([productType])
+  @@index([validTill])
+  @@index([isActive])
+}
+
+model GeneralCouponUsage {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  couponId        String         @db.ObjectId
+  userId          String         @db.ObjectId
+  
+  // Order Details
+  orderId         String?        // Reference to order/subscription/purchase
+  productType     ProductType    // Type of product purchased
+  productId       String?        // ID of specific product purchased
+  
+  // Discount Applied
+  originalAmount  Float          // Original price before discount
+  discountAmount  Float          // Amount discounted
+  finalAmount     Float          // Final amount paid
+  
+  // Usage Details
+  usedAt          DateTime       @default(now())
+  ipAddress       String?        // For fraud detection
+  userAgent       String?        // For fraud detection
+  
+  // Relations
+  coupon          GeneralCoupon  @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user            User           @relation("GeneralCouponUsages", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([couponId])
+  @@index([userId])
+  @@index([usedAt])
+  @@index([productType])
+}
