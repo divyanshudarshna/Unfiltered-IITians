@@ -32,9 +32,25 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
+interface Course {
+  id: string;
+  title: string;
+  description?: string;
+  price: number;
+  actualPrice?: number | null;
+  durationMonths: number;
+  status: PublishStatus;
+  order?: number;
+  inclusions?: {
+    id: string;
+    inclusionType: 'MOCK_TEST' | 'MOCK_BUNDLE' | 'SESSION';
+    inclusionId: string;
+  }[];
+}
+
 interface CourseFormProps {
   onSuccess: () => void;
-  course?: any; // optional for editing
+  course?: Course; // optional for editing
 }
 
 enum PublishStatus {
@@ -129,14 +145,14 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
       // ✅ Set existing inclusions if editing
       if (course.inclusions && Array.isArray(course.inclusions)) {
         const mockTests = course.inclusions
-          .filter((inc: any) => inc.inclusionType === 'MOCK_TEST')
-          .map((inc: any) => inc.inclusionId);
+          .filter((inc) => inc.inclusionType === 'MOCK_TEST')
+          .map((inc) => inc.inclusionId);
         const mockBundles = course.inclusions
-          .filter((inc: any) => inc.inclusionType === 'MOCK_BUNDLE')
-          .map((inc: any) => inc.inclusionId);
+          .filter((inc) => inc.inclusionType === 'MOCK_BUNDLE')
+          .map((inc) => inc.inclusionId);
         const sessions = course.inclusions
-          .filter((inc: any) => inc.inclusionType === 'SESSION')
-          .map((inc: any) => inc.inclusionId);
+          .filter((inc) => inc.inclusionType === 'SESSION')
+          .map((inc) => inc.inclusionId);
 
         setSelectedInclusions({ mockTests, mockBundles, sessions });
       }
@@ -148,7 +164,10 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
   };
 
   const handleStatusChange = (value: string) => {
-    setForm({ ...form, status: value as PublishStatus });
+    // ✅ Ensure status is never empty
+    const validStatuses = [PublishStatus.DRAFT, PublishStatus.PUBLISHED, PublishStatus.ARCHIVED];
+    const statusValue = validStatuses.includes(value as PublishStatus) ? value as PublishStatus : PublishStatus.DRAFT;
+    setForm({ ...form, status: statusValue });
   };
 
   // ✅ Handle inclusion selection
@@ -185,29 +204,45 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
         ...selectedInclusions.mockBundles.map(id => ({ type: 'MOCK_BUNDLE', id })),
         ...selectedInclusions.sessions.map(id => ({ type: 'SESSION', id })),
       ];
+
+      // ✅ Validate and sanitize form data
+      const sanitizedData = {
+        title: form.title.trim(),
+        description: form.description?.trim() || null,
+        price: form.price ? Number(form.price) : 0,
+        actualPrice: form.actualPrice ? Number(form.actualPrice) : null,
+        durationMonths: form.durationMonths ? Number(form.durationMonths) : 1,
+        status: form.status || PublishStatus.DRAFT, // ✅ Ensure status is never empty
+        order: form.order ? Number(form.order) : null,
+        inclusions: inclusions,
+      };
+
+      console.log("📝 Form submission data:", sanitizedData);
+      console.log("📋 Inclusions being sent:", inclusions);
+      console.log("🏷️ Status value:", form.status, "->", sanitizedData.status);
       
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: form.title,
-          description: form.description,
-          price: Number(form.price),
-          actualPrice: Number(form.actualPrice),
-          durationMonths: Number(form.durationMonths),
-          status: form.status,
-          order: form.order ? Number(form.order) : undefined,
-          inclusions: inclusions, // ✅ Send inclusions data
-        }),
+        body: JSON.stringify(sanitizedData),
       });
 
-      if (!res.ok) throw new Error("Failed to save course");
+      console.log("📡 Response status:", res.status);
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("❌ Server error:", errorData);
+        throw new Error(errorData.details || errorData.error || "Failed to save course");
+      }
+
+      const responseData = await res.json();
+      console.log("✅ Success response:", responseData);
 
       toast.success(course ? "Course updated successfully!" : "Course created successfully!");
       onSuccess();
-    } catch (err) {
-      console.error(err);
-      toast.error("Error saving course");
+    } catch (err: any) {
+      console.error("❌ Form submission error:", err);
+      toast.error(`Error saving course: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -419,7 +454,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                     <span>Status</span>
                   </Label>
                   <Select 
-                    value={form.status} 
+                    value={form.status || PublishStatus.DRAFT} 
                     onValueChange={handleStatusChange}
                   >
                     <SelectTrigger className="focus:ring-primary h-11 border-gray-300 dark:border-gray-600 dark:bg-gray-800/50">

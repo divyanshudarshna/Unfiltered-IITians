@@ -59,6 +59,11 @@ interface Course {
   durationMonths: number;
   status: "PUBLISHED" | "DRAFT" | "ARCHIVED";
   order?: number;
+  inclusions?: {
+    id: string;
+    inclusionType: 'MOCK_TEST' | 'MOCK_BUNDLE' | 'SESSION';
+    inclusionId: string;
+  }[];
 }
 
 interface CourseTableProps {

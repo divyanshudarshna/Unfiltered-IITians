@@ -1,6 +1,5 @@
 "use client";
 
-import { BuyButton } from "@/components/BuyButton";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -121,7 +120,7 @@ export default function MockBundlesList({
     return colorMap[color as keyof typeof colorMap] || colorMap.blue;
   };
 
-  const renderActionButtons = (bundle: MockBundle, fullyPurchased: boolean, remainingMocks: string[]) => {
+  const renderActionButtons = (bundle: MockBundle, fullyPurchased: boolean) => {
     if (fullyPurchased) {
       return (
         <Button
@@ -142,50 +141,22 @@ export default function MockBundlesList({
       );
     }
 
-    if (!clerkUserId) {
-      return (
-        <Button
-          asChild
-          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 
-                   text-white shadow-lg hover:shadow-xl transition-all duration-500 ease-out
-                   transform group-hover:scale-105 h-11 rounded-xl font-bold
-                   text-sm sm:text-base px-4 sm:px-6"
-        >
-          <Link href="/sign-in">
-            <span className="relative z-5 flex items-center justify-center gap-2">
-              <span className="truncate">Login to Purchase</span>
-              <ArrowRight className="h-4 w-4 flex-shrink-0" />
-            </span>
-          </Link>
-        </Button>
-      );
-    }
-
     return (
-      <>
-        <BuyButton
-          clerkUserId={clerkUserId}
-          itemId={bundle.id}
-          itemType="mockBundle"
-          title={bundle.title}
-          amount={bundle.discountedPrice ?? bundle.basePrice}
-          mockIds={remainingMocks}
-          onPurchaseSuccess={() => {}}
-        />
-
-        <Link
-          href={`/mockBundles/${bundle.id}/mocks`}
-          className="flex-1 inline-flex items-center justify-center
-                     border border-blue-500 text-blue-600 hover:bg-blue-50 
-                     dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/20
-                     transition-all duration-300 h-11 rounded-xl font-semibold
-                     transform hover:scale-105 text-sm sm:text-base py-2
-                     px-3 sm:px-4 min-w-0"
-        >
-          <BookOpen className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
-          <span className="truncate">Details</span>
+      <Button
+        asChild
+        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 
+                 text-white shadow-lg hover:shadow-xl transition-all duration-500 ease-out
+                 transform group-hover:scale-105 h-11 rounded-xl font-bold relative overflow-hidden
+                 text-sm sm:text-base px-4 sm:px-6"
+      >
+        <Link href={`/mockBundles/${bundle.id}/mocks`}>
+          <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+          <span className="relative z-5 flex items-center justify-center gap-2">
+            <span className="truncate">Enroll Now</span>
+            <ArrowRight className="h-4 w-4 flex-shrink-0" />
+          </span>
         </Link>
-      </>
+      </Button>
     );
   };
 
@@ -209,9 +180,6 @@ export default function MockBundlesList({
           ).length;
           const bundlePurchased = userBundleSubscriptions.includes(bundle.id);
           const fullyPurchased = bundlePurchased || purchasedMockCount === bundle.mockIds.length;
-          const remainingMocks = bundle.mockIds.filter(
-            (id) => !userMockSubscriptions.includes(id)
-          );
           const mockTitles = getMockTitles(bundle);
           const discountPercentage = bundle.discountedPrice 
             ? calculateDiscountPercentage(bundle.basePrice, bundle.discountedPrice)
@@ -345,7 +313,7 @@ export default function MockBundlesList({
 
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4">
-                    {renderActionButtons(bundle, fullyPurchased, remainingMocks)}
+                    {renderActionButtons(bundle, fullyPurchased)}
                   </div>
 
                   {/* Value Proposition */}

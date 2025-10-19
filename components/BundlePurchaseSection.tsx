@@ -148,14 +148,14 @@ export default function BundlePurchaseSection({
       : `You have access to all ${mockCount} mock tests in this bundle. Start practicing now!`;
 
     return (
-      <section className="max-w-lg mx-auto p-6 rounded-2xl shadow-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-center">
+      <section className="max-w-lg mx-auto p-4 sm:p-6 rounded-2xl shadow-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-center">
         <div className="text-green-600 dark:text-green-400 mb-2">
-          <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
         </div>
-        <h3 className="text-xl font-bold text-green-800 dark:text-green-200 mb-2">{ownershipText}</h3>
-        <p className="text-green-700 dark:text-green-300 text-sm">
+        <h3 className="text-lg sm:text-xl font-bold text-green-800 dark:text-green-200 mb-2">{ownershipText}</h3>
+        <p className="text-green-700 dark:text-green-300 text-sm sm:text-base">
           {descriptionText}
         </p>
       </section>
@@ -167,71 +167,71 @@ export default function BundlePurchaseSection({
   const partiallyOwned = purchasedMockIds.length > 0 && purchasedMockIds.length < mockIds.length;
 
   return (
-    <section className="max-w-lg mx-auto p-6 rounded-2xl shadow-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-700">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">Complete Bundle</h2>
-        <p className="text-gray-600 dark:text-gray-400 text-sm">
+    <section className="max-w-lg mx-auto p-4 sm:p-6 rounded-2xl shadow-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-700">
+      <div className="text-center mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold mb-2 text-gray-900 dark:text-white">Complete Bundle</h2>
+        <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
           Get access to all {mockCount} mock tests
         </p>
         
         {partiallyOwned && (
           <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-blue-700 dark:text-blue-300">
+            <p className="text-sm sm:text-base text-blue-700 dark:text-blue-300">
               📚 You own {purchasedMockIds.length} out of {mockCount} tests individually
             </p>
-            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+            <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 mt-1">
               Purchase the bundle to get the remaining {remainingMocks.length} tests at a discounted rate!
             </p>
           </div>
         )}
       </div>
       
-      <div className="text-center mb-6">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <span className="text-3xl font-bold text-green-600 dark:text-green-400">
+      <div className="text-center mb-4 sm:mb-6">
+        <div className="flex items-center justify-center gap-2 sm:gap-3 mb-2">
+          <span className="text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-400">
             ₹{getFinalPrice()}
           </span>
           {(discountPercentage > 0 || getSavings() > 0) && (
-            <span className="text-lg line-through text-gray-400">₹{basePrice}</span>
+            <span className="text-base sm:text-lg line-through text-gray-400">₹{basePrice}</span>
           )}
         </div>
         {discountPercentage > 0 && !appliedCoupon && (
-          <p className="text-sm text-red-500 font-semibold">
+          <p className="text-sm sm:text-base text-red-500 font-semibold">
             Save {discountPercentage}% • Limited Time Offer 🎉
           </p>
         )}
         {getSavings() > 0 && (
-          <p className="text-sm text-green-600 font-semibold">
+          <p className="text-sm sm:text-base text-green-600 font-semibold">
             🎉 Coupon Applied! You save ₹{getSavings()}
           </p>
         )}
       </div>
 
       {/* Coupon Section */}
-      <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+      <div className="mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <h3 className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
           Have a coupon code?
         </h3>
         
         {appliedCoupon ? (
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="flex items-center gap-2 min-w-0">
+                <svg className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <div>
-                  <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm sm:text-base font-medium text-green-700 dark:text-green-300 block truncate">
                     {appliedCoupon.coupon?.code}
                   </span>
-                  <p className="text-xs text-green-600 dark:text-green-400">
+                  <p className="text-xs sm:text-sm text-green-600 dark:text-green-400 break-words">
                     {appliedCoupon.coupon?.description}
                   </p>
                 </div>
               </div>
               <button
                 onClick={removeCoupon}
-                className="text-red-500 hover:text-red-700 text-sm font-medium"
+                className="text-red-500 hover:text-red-700 text-sm sm:text-base font-medium self-start sm:self-center flex-shrink-0"
               >
                 Remove
               </button>
@@ -239,46 +239,46 @@ export default function BundlePurchaseSection({
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                 placeholder="Enter coupon code"
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="flex-1 px-3 py-2 sm:py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 onKeyDown={(e) => e.key === 'Enter' && validateCoupon()}
               />
               <button
                 onClick={validateCoupon}
                 disabled={isValidating || !couponCode.trim()}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+                className="px-4 py-2 sm:py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm sm:text-base font-medium transition-colors whitespace-nowrap"
               >
                 {isValidating ? 'Validating...' : 'Apply'}
               </button>
             </div>
             
             {couponValidation && !couponValidation.valid && (
-              <p className="text-red-500 text-xs">
+              <p className="text-red-500 text-xs sm:text-sm break-words">
                 {couponValidation.error || 'Invalid coupon code'}
               </p>
             )}
             
             {couponValidation && couponValidation.valid && (
               <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-2">
+                  <span className="text-sm sm:text-base font-medium text-green-700 dark:text-green-300 break-words">
                     {couponValidation.coupon?.code}
                   </span>
-                  <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                  <span className="text-sm sm:text-base font-semibold text-green-600 dark:text-green-400">
                     -₹{couponValidation.discount?.savings}
                   </span>
                 </div>
-                <p className="text-xs text-green-600 dark:text-green-400 mb-3">
+                <p className="text-xs sm:text-sm text-green-600 dark:text-green-400 mb-3 break-words">
                   {couponValidation.coupon?.description}
                 </p>
                 <button
                   onClick={applyCoupon}
-                  className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  className="w-full px-3 py-2 sm:py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm sm:text-base font-medium transition-colors"
                 >
                   Apply Coupon
                 </button>

@@ -78,90 +78,223 @@ export async function POST(req: Request, { params }: Params) {
       }
     }
 
-    // ✅ Ensure enrollment exists and handle course inclusions
+    // ✅ Ensure enrollment exists
     const existing = await prisma.enrollment.findFirst({
       where: { userId: sub.userId, courseId: sub.courseId! },
     });
 
+    // Get course with inclusions for both enrollment creation and inclusion processing
+    const course = await prisma.course.findUnique({
+      where: { id: sub.courseId! },
+      select: { 
+        durationMonths: true,
+        inclusions: true 
+      }
+    });
+
     if (!existing) {
-      // Get course with inclusions to calculate expiry date and handle bundled items
-      const course = await prisma.course.findUnique({
-        where: { id: sub.courseId! },
-        select: { 
-          durationMonths: true,
-          inclusions: true 
-        }
-      });
-      
       // Calculate expiry date based on course duration
       const enrollmentExpiresAt = course ? 
         new Date(Date.now() + (course.durationMonths * 30 * 24 * 60 * 60 * 1000)) : // months to milliseconds
         new Date(Date.now() + (12 * 30 * 24 * 60 * 60 * 1000)); // default 12 months
 
-      // Use transaction to create enrollment and handle inclusions
-      await prisma.$transaction(async (tx) => {
-        // Create main course enrollment
-        await tx.enrollment.create({
-          data: {
-            userId: sub.userId,
-            courseId: sub.courseId!,
-            expiresAt: enrollmentExpiresAt,
-          },
-        });
+      // Create main course enrollment
+      await prisma.enrollment.create({
+        data: {
+          userId: sub.userId,
+          courseId: sub.courseId!,
+          expiresAt: enrollmentExpiresAt,
+        },
+      });
+    }
 
-        // ✅ NEW: Handle course inclusions - automatically subscribe user to included items
-        if (course?.inclusions && course.inclusions.length > 0) {
-          console.log(`🎁 Processing ${course.inclusions.length} inclusions for user ${sub.userId}`);
-          
-          for (const inclusion of course.inclusions) {
+    // ✅ ALWAYS handle course inclusions - regardless of enrollment status
+    // This ensures inclusions are processed even if user already had course enrollment
+    if (course?.inclusions && course.inclusions.length > 0) {
+      console.log(`🎁 Processing ${course.inclusions.length} inclusions for user ${sub.userId}`);
+      console.log(`📋 Course inclusions:`, course.inclusions.map(inc => ({ 
+        type: inc.inclusionType, 
+        id: inc.inclusionId 
+      })));
+      
+      try {
+        await prisma.$transaction(async (tx) => {
+          console.log("🔄 Starting inclusions transaction");
+          for (const inclusion of course.inclusions!) {
             try {
-              // Create subscription for included item with price 0 (already paid via course)
-              const inclusionSubscription = await tx.subscription.create({
-                data: {
-                  userId: sub.userId,
-                  mockTestId: inclusion.inclusionType === 'MOCK_TEST' ? inclusion.inclusionId : null,
-                  mockBundleId: inclusion.inclusionType === 'MOCK_BUNDLE' ? inclusion.inclusionId : null,
-                  // Note: Sessions don't use subscription model, they use SessionEnrollment
-                  razorpayOrderId: `inclusion_${sub.id}_${inclusion.id}`, // Unique identifier
-                  paid: true,
-                  actualAmountPaid: 0, // ✅ Price is 0 since already paid via course
-                  originalPrice: 0, // Set to 0 for revenue tracking consistency
-                  paidAt: new Date(),
-                },
-              });
-
-              // ✅ NEW: Handle session enrollments separately (they don't use subscriptions)
-              if (inclusion.inclusionType === 'SESSION') {
-                // Get user details for session enrollment
-                const user = await tx.user.findUnique({
-                  where: { id: sub.userId },
-                  select: { name: true, email: true, phoneNumber: true }
+              console.log(`🔄 Processing inclusion: ${inclusion.inclusionType} - ${inclusion.inclusionId}`);
+              
+              // Handle different inclusion types
+              if (inclusion.inclusionType === 'MOCK_TEST') {
+                // Check if subscription already exists
+                const existingMockSub = await tx.subscription.findFirst({
+                  where: {
+                    userId: sub.userId,
+                    mockTestId: inclusion.inclusionId
+                  }
                 });
-
-                if (user) {
-                  await tx.sessionEnrollment.create({
+                
+                if (!existingMockSub) {
+                  await tx.subscription.create({
                     data: {
                       userId: sub.userId,
-                      sessionId: inclusion.inclusionId,
-                      studentName: user.name || '',
-                      studentEmail: user.email,
-                      studentPhone: user.phoneNumber || '',
-                      paymentStatus: 'SUCCESS',
-                      amountPaid: 0, // ✅ No additional payment needed
-                      enrolledAt: new Date(),
+                      mockTestId: inclusion.inclusionId,
+                      razorpayOrderId: `inclusion_mock_${sub.id}_${inclusion.id}`,
+                      paid: true,
+                      actualAmountPaid: 0,
+                      originalPrice: 0,
+                      paidAt: new Date(),
+                    },
+                  });
+                  console.log(`✅ Created MOCK_TEST subscription for ${inclusion.inclusionId}`);
+                }
+              } else if (inclusion.inclusionType === 'MOCK_BUNDLE') {
+                // For mock bundles, we need to create individual subscriptions for each mock in the bundle
+                // This matches the behavior of individual mock bundle purchases
+                
+                // Check if bundle subscription already exists
+                const existingBundleSub = await tx.subscription.findFirst({
+                  where: {
+                    userId: sub.userId,
+                    mockBundleId: inclusion.inclusionId
+                  }
+                });
+                
+                if (!existingBundleSub) {
+                  // Get mock bundle details to find all included mocks
+                  const mockBundle = await tx.mockBundle.findUnique({
+                    where: { id: inclusion.inclusionId },
+                    select: { 
+                      id: true,
+                      mockIds: true, 
+                      discountedPrice: true, 
+                      basePrice: true 
                     }
                   });
+
+                  if (mockBundle && mockBundle.mockIds && mockBundle.mockIds.length > 0) {
+                    console.log(`📦 Processing MockBundle ${inclusion.inclusionId} with ${mockBundle.mockIds.length} mocks`);
+                    
+                    // Create individual subscriptions for each mock in the bundle
+                    for (const mockId of mockBundle.mockIds) {
+                      // Check if user already has this mock subscription
+                      const existingMockSub = await tx.subscription.findFirst({
+                        where: {
+                          userId: sub.userId,
+                          mockTestId: mockId,
+                          paid: true
+                        }
+                      });
+
+                      if (!existingMockSub) {
+                        await tx.subscription.create({
+                          data: {
+                            userId: sub.userId,
+                            mockTestId: mockId,
+                            mockBundleId: mockBundle.id, // Link to parent bundle
+                            razorpayOrderId: `inclusion_bundle_mock_${sub.id}_${mockId}`,
+                            paid: true,
+                            actualAmountPaid: 0,
+                            originalPrice: 0,
+                            paidAt: new Date(),
+                          },
+                        });
+                        console.log(`✅ Created mock subscription for ${mockId} from bundle ${inclusion.inclusionId}`);
+                      } else {
+                        console.log(`ℹ️ Mock ${mockId} already has subscription, skipping`);
+                      }
+                    }
+
+                    // Also create the main bundle subscription record
+                    await tx.subscription.create({
+                      data: {
+                        userId: sub.userId,
+                        mockBundleId: inclusion.inclusionId,
+                        razorpayOrderId: `inclusion_bundle_${sub.id}_${inclusion.id}`,
+                        paid: true,
+                        actualAmountPaid: 0,
+                        originalPrice: 0,
+                        paidAt: new Date(),
+                      },
+                    });
+                    console.log(`✅ Created MOCK_BUNDLE subscription for ${inclusion.inclusionId} with ${mockBundle.mockIds.length} individual mocks`);
+                  } else {
+                    console.error(`❌ MockBundle ${inclusion.inclusionId} not found or has no mocks`);
+                  }
+                } else {
+                  console.log(`ℹ️ MOCK_BUNDLE subscription already exists for ${inclusion.inclusionId}`);
+                }
+              } else if (inclusion.inclusionType === 'SESSION') {
+                console.log(`🎓 Processing SESSION inclusion: ${inclusion.inclusionId}`);
+                
+                // Check if session enrollment already exists with SUCCESS status (same as individual sessions)
+                const existingSessionEnrollment = await tx.sessionEnrollment.findFirst({
+                  where: {
+                    userId: sub.userId,
+                    sessionId: inclusion.inclusionId,
+                    paymentStatus: 'SUCCESS' // Important: only check for successful enrollments
+                  }
+                });
+                
+                console.log(`🔍 Existing session enrollment with SUCCESS status found: ${!!existingSessionEnrollment}`);
+                
+                if (!existingSessionEnrollment) {
+                  // Get user and session details (same pattern as individual sessions)
+                  const [user, session] = await Promise.all([
+                    tx.user.findUnique({
+                      where: { id: sub.userId },
+                      select: { name: true, email: true, phoneNumber: true }
+                    }),
+                    tx.session.findUnique({
+                      where: { id: inclusion.inclusionId },
+                      select: { discountedPrice: true, price: true }
+                    })
+                  ]);
+
+                  console.log(`👤 User found: ${user ? user.email : 'not found'}`);
+                  console.log(`📅 Session found: ${session ? 'yes' : 'not found'}`);
+
+                  if (user && session) {
+                    const sessionPrice = session.discountedPrice || session.price || 0;
+
+                    await tx.sessionEnrollment.create({
+                      data: {
+                        userId: sub.userId,
+                        sessionId: inclusion.inclusionId,
+                        studentName: user.name || '',
+                        studentEmail: user.email,
+                        studentPhone: user.phoneNumber || 'N/A', // Use existing phone or N/A for course inclusions
+                        razorpayOrderId: `course_inclusion_session_${sub.id}_${inclusion.id}`, // Add missing razorpayOrderId
+                        paymentStatus: 'SUCCESS',
+                        amountPaid: 0, // Free as part of course inclusion
+                        enrolledAt: new Date(),
+                      }
+                    });
+                    console.log(`✅ Created SESSION enrollment for ${inclusion.inclusionId} for user ${user.email} (original price: ₹${sessionPrice})`);
+                  } else {
+                    const missingItems = [];
+                    if (!user) missingItems.push('user');
+                    if (!session) missingItems.push('session');
+                    console.error(`❌ Missing data for session enrollment: ${missingItems.join(', ')} not found. userId=${sub.userId}, sessionId=${inclusion.inclusionId}`);
+                  }
+                } else {
+                  console.log(`ℹ️ SESSION enrollment already exists for ${inclusion.inclusionId}`);
                 }
               }
-
-              console.log(`✅ Created ${inclusion.inclusionType} subscription for ${inclusion.inclusionId}`);
             } catch (inclusionError) {
-              console.error(`❌ Failed to create inclusion subscription:`, inclusionError);
+              console.error(`❌ Failed to process ${inclusion.inclusionType} inclusion ${inclusion.inclusionId}:`, inclusionError);
               // Continue with other inclusions even if one fails
             }
           }
-        }
-      });
+        });
+        
+        console.log(`✅ Inclusions transaction completed successfully for user ${sub.userId}`);
+      } catch (transactionError) {
+        console.error("❌ Failed to process inclusions in transaction:", transactionError);
+        // Don't fail the entire verification - enrollment is already created
+      }
+    } else {
+      console.log(`ℹ️ No inclusions to process for course ${sub.courseId}`);
     }
 
     return NextResponse.json({ success: true });

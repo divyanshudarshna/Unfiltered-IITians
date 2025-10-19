@@ -63,6 +63,11 @@ interface Course {
   enrollments: number;
   contents: number;
   order?: number;
+  inclusions?: {
+    id: string;
+    inclusionType: 'MOCK_TEST' | 'MOCK_BUNDLE' | 'SESSION';
+    inclusionId: string;
+  }[];
 }
 
 export default function CoursesPage() {

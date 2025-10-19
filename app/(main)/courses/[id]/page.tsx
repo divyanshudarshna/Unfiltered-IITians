@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle, Clock, Users, Shield, Award, FileText, Video, HelpCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, Users, Shield, Award, FileText, Video, HelpCircle, Target, Package, MessageSquare, Timer, Star } from "lucide-react";
 
 interface Course {
   id: string;
@@ -23,6 +23,35 @@ interface Course {
   enrolledStudents?: number;
   coupons?: { code: string; discountPct: number; discountAmount?: number; newPrice?: number }[];
   contents?: any[];
+  inclusions?: {
+    id: string;
+    inclusionType: 'MOCK_TEST' | 'MOCK_BUNDLE' | 'SESSION';
+    inclusionId: string;
+    mockTest?: {
+      id: string;
+      title: string;
+      description?: string;
+      difficulty: string;
+      price: number;
+    };
+    mockBundle?: {
+      id: string;
+      title: string;
+      description?: string;
+      basePrice: number;
+      discountedPrice?: number;
+      mockIds: string[];
+    };
+    session?: {
+      id: string;
+      title: string;
+      description?: string;
+      sessionType: string;
+      duration: number;
+      price: number;
+      discountedPrice?: number;
+    };
+  }[];
 }
 
 interface AppliedCoupon {
@@ -51,6 +80,8 @@ export default function CourseDetailPage() {
         const res = await fetch(`/api/courses/${params.id}`);
         if (!res.ok) throw new Error("Failed to fetch course");
         const data = await res.json();
+        console.log("📋 Course data received:", data); // Debug log
+        console.log("📦 Inclusions:", data.inclusions); // Debug log
         setCourse(data);
       } catch (err) {
         console.error(err);
@@ -152,6 +183,8 @@ export default function CourseDetailPage() {
       order_id: data.order.id,
       handler: async (response: any) => {
         try {
+          console.log("🔄 Starting payment verification...", { response });
+          
           const verifyRes = await fetch(`/api/courses/${course.id}/razorpay/verify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -161,16 +194,21 @@ export default function CourseDetailPage() {
             }),
           });
 
+          console.log("📡 Verification response status:", verifyRes.status);
+          
           const verifyData = await verifyRes.json();
-          if (verifyData.success) {
+          console.log("📋 Verification data:", verifyData);
+          
+          if (verifyRes.ok && verifyData.success) {
             toast.success("✅ Payment successful! You're now enrolled.");
             router.push("/dashboard/courses");
           } else {
+            console.error("❌ Verification failed:", verifyData);
             toast.error(verifyData.error || "Payment verification failed");
           }
         } catch (err) {
-          console.error("Verification error:", err);
-          toast.error("Payment verification error");
+          console.error("❌ Verification error:", err);
+          toast.error("Payment verification error. Please contact support.");
         }
       },
       prefill: {
@@ -251,7 +289,7 @@ export default function CourseDetailPage() {
 
               {/* Course Features */}
               <div className="pt-4">
-                <h3 className="font-semibold mb-3">What's included:</h3>
+                <h3 className="font-semibold mb-3">What&apos;s included:</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex items-center text-sm">
                     <Video className="h-4 w-4 mr-2 text-green-500" /> Video Lectures
@@ -267,6 +305,167 @@ export default function CourseDetailPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Course Inclusions */}
+              {course.inclusions && course.inclusions.length > 0 && (
+                <div className="pt-6 border-t">
+                  <h3 className="font-semibold mb-4 text-lg">Bonus Inclusions with this Course</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Get instant access to these premium resources at no extra cost when you enroll:
+                  </p>
+                  <div className="space-y-4">
+                    {/* Mock Tests */}
+                    {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_TEST' && inc.mockTest).length > 0 && (
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Target className="h-5 w-5 text-blue-600" />
+                          <h4 className="font-medium text-blue-900 dark:text-blue-100">Individual Mock Tests</h4>
+                          <Badge variant="secondary" className="ml-auto bg-blue-100 text-blue-700">
+                            {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_TEST' && inc.mockTest).length} Tests
+                          </Badge>
+                        </div>
+                        <div className="grid gap-3">
+                          {course.inclusions
+                            .filter(inc => inc.inclusionType === 'MOCK_TEST' && inc.mockTest)
+                            .map((inclusion, index) => (
+                              <div key={index} className="bg-white/70 dark:bg-gray-800/70 p-3 rounded-md border border-blue-200/50 dark:border-blue-700/50">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <h5 className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                                      {inclusion.mockTest?.title || 'Mock Test'}
+                                    </h5>
+                                    {inclusion.mockTest?.description && (
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                                        {inclusion.mockTest.description}
+                                      </p>
+                                    )}
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        {inclusion.mockTest?.difficulty || 'MEDIUM'}
+                                      </Badge>
+                                      <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                                        Worth ₹{inclusion.mockTest?.price || 0}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mock Bundles */}
+                    {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_BUNDLE' && inc.mockBundle).length > 0 && (
+                      <div className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20 p-4 rounded-lg border border-emerald-100 dark:border-emerald-800">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Package className="h-5 w-5 text-emerald-600" />
+                          <h4 className="font-medium text-emerald-900 dark:text-emerald-100">Mock Test Bundles</h4>
+                          <Badge variant="secondary" className="ml-auto bg-emerald-100 text-emerald-700">
+                            {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_BUNDLE' && inc.mockBundle).length} Bundles
+                          </Badge>
+                        </div>
+                        <div className="grid gap-3">
+                          {course.inclusions
+                            .filter(inc => inc.inclusionType === 'MOCK_BUNDLE' && inc.mockBundle)
+                            .map((inclusion, index) => (
+                              <div key={index} className="bg-white/70 dark:bg-gray-800/70 p-3 rounded-md border border-emerald-200/50 dark:border-emerald-700/50">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <h5 className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                                      {inclusion.mockBundle?.title || 'Mock Bundle'}
+                                    </h5>
+                                    {inclusion.mockBundle?.description && (
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                                        {inclusion.mockBundle.description}
+                                      </p>
+                                    )}
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        {inclusion.mockBundle?.mockIds?.length || 0} Tests
+                                      </Badge>
+                                      <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                                        Worth ₹{inclusion.mockBundle?.discountedPrice || inclusion.mockBundle?.basePrice || 0}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sessions */}
+                    {course.inclusions.filter(inc => inc.inclusionType === 'SESSION' && inc.session).length > 0 && (
+                      <div className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/20 dark:to-violet-950/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800">
+                        <div className="flex items-center gap-2 mb-3">
+                          <MessageSquare className="h-5 w-5 text-purple-600" />
+                          <h4 className="font-medium text-purple-900 dark:text-purple-100">Guidance Sessions</h4>
+                          <Badge variant="secondary" className="ml-auto bg-purple-100 text-purple-700">
+                            {course.inclusions.filter(inc => inc.inclusionType === 'SESSION' && inc.session).length} Sessions
+                          </Badge>
+                        </div>
+                        <div className="grid gap-3">
+                          {course.inclusions
+                            .filter(inc => inc.inclusionType === 'SESSION' && inc.session)
+                            .map((inclusion, index) => (
+                              <div key={index} className="bg-white/70 dark:bg-gray-800/70 p-3 rounded-md border border-purple-200/50 dark:border-purple-700/50">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <h5 className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                                      {inclusion.session?.title || 'Guidance Session'}
+                                    </h5>
+                                    {inclusion.session?.description && (
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                                        {inclusion.session.description}
+                                      </p>
+                                    )}
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        {inclusion.session?.sessionType || 'Session'}
+                                      </Badge>
+                                      <div className="flex items-center text-xs text-gray-500">
+                                        <Timer className="h-3 w-3 mr-1" />
+                                        {inclusion.session?.duration || 60}min
+                                      </div>
+                                      <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                                        Worth ₹{inclusion.session?.discountedPrice || inclusion.session?.price || 0}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Total Value Summary */}
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Star className="h-5 w-5 text-amber-600" />
+                          <span className="font-semibold text-amber-900 dark:text-amber-100">
+                            Total Bonus Value
+                          </span>
+                        </div>
+                        <span className="text-lg font-bold text-amber-700 dark:text-amber-300">
+                          ₹{course.inclusions.reduce((total, inc) => {
+                            const price = inc.mockTest?.price || 
+                                         (inc.mockBundle?.discountedPrice || inc.mockBundle?.basePrice) || 
+                                         (inc.session?.discountedPrice || inc.session?.price) || 0;
+                            return total + price;
+                          }, 0)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                        All included at no additional cost with your course enrollment!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
