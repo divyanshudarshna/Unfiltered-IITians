@@ -189,6 +189,9 @@
   --font-heading: 'Zilla Slab', serif;
   --font-body: 'Poppins', sans-serif;
   --font-pricing: 'Helvetica', sans-serif;
+  
+  /* Container widths for dialogs */
+  --container-lg: 50rem; /* Increased from default ~32rem to 80rem (1280px) for wider dialog */
 }
 
 /* Default body font for frontend */

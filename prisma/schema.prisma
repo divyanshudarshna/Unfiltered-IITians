@@ -155,11 +155,11 @@ model Course {
   coupons        Coupon[]
   courseProgress CourseProgress[]
   announcements  CourseAnnouncement[]
-
-  
   feedbacks      CourseFeedback[]
-    // Relation
-  details      CourseDetail[]
+  details        CourseDetail[]
+  
+  // ✅ NEW: Course inclusions for bundling
+  inclusions     CourseInclusion[]
 }
 
 model Enrollment {
@@ -571,6 +571,13 @@ enum DiscountType {
   FIXED_AMOUNT
 }
 
+// ✅ NEW: Enum for course inclusion types
+enum InclusionType {
+  MOCK_TEST
+  MOCK_BUNDLE
+  SESSION
+}
+
 model GeneralCoupon {
   id              String           @id @default(auto()) @map("_id") @db.ObjectId
   code            String           @unique
@@ -638,4 +645,24 @@ model GeneralCouponUsage {
   @@index([userId])
   @@index([usedAt])
   @@index([productType])
+}
+
+// ================== COURSE INCLUSIONS ==================
+// ✅ NEW: Model to handle course bundling with mocks, mock bundles, and sessions
+model CourseInclusion {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  courseId        String        @db.ObjectId
+  inclusionType   InclusionType // MOCK_TEST, MOCK_BUNDLE, or SESSION
+  inclusionId     String        @db.ObjectId // ID of the included item (mock, bundle, or session)
+  
+  // Optional metadata
+  addedAt         DateTime      @default(now())
+  
+  // Relations
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  // Ensure no duplicate inclusions for the same course
+  @@unique([courseId, inclusionType, inclusionId])
+  @@index([courseId])
+  @@index([inclusionType])
 }

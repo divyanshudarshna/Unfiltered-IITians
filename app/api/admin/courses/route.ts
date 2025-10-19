@@ -6,7 +6,16 @@ import { prisma } from "@/lib/prisma";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, description, price, actualPrice, durationMonths, status, order } = body;
+    const { 
+      title, 
+      description, 
+      price, 
+      actualPrice, 
+      durationMonths, 
+      status, 
+      order,
+      inclusions // ✅ NEW: Array of inclusions { type, id }
+    } = body;
 
     if (!title || !price || !durationMonths) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -22,19 +31,44 @@ export async function POST(req: Request) {
       courseOrder = (lastCourse?.order || 0) + 1;
     }
 
-    const course = await prisma.course.create({
-      data: {
-        title,
-        description,
-        price,
-        actualPrice,
-        durationMonths,
-        status: status || "DRAFT",
-        order: courseOrder,
-      },
+    // Use transaction to create course and inclusions together
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the course
+      const course = await tx.course.create({
+        data: {
+          title,
+          description,
+          price,
+          actualPrice,
+          durationMonths,
+          status: status || "DRAFT",
+          order: courseOrder,
+        },
+      });
+
+      // Create inclusions if provided
+      if (inclusions && Array.isArray(inclusions) && inclusions.length > 0) {
+        const inclusionData = inclusions.map((inclusion: any) => ({
+          courseId: course.id,
+          inclusionType: inclusion.type, // 'MOCK_TEST', 'MOCK_BUNDLE', or 'SESSION'
+          inclusionId: inclusion.id,
+        }));
+
+        await tx.courseInclusion.createMany({
+          data: inclusionData,
+        });
+      }
+
+      // Return course with inclusions
+      return await tx.course.findUnique({
+        where: { id: course.id },
+        include: {
+          inclusions: true,
+        },
+      });
     });
 
-    return NextResponse.json(course, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (err) {
     console.error("❌ Create Course Error:", err);
     return NextResponse.json({ error: "Failed to create course" }, { status: 500 });
@@ -48,6 +82,7 @@ export async function GET() {
       include: {
         contents: true,
         coupons: true,
+        inclusions: true, // ✅ Re-enabled after DB migration
         enrollments: true,
         subscriptions: true,
        

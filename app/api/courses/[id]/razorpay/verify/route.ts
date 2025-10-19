@@ -78,16 +78,19 @@ export async function POST(req: Request, { params }: Params) {
       }
     }
 
-    // ✅ Ensure enrollment exists
+    // ✅ Ensure enrollment exists and handle course inclusions
     const existing = await prisma.enrollment.findFirst({
       where: { userId: sub.userId, courseId: sub.courseId! },
     });
 
     if (!existing) {
-      // Get course to calculate expiry date
+      // Get course with inclusions to calculate expiry date and handle bundled items
       const course = await prisma.course.findUnique({
         where: { id: sub.courseId! },
-        select: { durationMonths: true }
+        select: { 
+          durationMonths: true,
+          inclusions: true 
+        }
       });
       
       // Calculate expiry date based on course duration
@@ -95,12 +98,69 @@ export async function POST(req: Request, { params }: Params) {
         new Date(Date.now() + (course.durationMonths * 30 * 24 * 60 * 60 * 1000)) : // months to milliseconds
         new Date(Date.now() + (12 * 30 * 24 * 60 * 60 * 1000)); // default 12 months
 
-      await prisma.enrollment.create({
-        data: {
-          userId: sub.userId,
-          courseId: sub.courseId!,
-          expiresAt: enrollmentExpiresAt,
-        },
+      // Use transaction to create enrollment and handle inclusions
+      await prisma.$transaction(async (tx) => {
+        // Create main course enrollment
+        await tx.enrollment.create({
+          data: {
+            userId: sub.userId,
+            courseId: sub.courseId!,
+            expiresAt: enrollmentExpiresAt,
+          },
+        });
+
+        // ✅ NEW: Handle course inclusions - automatically subscribe user to included items
+        if (course?.inclusions && course.inclusions.length > 0) {
+          console.log(`🎁 Processing ${course.inclusions.length} inclusions for user ${sub.userId}`);
+          
+          for (const inclusion of course.inclusions) {
+            try {
+              // Create subscription for included item with price 0 (already paid via course)
+              const inclusionSubscription = await tx.subscription.create({
+                data: {
+                  userId: sub.userId,
+                  mockTestId: inclusion.inclusionType === 'MOCK_TEST' ? inclusion.inclusionId : null,
+                  mockBundleId: inclusion.inclusionType === 'MOCK_BUNDLE' ? inclusion.inclusionId : null,
+                  // Note: Sessions don't use subscription model, they use SessionEnrollment
+                  razorpayOrderId: `inclusion_${sub.id}_${inclusion.id}`, // Unique identifier
+                  paid: true,
+                  actualAmountPaid: 0, // ✅ Price is 0 since already paid via course
+                  originalPrice: 0, // Set to 0 for revenue tracking consistency
+                  paidAt: new Date(),
+                },
+              });
+
+              // ✅ NEW: Handle session enrollments separately (they don't use subscriptions)
+              if (inclusion.inclusionType === 'SESSION') {
+                // Get user details for session enrollment
+                const user = await tx.user.findUnique({
+                  where: { id: sub.userId },
+                  select: { name: true, email: true, phoneNumber: true }
+                });
+
+                if (user) {
+                  await tx.sessionEnrollment.create({
+                    data: {
+                      userId: sub.userId,
+                      sessionId: inclusion.inclusionId,
+                      studentName: user.name || '',
+                      studentEmail: user.email,
+                      studentPhone: user.phoneNumber || '',
+                      paymentStatus: 'SUCCESS',
+                      amountPaid: 0, // ✅ No additional payment needed
+                      enrolledAt: new Date(),
+                    }
+                  });
+                }
+              }
+
+              console.log(`✅ Created ${inclusion.inclusionType} subscription for ${inclusion.inclusionId}`);
+            } catch (inclusionError) {
+              console.error(`❌ Failed to create inclusion subscription:`, inclusionError);
+              // Continue with other inclusions even if one fails
+            }
+          }
+        }
       });
     }
 
