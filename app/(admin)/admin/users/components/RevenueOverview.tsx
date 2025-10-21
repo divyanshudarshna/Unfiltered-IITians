@@ -5,28 +5,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import { format } from "date-fns"
 
-type Props = { users: User[] }
+type Props = { readonly users: User[] }
 
 export function RevenueOverview({ users }: Props) {
-  // Collect payments from subscriptions
+  // Collect payments by user registration date (simplified approach)
   const transactions: { date: string; amount: number }[] = []
 
-  users.forEach((u) => {
-    u.subscriptions?.forEach((s) => {
-      if (s.paid) {
-        transactions.push({
-          date: format(new Date(u.createdAt), "yyyy-MM-dd"),
-          amount: 499, // example fixed price per subscription
-        })
-      }
-    })
-  })
+  for (const user of users) {
+    // Use user's total revenue (calculated on backend) and their join date
+    if (user.totalRevenue && user.totalRevenue > 0) {
+      transactions.push({
+        date: format(new Date(user.createdAt), "yyyy-MM-dd"),
+        amount: user.totalRevenue,
+      })
+    }
+  }
 
   // Aggregate by date
   const grouped: Record<string, number> = {}
-  transactions.forEach((t) => {
-    grouped[t.date] = (grouped[t.date] || 0) + t.amount
-  })
+  for (const transaction of transactions) {
+    grouped[transaction.date] = (grouped[transaction.date] || 0) + transaction.amount
+  }
 
   const data = Object.keys(grouped).map((date) => ({
     date,

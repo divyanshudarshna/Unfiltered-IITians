@@ -24,6 +24,10 @@ export async function GET(req: NextRequest) {
     const sessions = await prisma.session.findMany({
       include: {
         enrollments: {
+          where: {
+            paymentStatus: 'SUCCESS', // Only successful enrollments
+            amountPaid: { gt: 0 } // Only enrollments with payment > 0
+          },
           include: {
             user: {
               select: {
@@ -44,8 +48,9 @@ export async function GET(req: NextRequest) {
 
     // Transform the data
     const stats = sessions.map(session => {
-      const totalEnrollments = session.enrollments.length
-      const paidEnrollments = session.enrollments.filter(enrollment => enrollment.paymentStatus === 'SUCCESS')
+      // enrollments are already filtered to SUCCESS with amountPaid > 0
+      const paidEnrollments = session.enrollments
+      const totalEnrollments = paidEnrollments.length
       const totalRevenue = paidEnrollments.reduce((sum: number, enrollment) => {
         return sum + (enrollment.amountPaid || 0)
       }, 0)
@@ -57,9 +62,9 @@ export async function GET(req: NextRequest) {
         price: session.price,
         discountedPrice: session.discountedPrice,
         maxEnrollment: session.maxEnrollment,
-        totalEnrollments,
-        paidEnrollments: paidEnrollments.length,
-        totalRevenue,
+        totalEnrollments: totalEnrollments,
+        paidEnrollments: totalEnrollments, // Same as totalEnrollments since we filtered
+        revenue: totalRevenue, // Match the interface expectation
         enrollments: session.enrollments.map(enrollment => ({
           id: enrollment.id,
           user: {

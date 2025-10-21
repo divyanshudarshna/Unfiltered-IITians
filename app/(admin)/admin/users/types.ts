@@ -4,6 +4,7 @@ export type User = {
   email: string
   createdAt: string
   isSubscribed: boolean
+  totalRevenue?: number
   subscriptions?: { id: string; courseId: string; paid: boolean }[]
   enrollments?: { id: string; courseId: string }[]
   mockAttempts?: { id: string; score: number }[]

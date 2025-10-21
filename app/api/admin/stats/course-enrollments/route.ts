@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             userId: true,
+            actualAmountPaid: true,
             createdAt: true
           }
         },
@@ -61,8 +62,16 @@ export async function GET(req: NextRequest) {
         !enrollment.expiresAt || new Date(enrollment.expiresAt) > now
       ).length
 
-      // Calculate revenue from subscriptions (paid enrollments)
-      const revenue = course.subscriptions.length * (course.actualPrice || course.price)
+      // ✅ Calculate revenue from subscriptions using actualAmountPaid
+      const revenue = course.subscriptions.reduce((sum: number, sub) => {
+        // Use actualAmountPaid if available (handles discounts correctly)
+        if (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined) {
+          return sum + (sub.actualAmountPaid / 100); // Convert paise to rupees
+        }
+        
+        // Fallback to course price for old records
+        return sum + (course.actualPrice || course.price);
+      }, 0)
 
       return {
         id: course.id,

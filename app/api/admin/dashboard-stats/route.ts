@@ -2,12 +2,12 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
 export async function GET() {
-  // ✅ Calculate actual revenue from paid subscriptions using actualAmountPaid
+  // ✅ Get ALL successful subscriptions - replicate admin/stats logic exactly
   const paidSubscriptions = await prisma.subscription.findMany({
     where: { paid: true },
     select: {
-      actualAmountPaid: true,  // ✅ NEW: Use actual payment amount
-      originalPrice: true,     // ✅ NEW: For reference
+      actualAmountPaid: true,
+      originalPrice: true,
       mockTest: {
         select: {
           price: true,
@@ -19,39 +19,48 @@ export async function GET() {
           price: true,
           actualPrice: true,
         }
+      },
+      mockBundle: {
+        select: {
+          basePrice: true,
+          discountedPrice: true,
+        }
       }
     }
   });
 
-  // ✅ Calculate subscription revenue using actualAmountPaid
-  const subscriptionRevenue = paidSubscriptions.reduce((sum, sub) => {
-    // Use actualAmountPaid if available (new field), otherwise fallback to old method
-    if (sub.actualAmountPaid) {
-      return sum + (sub.actualAmountPaid / 100); // Convert from paise to rupees
-    }
-    
-    // Fallback for old records (before actualAmountPaid was implemented)
-    let itemPrice = 0;
-    if (sub.mockTest) {
-      itemPrice = sub.mockTest.actualPrice || sub.mockTest.price;
-    } else if (sub.course) {
-      itemPrice = sub.course.actualPrice || sub.course.price;
-    }
-    return sum + itemPrice;
-  }, 0);
+  // ✅ Calculate subscription revenue - EXACT same logic as admin/stats
+  const subscriptionRevenue = paidSubscriptions
+    .map(sub => {
+      // Calculate actual amount paid - prioritize actualAmountPaid field
+      let actualAmount = 0;
+      if (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined) {
+        actualAmount = sub.actualAmountPaid / 100; // Convert paise to rupees
+      } else {
+        // Only use fallback pricing for old records that don't have actualAmountPaid set
+        actualAmount = sub.course?.price || sub.mockTest?.price || sub.mockBundle?.discountedPrice || sub.mockBundle?.basePrice || 0;
+      }
+      return actualAmount;
+    })
+    .filter(amount => amount > 0) // ✅ Filter out zero amount transactions - CRITICAL
+    .reduce((sum, amount) => sum + amount, 0);
 
-  // ✅ Calculate session enrollment revenue
-  const sessionRevenue = await prisma.sessionEnrollment.aggregate({
+  // ✅ Get session enrollment revenue - only SUCCESS payments with non-null amounts
+  const successfulSessionEnrollments = await prisma.sessionEnrollment.findMany({
     where: { 
       paymentStatus: "SUCCESS",
-      amountPaid: { not: null }
+      amountPaid: { not: null, gt: 0 } // ✅ Exclude zero amounts
     },
-    _sum: {
+    select: {
       amountPaid: true
     }
   });
 
-  const totalRevenue = subscriptionRevenue + (sessionRevenue._sum.amountPaid || 0);
+  const sessionRevenue = successfulSessionEnrollments.reduce((sum, enrollment) => {
+    return sum + (enrollment.amountPaid || 0);
+  }, 0);
+
+  const totalRevenue = subscriptionRevenue + sessionRevenue;
 
   const newCustomersCount = await prisma.user.count({
     where: {

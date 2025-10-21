@@ -46,7 +46,7 @@ interface MockBundleSubscription {
   id: string
   title: string
   totalSubscriptions: number
-  activeSubscriptions: number
+  activeSubscriptions?: number
   revenue: number
   subscriptions: {
     id: string
@@ -54,7 +54,10 @@ interface MockBundleSubscription {
       name: string | null
       email: string
     }
-    createdAt: string
+    actualAmountPaid?: number | null
+    amount: number
+    createdAt?: string
+    purchasedAt: string
     expiresAt: string | null
     paid: boolean
   }[]
@@ -81,7 +84,18 @@ interface SessionEnrollment {
   }[]
 }
 
-export function EnrollmentStats() {
+interface DashboardStats {
+  totalUsers: number
+  totalSubscribers: number
+  totalEnrollments: number
+  totalRevenue: number
+}
+
+interface EnrollmentStatsProps {
+  readonly dashboardStats?: DashboardStats
+}
+
+export function EnrollmentStats({ dashboardStats }: EnrollmentStatsProps) {
   const [courseEnrollments, setCourseEnrollments] = useState<CourseEnrollment[]>([])
   const [mockBundleSubscriptions, setMockBundleSubscriptions] = useState<MockBundleSubscription[]>([])
   const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>([])
@@ -125,10 +139,12 @@ export function EnrollmentStats() {
   }
 
   const formatCurrency = (amount: number) => {
+    // Handle NaN, null, undefined values
+    const safeAmount = Number.isNaN(amount) || amount === null || amount === undefined ? 0 : amount
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR'
-    }).format(amount)
+    }).format(safeAmount)
   }
 
   if (loading) {
@@ -149,18 +165,100 @@ export function EnrollmentStats() {
     )
   }
 
+  // Calculate revenue breakdown by segment with NaN protection
+  const courseRevenue = courseEnrollments.reduce((sum, course) => sum + (course.revenue || 0), 0)
+  const mockBundleRevenue = mockBundleSubscriptions.reduce((sum, bundle) => sum + (bundle.revenue || 0), 0)  
+  const sessionRevenue = sessionEnrollments.reduce((sum, session) => sum + (session.revenue || 0), 0)
+
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
-          Enrollment Statistics
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Track student enrollments across courses, mock bundles, and guidance sessions
-        </p>
-      </CardHeader>
-      <CardContent>
+    <div className="w-full space-y-6">
+      {/* Revenue Overview Section */}
+      {dashboardStats && (
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-green-600" />
+              Revenue Overview
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Total revenue breakdown across all segments
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800 dark:text-green-200">Total Revenue</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-2 text-green-900 dark:text-green-100">
+                    {formatCurrency(dashboardStats.totalRevenue)}
+                  </p>
+                  <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">
+                    From all sources
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Course Revenue</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-2 text-blue-900 dark:text-blue-100">
+                    {formatCurrency(courseRevenue)}
+                  </p>
+                  <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">
+                    {dashboardStats.totalRevenue > 0 ? ((courseRevenue / dashboardStats.totalRevenue) * 100).toFixed(1) : 0}% of total
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="border-purple-200 bg-purple-50/50 dark:border-purple-800 dark:bg-purple-950/20">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-purple-600" />
+                    <span className="text-sm font-medium text-purple-800 dark:text-purple-200">Mock Bundle Revenue</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-2 text-purple-900 dark:text-purple-100">
+                    {formatCurrency(mockBundleRevenue)}
+                  </p>
+                  <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">
+                    {dashboardStats.totalRevenue > 0 ? ((mockBundleRevenue / dashboardStats.totalRevenue) * 100).toFixed(1) : 0}% of total
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="border-orange-200 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-orange-600" />
+                    <span className="text-sm font-medium text-orange-800 dark:text-orange-200">Session Revenue</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-2 text-orange-900 dark:text-orange-100">
+                    {formatCurrency(sessionRevenue)}
+                  </p>
+                  <p className="text-xs text-orange-600/70 dark:text-orange-400/70 mt-1">
+                    {dashboardStats.totalRevenue > 0 ? ((sessionRevenue / dashboardStats.totalRevenue) * 100).toFixed(1) : 0}% of total
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Detailed Enrollment Statistics */}
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Enrollment Statistics
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Track student enrollments across courses, mock bundles, and guidance sessions
+          </p>
+        </CardHeader>
+        <CardContent>
         <Tabs defaultValue="courses" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="courses" className="flex items-center gap-2">
@@ -206,7 +304,7 @@ export function EnrollmentStats() {
                     <span className="text-sm font-medium">Total Revenue</span>
                   </div>
                   <p className="text-2xl font-bold mt-2">
-                    {formatCurrency(courseEnrollments.reduce((sum, course) => sum + course.revenue, 0))}
+                    {formatCurrency(courseEnrollments.reduce((sum, course) => sum + (course.revenue || 0), 0))}
                   </p>
                 </CardContent>
               </Card>
@@ -233,7 +331,7 @@ export function EnrollmentStats() {
                           {course.activeEnrollments}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatCurrency(course.revenue)}</TableCell>
+                      <TableCell>{formatCurrency(course.revenue || 0)}</TableCell>
                       <TableCell>
                         {course.averageRating ? (
                           <Badge variant="outline">
@@ -279,7 +377,7 @@ export function EnrollmentStats() {
                     <span className="text-sm font-medium">Total Revenue</span>
                   </div>
                   <p className="text-2xl font-bold mt-2">
-                    {formatCurrency(mockBundleSubscriptions.reduce((sum, bundle) => sum + bundle.revenue, 0))}
+                    {formatCurrency(mockBundleSubscriptions.reduce((sum, bundle) => sum + (bundle.revenue || 0), 0))}
                   </p>
                 </CardContent>
               </Card>
@@ -290,22 +388,34 @@ export function EnrollmentStats() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Mock Bundle</TableHead>
-                    <TableHead>Subscriptions</TableHead>
-                    <TableHead>Active</TableHead>
-                    <TableHead>Revenue</TableHead>
+                    <TableHead>Paid Enrollments</TableHead>
+                    <TableHead>Avg Amount</TableHead>
+                    <TableHead>Total Revenue</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {mockBundleSubscriptions.map((bundle) => (
                     <TableRow key={bundle.id}>
-                      <TableCell className="font-medium">{bundle.title}</TableCell>
-                      <TableCell>{bundle.totalSubscriptions}</TableCell>
+                      <TableCell className="font-medium">
+                        <div>
+                          <div className="font-medium">{bundle.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Excludes ₹0 individual mock subscriptions
+                          </div>
+                        </div>
+                      </TableCell>
                       <TableCell>
-                        <Badge variant={bundle.activeSubscriptions > 0 ? "default" : "secondary"}>
-                          {bundle.activeSubscriptions}
+                        <Badge variant={bundle.totalSubscriptions > 0 ? "default" : "secondary"}>
+                          {bundle.totalSubscriptions}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatCurrency(bundle.revenue)}</TableCell>
+                      <TableCell>
+                        {bundle.totalSubscriptions > 0 ? 
+                          formatCurrency((bundle.revenue || 0) / bundle.totalSubscriptions) : 
+                          formatCurrency(0)
+                        }
+                      </TableCell>
+                      <TableCell className="font-medium">{formatCurrency(bundle.revenue || 0)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -342,7 +452,7 @@ export function EnrollmentStats() {
                     <span className="text-sm font-medium">Total Revenue</span>
                   </div>
                   <p className="text-2xl font-bold mt-2">
-                    {formatCurrency(sessionEnrollments.reduce((sum, session) => sum + session.revenue, 0))}
+                    {formatCurrency(sessionEnrollments.reduce((sum, session) => sum + (session.revenue || 0), 0))}
                   </p>
                 </CardContent>
               </Card>
@@ -380,7 +490,7 @@ export function EnrollmentStats() {
                           <span className="text-muted-foreground">Unlimited</span>
                         )}
                       </TableCell>
-                      <TableCell>{formatCurrency(session.revenue)}</TableCell>
+                      <TableCell>{formatCurrency(session.revenue || 0)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -388,7 +498,8 @@ export function EnrollmentStats() {
             </div>
           </TabsContent>
         </Tabs>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

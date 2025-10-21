@@ -22,39 +22,60 @@ export async function GET(req: NextRequest) {
 
     // Get all mock bundles with their subscriptions
     const mockBundles = await prisma.mockBundle.findMany({
-      include: {
-        subscriptions: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phoneNumber: true,
-                clerkUserId: true
-              }
-            }
-          }
-        }
-      },
       orderBy: {
         title: 'asc'
       }
     })
 
-    // Transform the data
+    // Get all subscriptions related to mock bundles
+    const bundleSubscriptions = await prisma.subscription.findMany({
+      where: {
+        mockBundleId: { not: null },
+        paid: true
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phoneNumber: true,
+            clerkUserId: true
+          }
+        },
+        mockBundle: {
+          select: {
+            id: true,
+            title: true,
+            basePrice: true,
+            discountedPrice: true
+          }
+        }
+      }
+    })
+
+    // Transform the data by grouping subscriptions by bundle
     const stats = mockBundles.map(bundle => {
-      const totalSubscriptions = bundle.subscriptions.length
-      const totalRevenue = bundle.subscriptions.reduce((sum: number, sub) => {
-        if (!sub.paid) return sum;
-        
+      // Find all subscriptions for this specific bundle
+      const bundleSubs = bundleSubscriptions.filter(sub => sub.mockBundleId === bundle.id)
+      
+      // Filter out zero-amount subscriptions (individual mocks in bundles)
+      const paidSubscriptions = bundleSubs.filter(sub => {
+        if (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined) {
+          return sub.actualAmountPaid > 0;
+        }
+        return true; // Include old records without actualAmountPaid
+      });
+
+      const totalSubscriptions = paidSubscriptions.length
+      const totalRevenue = paidSubscriptions.reduce((sum: number, sub) => {
         // Use actualAmountPaid if available (handles discounts correctly)
         if (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined) {
           return sum + (sub.actualAmountPaid / 100); // Convert paise to rupees
         }
         
-        // Fallback to basePrice for old records
-        return sum + bundle.basePrice;
+        // Fallback to bundle pricing for old records
+        return sum + (bundle.discountedPrice || bundle.basePrice);
       }, 0)
       
       return {
@@ -63,8 +84,8 @@ export async function GET(req: NextRequest) {
         basePrice: bundle.basePrice,
         discountedPrice: bundle.discountedPrice,
         totalSubscriptions,
-        totalRevenue,
-        subscriptions: bundle.subscriptions.map(sub => ({
+        revenue: totalRevenue, // Match interface expectation
+        subscriptions: paidSubscriptions.map(sub => ({
           id: sub.id,
           user: {
             id: sub.user.id,
@@ -73,11 +94,10 @@ export async function GET(req: NextRequest) {
             phoneNumber: sub.user.phoneNumber
           },
           paid: sub.paid,
-          amount: sub.paid 
-            ? (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined 
-                ? sub.actualAmountPaid / 100 // Convert paise to rupees
-                : bundle.basePrice) 
-            : 0,
+          actualAmountPaid: sub.actualAmountPaid,
+          amount: sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined 
+            ? sub.actualAmountPaid / 100 // Convert paise to rupees
+            : (bundle.discountedPrice || bundle.basePrice),
           purchasedAt: sub.createdAt,
           expiresAt: sub.expiresAt
         }))

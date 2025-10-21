@@ -15,6 +15,12 @@ import { Users, Shield, CreditCard, RefreshCw, TrendingUp } from "lucide-react"
 export default function AdminUsersPage() {
   const { getToken } = useAuth()
   const [users, setUsers] = useState<UserData[]>([])
+  const [dashboardStats, setDashboardStats] = useState({
+    totalUsers: 0,
+    totalSubscribers: 0,
+    totalEnrollments: 0,
+    totalRevenue: 0,
+  })
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
   const [roleDialogOpen, setRoleDialogOpen] = useState(false)
@@ -23,14 +29,25 @@ export default function AdminUsersPage() {
     try {
       setLoading(true)
       const token = await getToken()
-      const response = await fetch("/api/admin/users", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      
+      // Fetch both users and dashboard stats
+      const [usersResponse, dashboardResponse] = await Promise.all([
+        fetch("/api/admin/users", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("/api/admin/users/dashboard-data", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ])
 
-      if (!response.ok) throw new Error("Failed to fetch users")
+      if (!usersResponse.ok) throw new Error("Failed to fetch users")
+      if (!dashboardResponse.ok) throw new Error("Failed to fetch dashboard stats")
 
-      const data = await response.json()
-      setUsers(data)
+      const usersData = await usersResponse.json()
+      const dashboardData = await dashboardResponse.json()
+      
+      setUsers(usersData)
+      setDashboardStats(dashboardData.stats)
     } catch (error) {
       console.error("Error fetching users:", error)
       toast.error("Failed to load users")
@@ -80,14 +97,14 @@ export default function AdminUsersPage() {
   }, [fetchUsers])
 
   const stats = {
-    totalUsers: users.length,
+    totalUsers: dashboardStats.totalUsers,
     roleBreakdown: {
       admin: users.filter(u => u.role === "ADMIN").length,
       instructor: users.filter(u => u.role === "INSTRUCTOR").length,
       student: users.filter(u => u.role === "STUDENT").length,
     },
-    premiumUsers: users.filter(u => u.isSubscribed).length,
-    totalRevenue: users.reduce((sum, u) => sum + (u.totalRevenue || 0), 0),
+    premiumUsers: dashboardStats.totalSubscribers,
+    totalRevenue: dashboardStats.totalRevenue,
   }
 
   if (loading) {
@@ -229,7 +246,7 @@ export default function AdminUsersPage() {
 
       {/* Enrollment Statistics */}
       <div className="w-full">
-        <EnrollmentStats />
+        <EnrollmentStats dashboardStats={dashboardStats} />
       </div>
 
       {/* Dialogs
