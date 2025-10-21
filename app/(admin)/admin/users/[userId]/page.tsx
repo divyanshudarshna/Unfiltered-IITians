@@ -42,6 +42,7 @@ interface UserDetail {
     id: string
     paid: boolean
     createdAt: string
+    actualAmountPaid?: number | null
     course?: {
       id: string
       title: string
@@ -123,7 +124,14 @@ export default function UserDetailsPage() {
 
   const totalRevenue = user.subscriptions
     .filter(sub => sub.paid)
-    .reduce((sum, sub) => sum + (sub.course?.price || sub.mockTest?.price || sub.mockBundle?.basePrice || 0), 0)
+    .reduce((sum, sub) => {
+      // Use actualAmountPaid if available (handles bundles correctly)
+      if (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined) {
+        return sum + (sub.actualAmountPaid / 100); // Convert paise to rupees
+      }
+      // Fallback for old records
+      return sum + (sub.course?.price || sub.mockTest?.price || sub.mockBundle?.basePrice || 0);
+    }, 0)
 
   const avgMockScore = user.mockAttempts.length > 0
     ? Math.round(user.mockAttempts.reduce((sum, attempt) => sum + (attempt.percentage || 0), 0) / user.mockAttempts.length)

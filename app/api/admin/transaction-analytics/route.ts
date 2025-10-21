@@ -142,22 +142,36 @@ export async function GET(request: NextRequest) {
           ]
         })
 
-        allTransactions.push(...subscriptions.map(sub => ({
-          id: sub.id,
-          type: sub.courseId ? "course" : sub.mockBundleId ? "bundle" : "mock",
-          itemId: sub.courseId || sub.mockBundleId || sub.mockTestId,
-          itemTitle: sub.course?.title || sub.mockBundle?.title || sub.mockTest?.title || "Unknown",
-          user: sub.user,
-          originalPrice: sub.originalPrice ? sub.originalPrice / 100 : (sub.course?.price || sub.mockTest?.price || sub.mockBundle?.basePrice || 0),
-          actualAmountPaid: sub.actualAmountPaid ? sub.actualAmountPaid / 100 : (sub.course?.price || sub.mockTest?.price || sub.mockBundle?.discountedPrice || sub.mockBundle?.basePrice || 0),
-          discountApplied: sub.discountApplied ? sub.discountApplied / 100 : 0,
-          couponCode: sub.couponCode,
-          status: sub.paid ? "success" : "pending",
-          paymentId: sub.razorpayPaymentId,
-          orderId: sub.razorpayOrderId,
-          transactionDate: sub.paidAt || sub.createdAt,
-          createdAt: sub.createdAt
-        })))
+        allTransactions.push(...subscriptions
+          .map(sub => {
+            // Calculate actual amount paid - prioritize actualAmountPaid field
+            let actualAmount = 0;
+            if (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined) {
+              actualAmount = sub.actualAmountPaid / 100; // Convert paise to rupees
+            } else {
+              // Only use fallback pricing for old records that don't have actualAmountPaid set
+              actualAmount = sub.course?.price || sub.mockTest?.price || sub.mockBundle?.discountedPrice || sub.mockBundle?.basePrice || 0;
+            }
+
+            return {
+              id: sub.id,
+              type: sub.courseId ? "course" : sub.mockBundleId ? "bundle" : "mock",
+              itemId: sub.courseId || sub.mockBundleId || sub.mockTestId,
+              itemTitle: sub.course?.title || sub.mockBundle?.title || sub.mockTest?.title || "Unknown",
+              user: sub.user,
+              originalPrice: sub.originalPrice ? sub.originalPrice / 100 : (sub.course?.price || sub.mockTest?.price || sub.mockBundle?.basePrice || 0),
+              actualAmountPaid: actualAmount,
+              discountApplied: sub.discountApplied ? sub.discountApplied / 100 : 0,
+              couponCode: sub.couponCode,
+              status: sub.paid ? "success" : "pending",
+              paymentId: sub.razorpayPaymentId,
+              orderId: sub.razorpayOrderId,
+              transactionDate: sub.paidAt || sub.createdAt,
+              createdAt: sub.createdAt
+            };
+          })
+          .filter(transaction => transaction.actualAmountPaid > 0) // ✅ Filter out zero amount transactions
+        )
       } catch (error) {
         console.error("Error fetching subscriptions:", error)
       }

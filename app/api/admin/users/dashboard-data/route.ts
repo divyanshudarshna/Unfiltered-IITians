@@ -28,11 +28,18 @@ export async function GET() {
     const totalSubscribers = users.filter(u => u.isSubscribed).length
     const totalEnrollments = users.reduce((acc, u) => acc + (u.enrollments?.length || 0), 0)
     const totalRevenue = users.reduce((acc, u) => {
-      const courseRevenue = u.subscriptions?.reduce(
-        (sum, sub) => sum + (sub.paid ? (sub.course?.price || 0) + (sub.mockTest?.price || 0) : 0),
-        0
-      ) || 0
-      return acc + courseRevenue
+      const subscriptionRevenue = u.subscriptions?.reduce((sum, sub) => {
+        if (!sub.paid) return sum;
+        
+        // Use actualAmountPaid if available (handles bundles correctly)
+        if (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined) {
+          return sum + (sub.actualAmountPaid / 100); // Convert paise to rupees
+        }
+        
+        // Fallback for old records
+        return sum + (sub.course?.price || sub.mockTest?.price || 0);
+      }, 0) || 0
+      return acc + subscriptionRevenue
     }, 0)
 
     return NextResponse.json({

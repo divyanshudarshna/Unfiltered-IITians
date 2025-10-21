@@ -35,7 +35,12 @@ export default async function SubscriptionsPage() {
         where: {
           paid: true,
         },
-        include: {
+        select: {
+          id: true,
+          actualAmountPaid: true,
+          originalPrice: true,
+          discountApplied: true,
+          createdAt: true,
           mockTest: {
             select: {
               id: true,

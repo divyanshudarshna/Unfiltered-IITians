@@ -47,6 +47,7 @@ export async function POST(req: Request) {
       amount = mock.price * 100;
       subscriptionData.push({ 
         mockTestId: mock.id,
+        mockBundleId: null, // Individual mock purchase
         originalPrice: mock.price,
         actualAmountPaid: mock.price, // Same as original for individual mocks
         discountApplied: 0
@@ -86,14 +87,24 @@ export async function POST(req: Request) {
       }
 
       const discountApplied = originalTotalPrice - finalAmount;
-      const amountPerMock = finalAmount / mocks.length; // Split equally among mocks
 
+      // ✅ FIX: Set individual mock subscriptions with 0 amount since they're covered by the bundle
       subscriptionData = mocks.map((m) => ({
         mockTestId: m.id,
+        mockBundleId: null, // ✅ Individual mocks should NOT be linked to bundle
         originalPrice: m.price || 0,
-        actualAmountPaid: Math.round(amountPerMock), // Split the discounted amount
-        discountApplied: Math.round(((m.price || 0) - amountPerMock)), // Individual discount
+        actualAmountPaid: 0, // ✅ Set to 0 - covered by bundle purchase
+        discountApplied: m.price || 0, // Full price is discounted since covered by bundle
       }));
+
+      // ✅ Add bundle-level subscription record with the actual amount paid
+      subscriptionData.push({
+        mockTestId: null, // ✅ Bundle subscription is NOT linked to individual mock
+        mockBundleId: itemId, // ✅ Link to the bundle
+        originalPrice: originalTotalPrice,
+        actualAmountPaid: finalAmount,
+        discountApplied: discountApplied,
+      });
     }
 
     // --- 3) Session Purchase ---
@@ -172,8 +183,8 @@ export async function POST(req: Request) {
       await prisma.subscription.create({
         data: {
           userId: user.id,
-          mockTestId: sub.mockTestId,
-          mockBundleId: itemType === "mockBundle" ? itemId : undefined,
+          mockTestId: sub.mockTestId || null,
+          mockBundleId: sub.mockBundleId || null, // Use mockBundleId from subscription data
           razorpayOrderId: order.id,
           originalPrice: (sub.originalPrice || 0) * 100, // Store in paise
           actualAmountPaid: (sub.actualAmountPaid || 0) * 100, // Store in paise

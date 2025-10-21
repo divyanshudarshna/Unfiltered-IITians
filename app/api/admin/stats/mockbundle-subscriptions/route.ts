@@ -46,7 +46,15 @@ export async function GET(req: NextRequest) {
     const stats = mockBundles.map(bundle => {
       const totalSubscriptions = bundle.subscriptions.length
       const totalRevenue = bundle.subscriptions.reduce((sum: number, sub) => {
-        return sum + (sub.paid ? bundle.basePrice : 0)
+        if (!sub.paid) return sum;
+        
+        // Use actualAmountPaid if available (handles discounts correctly)
+        if (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined) {
+          return sum + (sub.actualAmountPaid / 100); // Convert paise to rupees
+        }
+        
+        // Fallback to basePrice for old records
+        return sum + bundle.basePrice;
       }, 0)
       
       return {
@@ -65,7 +73,11 @@ export async function GET(req: NextRequest) {
             phoneNumber: sub.user.phoneNumber
           },
           paid: sub.paid,
-          amount: sub.paid ? bundle.basePrice : 0,
+          amount: sub.paid 
+            ? (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined 
+                ? sub.actualAmountPaid / 100 // Convert paise to rupees
+                : bundle.basePrice) 
+            : 0,
           purchasedAt: sub.createdAt,
           expiresAt: sub.expiresAt
         }))

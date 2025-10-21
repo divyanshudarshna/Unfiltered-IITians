@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { 
   Select, 
   SelectContent, 
@@ -22,7 +23,6 @@ import {
   TableRow 
 } from "@/components/ui/table"
 import { 
-  Calendar,
   Download,
   Search,
   Filter,
@@ -38,7 +38,7 @@ import {
   ChevronRight,
   RefreshCw,
   CheckCircle,
-  XCircle
+  Trash2
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -91,7 +91,7 @@ export function AdminStatsContainer() {
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [typeFilter, setTypeFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("success") // ✅ Default to success
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState({
     page: 1,
@@ -99,6 +99,10 @@ export function AdminStatsContainer() {
     total: 0,
     pages: 0
   })
+
+  // Selection for delete functionality
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([])
+  const [deleting, setDeleting] = useState(false)
 
   const fetchTransactions = async () => {
     try {
@@ -194,6 +198,33 @@ export function AdminStatsContainer() {
     } catch (error) {
       console.error("Error exporting data:", error)
       toast.error("Failed to export data")
+    }
+  }
+
+  const deleteTransactions = async (transactionIds: string[]) => {
+    try {
+      setDeleting(true)
+      const token = await getToken()
+      
+      const response = await fetch('/api/admin/delete-transactions', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transactionIds }),
+      })
+
+      if (!response.ok) throw new Error('Failed to delete transactions')
+
+      toast.success(`Successfully deleted ${transactionIds.length} transaction(s)`)
+      setSelectedTransactions([])
+      fetchTransactions() // Refresh the list
+    } catch (error) {
+      console.error('Error deleting transactions:', error)
+      toast.error('Failed to delete transactions')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -473,7 +504,7 @@ export function AdminStatsContainer() {
                   setDateFrom("")
                   setDateTo("")
                   setTypeFilter("all")
-                  setStatusFilter("all")
+                  setStatusFilter("success") // ✅ Reset to success, not all
                   setPage(1)
                 }}
                 className="w-full"
@@ -488,7 +519,32 @@ export function AdminStatsContainer() {
       {/* Transactions Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Recent Transactions</CardTitle>
+              {statusFilter === 'success' && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Successful transactions cannot be deleted. Switch to &quot;Pending&quot; or &quot;All&quot; status to manage failed transactions.
+                </p>
+              )}
+              {statusFilter !== 'success' && transactions.length > 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {transactions.filter(t => t.actualAmountPaid > 0 && t.status !== 'success').length} transactions available for deletion
+                </p>
+              )}
+            </div>
+            {selectedTransactions.length > 0 && (
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => deleteTransactions(selectedTransactions)}
+                disabled={deleting}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Selected ({selectedTransactions.length})
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -501,6 +557,21 @@ export function AdminStatsContainer() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedTransactions.length > 0 && selectedTransactions.length === transactions.filter(t => t.actualAmountPaid > 0 && t.status !== 'success').length}
+                        onCheckedChange={(checked) => {
+                          const selectableTransactions = transactions
+                            .filter(t => t.actualAmountPaid > 0 && t.status !== 'success')
+                          
+                          if (checked) {
+                            setSelectedTransactions(selectableTransactions.map(t => t.id))
+                          } else {
+                            setSelectedTransactions([])
+                          }
+                        }}
+                      />
+                    </TableHead>
                     <TableHead>Transaction</TableHead>
                     <TableHead>User</TableHead>
                     <TableHead>Item</TableHead>
@@ -510,8 +581,34 @@ export function AdminStatsContainer() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.map((transaction) => (
+                  {transactions
+                    .filter(transaction => transaction.actualAmountPaid > 0) // ✅ Filter out zero amount transactions
+                    .map((transaction) => (
                     <TableRow key={transaction.id}>
+                      <TableCell>
+                        {/* Debug: Show checkbox for all transactions temporarily */}
+                        <div className="flex items-center space-x-2">
+                          {transaction.status !== 'success' ? (
+                            <Checkbox
+                              checked={selectedTransactions.includes(transaction.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedTransactions(prev => [...prev, transaction.id])
+                                } else {
+                                  setSelectedTransactions(prev => prev.filter(id => id !== transaction.id))
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="w-4 h-4 border rounded border-muted bg-muted/20 flex items-center justify-center">
+                              <span className="text-xs text-muted-foreground">✓</span>
+                            </div>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {transaction.status}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">

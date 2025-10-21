@@ -16,7 +16,13 @@ export async function GET(req: Request) {
       include: {
         enrollments: { include: { course: true } },
         mockAttempts: { include: { mockTest: true } },
-        subscriptions: true,
+        subscriptions: {
+          include: {
+            course: true,
+            mockTest: true,
+            mockBundle: true
+          }
+        },
         courseProgress: { include: { course: true } },
       },
     });

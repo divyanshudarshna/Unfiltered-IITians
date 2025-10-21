@@ -34,6 +34,7 @@ interface SubscriptionsClientProps {
       enrolledAt: Date;
     }>;
     subscriptions?: Array<{
+      actualAmountPaid?: number | null;
       mockTest?: {
         id: string;
         title: string;
@@ -115,8 +116,10 @@ export default function SubscriptionsClient({
       itemId: subscription.mockTest!.id,
       title: subscription.mockTest!.title,
       description: subscription.mockTest!.description,
-      price: subscription.mockTest!.price,
-      originalPrice: undefined,
+      price: subscription.actualAmountPaid 
+        ? subscription.actualAmountPaid / 100 // Convert paise to rupees
+        : subscription.mockTest!.price, // Fallback for old records
+      originalPrice: subscription.mockTest!.price,
       purchaseDate: subscription.createdAt,
       type: 'mockTest',
       status: 'PUBLISHED',
@@ -134,7 +137,9 @@ export default function SubscriptionsClient({
       itemId: subscription.mockBundle!.id,
       title: subscription.mockBundle!.title,
       description: subscription.mockBundle!.description,
-      price: subscription.mockBundle!.discountedPrice || subscription.mockBundle!.basePrice,
+      price: subscription.actualAmountPaid 
+        ? subscription.actualAmountPaid / 100 // Convert paise to rupees
+        : (subscription.mockBundle!.discountedPrice || subscription.mockBundle!.basePrice), // Fallback for old records
       originalPrice: subscription.mockBundle!.basePrice,
       purchaseDate: subscription.createdAt,
       type: 'mockBundle',
