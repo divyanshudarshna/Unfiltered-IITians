@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Dialog,
   DialogContent,
@@ -19,8 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, X, ImageIcon } from "lucide-react";
 import { Question } from "./types";
+import { toast } from "sonner";
 
 interface FormModalProps {
   isOpen: boolean;
@@ -39,19 +41,21 @@ export default function FormModal({
 }: FormModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             {question?.id?.startsWith("temp-") ? "Add New" : "Edit"} Question
           </DialogTitle>
         </DialogHeader>
-        {question && (
-          <EditQuestionForm
-            question={question}
-            onSave={onSave}
-            onCancel={onCancel}
-          />
-        )}
+        <div className="flex-1 overflow-y-auto pr-2">
+          {question && (
+            <EditQuestionForm
+              question={question}
+              onSave={onSave}
+              onCancel={onCancel}
+            />
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -69,51 +73,122 @@ function EditQuestionForm({
 }) {
   const [formData, setFormData] = useState<Question>({...question});
   const [msqAnswers, setMsqAnswers] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Initialize form data based on question type
+  // Reset and initialize form data when question changes
   useEffect(() => {
+    setFormData({...question});
+    setMsqAnswers([]);
+    
     if (question.type === "MSQ" && question.answer) {
       setMsqAnswers(question.answer.split(';').filter(opt => opt.trim()));
     } else if (question.type === "MCQ" && question.answer) {
       // Find the index of the correct answer in options
-      const correctIndex = question.options.findIndex(
+      const correctIndex = question.options?.findIndex(
         opt => opt === question.answer
-      );
+      ) ?? -1;
       if (correctIndex !== -1) {
         setFormData(prev => ({...prev, answer: correctIndex.toString()}));
       }
     }
   }, [question]);
 
+  // Handle image upload
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const result = await response.json();
+      
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: result.url
+      }));
+
+      toast.success('Image uploaded successfully!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // Remove uploaded image
+  const removeImage = () => {
+    setFormData(prev => ({
+      ...prev,
+      imageUrl: "" // Set to empty string instead of deleting
+    }));
+    toast.info('Image removed');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    let finalAnswer = "";
+    let finalAnswer: string | string[] = "";
     
     if (formData.type === "MCQ") {
       // For MCQ, store the option value, not the index
-      const answerIndex = parseInt(formData.answer);
-      finalAnswer = formData.options[answerIndex] || "";
+      const currentAnswer = Array.isArray(formData.answer) ? "" : formData.answer;
+      const answerIndex = parseInt(currentAnswer);
+      finalAnswer = formData.options?.[answerIndex] || "";
     } else if (formData.type === "MSQ") {
       // For MSQ, join selected options with semicolons
       finalAnswer = msqAnswers.join(';');
     } else {
       // For NAT and DESCRIPTIVE, use the answer as is
-      finalAnswer = formData.answer;
+      finalAnswer = Array.isArray(formData.answer) ? formData.answer.join(';') : formData.answer;
     }
     
     const updatedQuestion: Question = {
       ...formData,
-      answer: finalAnswer
+      answer: finalAnswer,
+      options: formData.options || []
     };
+    
+    // Handle imageUrl properly - if it's empty, set to undefined
+    if (!formData.imageUrl || formData.imageUrl.trim() === "") {
+      updatedQuestion.imageUrl = undefined;
+    }
     
     onSave(updatedQuestion);
   };
 
   const handleOptionChange = (index: number, value: string) => {
-    const newOptions = [...formData.options];
-    newOptions[index] = value;
-    setFormData({ ...formData, options: newOptions });
+    const currentOptions = [...(formData.options || [])];
+    currentOptions[index] = value;
+    setFormData({ ...formData, options: currentOptions });
   };
 
   const handleMsqAnswerToggle = (optionValue: string) => {
@@ -125,18 +200,20 @@ function EditQuestionForm({
   };
 
   const addOption = () => {
-    if (formData.options.length < 6) {
+    const currentOptions = formData.options || [];
+    if (currentOptions.length < 6) {
       setFormData({
         ...formData,
-        options: [...formData.options, ""],
+        options: [...currentOptions, ""],
       });
     }
   };
 
   const removeOption = (index: number) => {
-    if (formData.options.length > 2) {
-      const newOptions = formData.options.filter((_, i) => i !== index);
-      const removedOption = formData.options[index];
+    const currentOptions = formData.options || [];
+    if (currentOptions.length > 2) {
+      const newOptions = currentOptions.filter((_, i) => i !== index);
+      const removedOption = currentOptions[index];
       
       setFormData({ ...formData, options: newOptions });
       
@@ -160,11 +237,12 @@ function EditQuestionForm({
       setMsqAnswers([]);
     } else {
       // For MCQ/MSQ, ensure we have at least 2 options
+      const currentOptions = formData.options || [];
       setFormData({
         ...formData,
         type: newType,
-        options: formData.options.length >= 2 ? formData.options : ["", ""],
-        answer: newType === "MCQ" ? "" : formData.answer,
+        options: currentOptions.length >= 2 ? currentOptions : ["", ""],
+        answer: newType === "MCQ" ? "" : (Array.isArray(formData.answer) ? formData.answer.join(';') : formData.answer),
       });
       
       if (newType === "MCQ") {
@@ -174,7 +252,7 @@ function EditQuestionForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 pb-4">
       <div>
         <Label htmlFor="question">Question Text</Label>
         <Textarea
@@ -184,11 +262,88 @@ function EditQuestionForm({
             setFormData({ ...formData, question: e.target.value })
           }
           required
-          className="min-h-[100px]"
+          className="min-h-[80px] sm:min-h-[100px] resize-y"
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* Image Upload Section */}
+      <div>
+        <Label htmlFor="image">Question Image (Optional)</Label>
+        <div className="mt-2 space-y-3">
+          {formData.imageUrl && formData.imageUrl.trim() !== "" ? (
+            <div className="relative">
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Image Preview
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeImage}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="relative">
+                  <Image
+                    src={formData.imageUrl}
+                    alt="Question"
+                    width={400}
+                    height={256}
+                    className="max-w-full h-auto max-h-64 object-contain rounded-md border border-gray-200"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6">
+              <div className="text-center">
+                <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <div className="mt-4">
+                  <label
+                    htmlFor="image-upload"
+                    className="cursor-pointer rounded-md bg-white dark:bg-gray-800 font-medium text-purple-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-purple-500 focus-within:ring-offset-2 hover:text-purple-500"
+                  >
+                    <span>Upload an image</span>
+                    <input
+                      id="image-upload"
+                      name="image-upload"
+                      type="file"
+                      className="sr-only"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={isUploading}
+                    />
+                  </label>
+                  <p className="pl-1 text-sm text-gray-500">or drag and drop</p>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  PNG, JPG, GIF up to 5MB
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {isUploading && (
+            <div className="mt-2">
+              <div className="flex items-center space-x-2">
+                <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div
+                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <span className="text-sm text-gray-500">Uploading...</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="type">Question Type</Label>
           <Select
@@ -213,14 +368,14 @@ function EditQuestionForm({
           <div>
             <Label htmlFor="answer">Correct Answer</Label>
             <Select 
-              value={formData.answer} 
+              value={Array.isArray(formData.answer) ? "" : formData.answer} 
               onValueChange={(value) => setFormData({ ...formData, answer: value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select answer" />
               </SelectTrigger>
               <SelectContent>
-                {formData.options.map((option, index) => (
+                {formData.options?.map((option, index) => (
                   <SelectItem
                     key={index}
                     value={index.toString()}
@@ -239,37 +394,42 @@ function EditQuestionForm({
         <div>
           <Label>Options</Label>
           <div className="space-y-2">
-            {formData.options.map((option, index) => (
-              <div key={index} className="flex items-center gap-2">
-                {formData.type === "MSQ" && (
-                  <Checkbox
-                    checked={msqAnswers.includes(option)}
-                    onCheckedChange={() => handleMsqAnswerToggle(option)}
-                    disabled={!option.trim()}
+            {formData.options?.map((option, index) => (
+              <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {formData.type === "MSQ" && (
+                    <Checkbox
+                      checked={msqAnswers.includes(option)}
+                      onCheckedChange={() => handleMsqAnswerToggle(option)}
+                      disabled={!option.trim()}
+                      className="flex-shrink-0"
+                    />
+                  )}
+                  <span className="text-muted-foreground w-6 flex-shrink-0">
+                    {String.fromCharCode(65 + index)}.
+                  </span>
+                  <Input
+                    value={option}
+                    onChange={(e) => handleOptionChange(index, e.target.value)}
+                    required={index < 2}
+                    placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                    className="flex-1 min-w-0"
                   />
-                )}
-                <span className="text-muted-foreground w-6">
-                  {String.fromCharCode(65 + index)}.
-                </span>
-                <Input
-                  value={option}
-                  onChange={(e) => handleOptionChange(index, e.target.value)}
-                  required={index < 2}
-                  placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                />
-                {formData.options.length > 2 && (
+                </div>
+                {formData.options && formData.options.length > 2 && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={() => removeOption(index)}
+                    className="flex-shrink-0"
                   >
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </Button>
                 )}
               </div>
             ))}
-            {formData.options.length < 6 && (
+            {(formData.options?.length ?? 0) < 6 && (
               <Button
                 type="button"
                 variant="outline"
@@ -300,7 +460,7 @@ function EditQuestionForm({
             id="nat-answer"
             type="number"
             step="any"
-            value={formData.answer}
+            value={Array.isArray(formData.answer) ? "" : formData.answer}
             onChange={(e) =>
               setFormData({ ...formData, answer: e.target.value })
             }
@@ -318,12 +478,12 @@ function EditQuestionForm({
           <Label htmlFor="answer">Expected Answer</Label>
           <Textarea
             id="answer"
-            value={formData.answer}
+            value={Array.isArray(formData.answer) ? formData.answer.join('\n') : formData.answer}
             onChange={(e) =>
               setFormData({ ...formData, answer: e.target.value })
             }
             required
-            className="min-h-[100px]"
+            className="min-h-[80px] sm:min-h-[100px] resize-y"
             placeholder="Enter the expected answer"
           />
         </div>
@@ -337,16 +497,16 @@ function EditQuestionForm({
           onChange={(e) =>
             setFormData({ ...formData, explanation: e.target.value })
           }
-          className="min-h-[100px]"
+          className="min-h-[80px] sm:min-h-[100px] resize-y"
           placeholder="Add explanation for the answer"
         />
       </div>
 
-      <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 sticky bottom-0 bg-background border-t mt-6">
+        <Button type="button" variant="outline" onClick={onCancel} className="order-2 sm:order-1">
           Cancel
         </Button>
-        <Button type="submit">Save Question</Button>
+        <Button type="submit" className="order-1 sm:order-2">Save Question</Button>
       </div>
     </form>
   );

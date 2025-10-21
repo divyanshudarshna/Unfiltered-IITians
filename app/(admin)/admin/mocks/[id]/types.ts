@@ -6,6 +6,7 @@ export interface Question {
   options?: string[];
   answer: string | string[]; // Update this to accept both string and string array
   explanation?: string;
+  imageUrl?: string; // Optional image URL for question
 }
 
 export type MockTestDetail = {

@@ -10,7 +10,23 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
     if (!mock) return NextResponse.json({ error: "Mock not found" }, { status: 404 });
 
     let questions = Array.isArray(mock.questions) ? mock.questions : [];
-    questions = questions.map((q: any) => (q.id === questionId ? { ...q, ...updatedQuestion } : q));
+    
+    questions = questions.map((q: any) => {
+      if (q.id === questionId) {
+        // Create updated question object
+        const updated = { ...q, ...updatedQuestion };
+        
+        // Remove imageUrl if it's undefined, null, or empty string
+        if (updatedQuestion.imageUrl === undefined || 
+            updatedQuestion.imageUrl === null || 
+            updatedQuestion.imageUrl === "") {
+          delete updated.imageUrl;
+        }
+        
+        return updated;
+      }
+      return q;
+    });
 
     const updatedMock = await prisma.mockTest.update({
       where: { id },

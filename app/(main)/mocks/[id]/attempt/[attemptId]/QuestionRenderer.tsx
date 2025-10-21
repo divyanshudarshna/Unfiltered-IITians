@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Question, AnswerState } from "./types";
+import Image from "next/image";
 
 interface QuestionRendererProps {
   question: Question;
@@ -68,7 +69,23 @@ export default function QuestionRenderer({
       </div>
 
       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6 border border-gray-200 dark:border-gray-700">
-        <p className="text-gray-800 dark:text-gray-200">{question.question}</p>
+        <p className="text-gray-800 dark:text-gray-200 mb-4">{question.question}</p>
+        
+        {/* Question Image */}
+        {question.imageUrl && (
+          <div className="mt-4 flex justify-center">
+            <div className="max-w-full">
+              <Image
+                src={question.imageUrl}
+                alt="Question"
+                width={600}
+                height={400}
+                className="max-w-full h-auto rounded-md border border-gray-300 dark:border-gray-600 shadow-sm"
+                style={{ objectFit: 'contain' }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">

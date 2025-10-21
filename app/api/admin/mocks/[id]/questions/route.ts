@@ -21,6 +21,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // Create new question
     const newQuestion = { ...question, id: `q-${Date.now()}` };
+    
+    // Remove imageUrl if it's undefined, null, or empty string
+    if (newQuestion.imageUrl === undefined || 
+        newQuestion.imageUrl === null || 
+        newQuestion.imageUrl === "") {
+      delete newQuestion.imageUrl;
+    }
+    
     questions.push(newQuestion);
 
     // Update mock with new questions array

@@ -8,6 +8,7 @@ import QuestionTable from "./questionTable";
 import FormModal from "./formModal";
 import { MockTestDetail, Question } from "./types";
 import CsvUploadModal from "./CsvUploadModal";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,14 +95,14 @@ export default function MockDetailPage() {
           };
         });
         setIsClearDialogOpen(false);
-        alert("All questions have been cleared successfully.");
+        toast.success("✅ All questions have been cleared successfully!");
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to clear questions");
+        toast.error(data.error || "❌ Failed to clear questions");
       }
-    } catch (err) {
-      alert("Error clearing questions");
-      console.error(err);
+    } catch (error) {
+      toast.error("❌ Error clearing questions");
+      console.error(error);
     } finally {
       setIsClearing(false);
     }
@@ -127,11 +128,13 @@ export default function MockDetailPage() {
             questions: prev.questions.filter((q) => q.id !== questionId),
           };
         });
+        toast.success("✅ Question deleted successfully!");
       } else {
-        alert("Failed to delete question");
+        toast.error("❌ Failed to delete question");
       }
-    } catch (err) {
-      alert("Error deleting question");
+    } catch (error) {
+      toast.error("❌ Error deleting question");
+      console.error(error);
     }
   };
 
@@ -182,14 +185,17 @@ export default function MockDetailPage() {
         });
         setLoading(false);
         setIsEditOpen(false);
+        
+        // Success toast
+        toast.success(isNew ? "✅ Question created successfully!" : "✅ Question updated successfully!");
       } else {
         setLoading(false);
-        alert(data.error || "Failed to save question");
+        toast.error(data.error || "❌ Failed to save question");
       }
-    } catch (err) {
+    } catch (error) {
       setLoading(false);
-      console.error(err);
-      alert("Error saving question");
+      console.error(error);
+      toast.error("❌ Error saving question");
     }
   };
 

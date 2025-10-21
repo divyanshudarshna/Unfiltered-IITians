@@ -7,6 +7,7 @@ export type Question = {
   options: string[];
   answer: string;
   explanation?: string;
+  imageUrl?: string; // Optional image URL for question
 };
 
 export type MockTest = {
