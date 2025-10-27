@@ -29,13 +29,9 @@ import {
 import { NavSecondary } from "@/components/admin/nav-secondary";
 import { NavUser } from "@/components/admin/nav-user";
 import { GraduationCap, MailOpen, MessageSquare, Video } from "lucide-react";
+import { useUserProfileContext } from "@/contexts/UserProfileContext";
 
 const data = {
-  user: {
-    name: "Raj Rabidas",
-    email: "rajkumargautam890@gmail.com",
-    avatar: "/avatars/raj.jpg",
-  },
   navMain: [
     { title: "Dashboard", url: "/admin/dashboard", icon: IconDashboard },
     { title: "Users", url: "/admin/users", icon: IconUsers },
@@ -73,10 +69,34 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({});
+  const { userProfile, clerkUser, getProfileImageUrl, isLoading } = useUserProfileContext();
 
   const toggleMenu = (title: string) => {
     setOpenMenus((prev) => ({ ...prev, [title]: !prev[title] }));
   };
+
+  // Create user data from context
+  const userData = React.useMemo(() => {
+    if (isLoading) {
+      return {
+        name: "Loading...",
+        email: "loading@example.com",
+        avatar: "/unf_logo.jpeg",
+      };
+    }
+
+    // Get the user's full name
+    const fullName = userProfile?.name || 
+      (clerkUser?.firstName && clerkUser?.lastName 
+        ? `${clerkUser.firstName} ${clerkUser.lastName}` 
+        : clerkUser?.firstName || clerkUser?.lastName || "Admin User");
+
+    return {
+      name: fullName,
+      email: userProfile?.email || clerkUser?.primaryEmailAddress?.emailAddress || "admin@example.com",
+      avatar: getProfileImageUrl() || clerkUser?.imageUrl || "/unf_logo.jpeg",
+    };
+  }, [userProfile, clerkUser, getProfileImageUrl, isLoading]);
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -148,7 +168,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={userData} />
       </SidebarFooter>
     </Sidebar>
   );

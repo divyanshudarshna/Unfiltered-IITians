@@ -8,6 +8,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AppSidebar } from "@/components/admin/app-sidebar";
 import { SiteHeader } from "@/components/admin/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { UserProfileProvider } from "@/contexts/UserProfileContext";
 
 // Configure Geist fonts specifically for admin
 const geistSans = Geist({
@@ -45,23 +46,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className={`${geistSans.variable} ${geistMono.variable} admin-fonts`}>
-      <SidebarProvider
-        style={{
-          "--sidebar-width": "280px",
-          "--header-height": "64px",
-        } as React.CSSProperties}
-      >
-        <AppSidebar variant="inset" />
-        <SidebarInset>
-          <SiteHeader />
-          <main className="flex flex-1 flex-col p-6 bg-muted/10 min-h-screen">
-           
-              {children}
-       
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
-    </div>
+    <UserProfileProvider>
+      <div className={`${geistSans.variable} ${geistMono.variable} admin-fonts`}>
+        <SidebarProvider
+          style={{
+            "--sidebar-width": "280px",
+            "--header-height": "64px",
+          } as React.CSSProperties}
+        >
+          <AppSidebar variant="inset" />
+          <SidebarInset>
+            <SiteHeader />
+            <main className="flex flex-1 flex-col p-6 bg-muted/10 min-h-screen">
+             
+                {children}
+         
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
+      </div>
+    </UserProfileProvider>
   );
 }
