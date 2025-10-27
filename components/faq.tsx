@@ -75,7 +75,7 @@ export default function FAQPage({ categories }: FAQPageProps) {
 
         setFaqData(sections);
       } catch (err) {
-        console.error("Failed to fetch FAQs", err);
+        // console.error("Failed to fetch FAQs", err);
       } finally {
         setLoading(false);
       }

@@ -18,9 +18,9 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Missing user ID' }, { status: 400 })
     }
 
-    console.log("🔍 Incoming request body:", body)
-console.log("🔑 Clerk User ID:", clerkUserId)
-console.log("📞 Phone:", phoneNumber, "DOB:", dob)
+    // console.log("🔍 Incoming request body:", body)
+    // console.log("🔑 Clerk User ID:", clerkUserId)
+    // console.log("📞 Phone:", phoneNumber, "DOB:", dob)
 
 
     const existingUser = await prisma.user.findUnique({
@@ -44,7 +44,7 @@ console.log("📞 Phone:", phoneNumber, "DOB:", dob)
 
     return NextResponse.json({ user: updatedUser, updated: true })
   } catch (error) {
-    console.error('❌ Error updating user profile:', error)
+    // console.error('❌ Error updating user profile:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

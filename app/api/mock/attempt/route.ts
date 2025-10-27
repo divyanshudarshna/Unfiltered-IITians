@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    console.log("🪵 Request Body:", body)
+    // console.log("🪵 Request Body:", body)
     const { clerkUserId, mockTestId } = body
 
     if (!clerkUserId || !mockTestId) {
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
 // Helper function to check mock access - using same logic as mocks page
 async function checkMockAccess(userId: string, mockTestId: string) {
   try {
-    console.log(`🔍 [ATTEMPT] Checking access for user ${userId} to mock ${mockTestId}`)
+    // console.log(`🔍 [ATTEMPT] Checking access for user ${userId} to mock ${mockTestId}`)
     
     // Get mock details
     const mock = await prisma.mockTest.findUnique({
@@ -105,7 +105,7 @@ async function checkMockAccess(userId: string, mockTestId: string) {
     })
 
     if (!mock) {
-      console.log(`❌ [ATTEMPT] Mock ${mockTestId} not found`)
+      // console.log(`❌ [ATTEMPT] Mock ${mockTestId} not found`)
       return { allowed: false, reason: 'mock_not_found' }
     }
 

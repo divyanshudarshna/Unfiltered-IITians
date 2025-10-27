@@ -52,7 +52,7 @@ export function UserProfileForm({ open, setOpen, user, onSave }) {
       setForm({ ...form, profileImageUrl: data.url });
       toast.success("Uploaded!");
     } catch (error) {
-      console.error("Image upload error:", error);
+      // console.error("Image upload error:", error);
       toast.error("Image upload failed.");
     }
   };
@@ -60,14 +60,14 @@ export function UserProfileForm({ open, setOpen, user, onSave }) {
 const handleSubmit = async () => {
   setLoading(true);
   try {
-    console.log('🔄 Updating profile with:', form);
+    // console.log('🔄 Updating profile with:', form);
     
     const res = await updateUserProfile({
       clerkUserId: user.clerkUserId,
       ...form,
     });
     
-    console.log('✅ Profile update response:', res.user);
+    // console.log('✅ Profile update response:', res.user);
     
     toast.success("Profile updated!");
     setOpen(false);
@@ -76,20 +76,20 @@ const handleSubmit = async () => {
     onSave(res.user);
     
     // Emit global update event to trigger all profile components to refresh
-    console.log('📡 Emitting profile update event...');
+    // console.log('📡 Emitting profile update event...');
     setTimeout(() => {
       profileUpdateEmitter.emit();
     }, 100);
     
     // Also manually refresh context as backup
-    console.log('🔄 Refreshing global context...');
+    // console.log('🔄 Refreshing global context...');
     setTimeout(async () => {
       await refreshProfile();
-      console.log('✅ All updates completed');
+      // console.log('✅ All updates completed');
     }, 200);
     
   } catch (error) {
-    console.error("❌ Profile update error:", error);
+    // console.error("❌ Profile update error:", error);
     toast.error("Failed to update.");
   } finally {
     setLoading(false);

@@ -33,7 +33,7 @@ export function UpcomingSessions() {
         const data = await res.json();
         if (Array.isArray(data.sessions)) setSessions(data.sessions);
       } catch (err) {
-        console.error("Error fetching sessions:", err);
+        // console.error("Error fetching sessions:", err);
       } finally {
         setLoading(false);
       }

@@ -59,7 +59,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const maxAttempts = mock.price > 0 ? 10 : 3
     const attemptsRemaining = Math.max(0, maxAttempts - attemptCount)
     
-    console.log(`📊 Attempt stats: ${attemptCount}/${maxAttempts} used, ${attemptsRemaining} remaining`)
+    // console.log(`📊 Attempt stats: ${attemptCount}/${maxAttempts} used, ${attemptsRemaining} remaining`)
     
     return NextResponse.json({ 
       mock, 
@@ -72,7 +72,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       canAttempt: attemptsRemaining > 0
     })
   } catch (error) {
-    console.error('❌ Fetch mock error:', error)
+    // console.error('❌ Fetch mock error:', error)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
@@ -80,7 +80,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 // Helper function to check mock access - using same logic as mocks page
 async function checkMockAccess(userId: string, mockTestId: string) {
   try {
-    console.log(`🔍 Checking access for user ${userId} to mock ${mockTestId}`)
+    // console.log(`🔍 Checking access for user ${userId} to mock ${mockTestId}`)
     
     // Get mock details
     const mock = await prisma.mockTest.findUnique({
@@ -89,15 +89,15 @@ async function checkMockAccess(userId: string, mockTestId: string) {
     })
 
     if (!mock) {
-      console.log(`❌ Mock ${mockTestId} not found`)
+      // console.log(`❌ Mock ${mockTestId} not found`)
       return { allowed: false, reason: 'mock_not_found' }
     }
 
-    console.log(`💰 Mock price: ${mock.price}`)
+    // console.log(`💰 Mock price: ${mock.price}`)
 
     // If mock is free, allow access
     if (mock.price === 0) {
-      console.log(`✅ Free mock - access allowed`)
+      // console.log(`✅ Free mock - access allowed`)
       return { allowed: true, reason: 'free_mock', subscriptionType: 'free' }
     }
 
@@ -116,17 +116,17 @@ async function checkMockAccess(userId: string, mockTestId: string) {
     })
 
     if (userSubscription) {
-      console.log(`✅ Subscription found: ${userSubscription.id}`)
+      // console.log(`✅ Subscription found: ${userSubscription.id}`)
       const subscriptionType = userSubscription.mockBundle ? 'bundle' : 'individual'
       const bundleInfo = userSubscription.mockBundle ? ` (from bundle: ${userSubscription.mockBundle.title})` : ''
-      console.log(`📦 Subscription type: ${subscriptionType}${bundleInfo}`)
+      // console.log(`📦 Subscription type: ${subscriptionType}${bundleInfo}`)
       return { allowed: true, reason: 'subscription_found', subscriptionType }
     }
 
-    console.log(`❌ No subscription found for mock ${mockTestId}`)
+    // console.log(`❌ No subscription found for mock ${mockTestId}`)
     return { allowed: false, reason: 'no_subscription' }
   } catch (error) {
-    console.error('❌ Error checking mock access:', error)
+    // console.error('❌ Error checking mock access:', error)
     return { allowed: false, reason: 'access_check_error' }
   }
 }

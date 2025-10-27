@@ -5,7 +5,7 @@ import { ProductType, DiscountType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("🔍 Testing coupon without date validation");
+    // console.log("🔍 Testing coupon without date validation");
     
     const body = await req.json();
     const { code, userId, productType, orderValue } = body;

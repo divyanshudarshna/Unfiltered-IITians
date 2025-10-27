@@ -49,7 +49,7 @@ export function ActiveItems() {
           setActiveItems(data.activeItems);
         }
       } catch (err) {
-        console.error("Error fetching active items:", err);
+        // console.error("Error fetching active items:", err);
       } finally {
         setLoading(false);
       }

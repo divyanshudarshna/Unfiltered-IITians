@@ -100,7 +100,7 @@ export const CourseProvider = ({ courseId, children }: Props) => {
       }
       setError(null);
     } catch (err) {
-      console.error("Network error:", err);
+      // console.error("Network error:", err);
       setError("Network error");
     } finally {
       setLoading(false);
@@ -124,7 +124,7 @@ export const CourseProvider = ({ courseId, children }: Props) => {
         }),
       });
     } catch (err) {
-      console.error("Failed to save progress:", err);
+      // console.error("Failed to save progress:", err);
     }
   };
 
@@ -156,7 +156,7 @@ export const CourseProvider = ({ courseId, children }: Props) => {
 
       setCourse(updatedCourse);
     } catch (err) {
-      console.error("Error marking lecture complete:", err);
+      // console.error("Error marking lecture complete:", err);
     }
   };
 

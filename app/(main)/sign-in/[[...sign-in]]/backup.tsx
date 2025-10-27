@@ -42,7 +42,7 @@ export default function SignInPage() {
         await setActive({ session: result.createdSessionId })
         router.push('/') // ✅ Redirect to home
       } else {
-        console.log('Unhandled sign-in result:', result)
+        // console.log('Unhandled sign-in result:', result)
       }
     } catch (err: any) {
       setError(err?.errors?.[0]?.message || 'Login failed')

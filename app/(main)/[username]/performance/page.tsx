@@ -11,7 +11,7 @@ interface Props {
 // Helper to calculate performance
 // -------------------------
 function calculatePerformance(attempts: any[]) {
-  console.log('[calculatePerformance] Total attempts received:', attempts.length);
+  // console.log('[calculatePerformance] Total attempts received:', attempts.length);
   
   let totalScore = 0;
   let totalQuestions = 0;
@@ -20,7 +20,7 @@ function calculatePerformance(attempts: any[]) {
   let totalTime = 0; // seconds
 
   const detailedAttempts = attempts.map((attempt, attemptIndex) => {
-    console.log(`[Attempt ${attemptIndex + 1}] Processing attempt ID: ${attempt.id}`);
+    // console.log(`[Attempt ${attemptIndex + 1}] Processing attempt ID: ${attempt.id}`);
     
     const { mockTest, startedAt, submittedAt } = attempt;
     
@@ -31,13 +31,13 @@ function calculatePerformance(attempts: any[]) {
     const storedScore = attempt.score || 0;
     const storedPercentage = attempt.percentage || 0;
     
-    console.log(`[Attempt ${attemptIndex + 1}] Stored values:`, {
-      correctCount: storedCorrectCount,
-      incorrectCount: storedIncorrectCount,
-      totalQuestions: storedTotalQuestions,
-      score: storedScore,
-      percentage: storedPercentage
-    });
+    // console.log(`[Attempt ${attemptIndex + 1}] Stored values:`, {
+    //   correctCount: storedCorrectCount,
+    //   incorrectCount: storedIncorrectCount,
+    //   totalQuestions: storedTotalQuestions,
+    //   score: storedScore,
+    //   percentage: storedPercentage
+    // });
 
     // Calculate time taken
     let timeTaken = 0;
@@ -81,7 +81,7 @@ function calculatePerformance(attempts: any[]) {
     detailedAttempts,
   };
 
-  console.log('[calculatePerformance] Final result:', result);
+  // console.log('[calculatePerformance] Final result:', result);
   return result;
 }
 

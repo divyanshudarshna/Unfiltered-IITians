@@ -63,7 +63,7 @@ export default function GuidanceSessionsList({
           setEnrolledSessionIds([]);
         }
       } catch (err) {
-        console.error("❌ Error fetching sessions or enrollments:", err);
+        // console.error("❌ Error fetching sessions or enrollments:", err);
         setEnrolledSessionIds([]);
       } finally {
         setLoading(false);

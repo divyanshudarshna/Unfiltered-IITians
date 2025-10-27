@@ -70,12 +70,12 @@ export async function POST(req: Request) {
       fileUrl = fileUrl.replace('/image/upload/', '/raw/upload/');
     }
 
-    console.log('Upload successful:', {
-      originalName: originalFileName,
-      cleanFileName,
-      publicId,
-      finalUrl: fileUrl,
-    });
+    // console.log('Upload successful:', {
+    //   originalName: originalFileName,
+    //   cleanFileName,
+    //   publicId,
+    //   finalUrl: fileUrl,
+    // });
 
     // Return extended response with publicId for the admin panel
     return NextResponse.json({ 
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
     });
 
   } catch (error) {
-    console.error('❌ Upload failed:', error);
+    // console.error('❌ Upload failed:', error);
     return NextResponse.json({ error: 'Upload failed: ' + (error as Error).message }, { status: 500 });
   }
 }

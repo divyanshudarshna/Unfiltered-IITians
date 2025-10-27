@@ -19,13 +19,13 @@ export const UserAvatar = ({
   const imageUrl = getProfileImageUrl()
   const displayName = userProfile?.name || clerkUser?.firstName || "User"
   
-  console.log('🎨 UserAvatar render:', {
-    imageUrl,
-    displayName,
-    userProfile: userProfile?.profileImageUrl,
-    clerkUser: clerkUser?.imageUrl,
-    isLoading
-  });
+  // console.log('🎨 UserAvatar render:', {
+  //   imageUrl,
+  //   displayName,
+  //   userProfile: userProfile?.profileImageUrl,
+  //   clerkUser: clerkUser?.imageUrl,
+  //   isLoading
+  // });
 
   if (isLoading) {
     return (

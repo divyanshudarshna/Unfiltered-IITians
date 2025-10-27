@@ -51,12 +51,12 @@ export default function DashboardClient({
 
   // Handle profile updates - update local state and refresh global context
   const handleProfileUpdate = async (updatedUser: unknown) => {
-    console.log('🔄 Dashboard received profile update:', updatedUser);
+    // console.log('🔄 Dashboard received profile update:', updatedUser);
     
     // Update local state immediately for dashboard UI
     setProfile(updatedUser as Record<string, unknown>);
     
-    console.log('✅ Local dashboard state updated');
+    // console.log('✅ Local dashboard state updated');
   };
 
   return (

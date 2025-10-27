@@ -122,7 +122,7 @@ export default function CourseList({
           setEnrollmentStatuses(statuses);
         }
       } catch (err) {
-        console.error("Course fetch error:", err);
+        // console.error("Course fetch error:", err);
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         setLoading(false);

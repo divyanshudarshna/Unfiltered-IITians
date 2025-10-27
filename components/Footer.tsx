@@ -31,7 +31,7 @@ function NewsletterForm() {
         toast.error(data.error)
       }
     } catch (error) {
-      console.error('Newsletter subscription error:', error)
+      // console.error('Newsletter subscription error:', error)
       toast.error('Something went wrong. Please try again.')
     } finally {
       setIsLoading(false)

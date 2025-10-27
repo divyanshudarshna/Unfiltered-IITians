@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { clerkUserId, email, name, phoneNumber, dob, fieldOfStudy, profileImageUrl } = body;
 
-    console.log("📦 Registering user:", { clerkUserId, email, name });
+    // console.log("📦 Registering user:", { clerkUserId, email, name });
 
     if (!clerkUserId || !email) {
       return NextResponse.json(
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     });
 
     if (existingUser) {
-      console.log("✅ User already exists:", existingUser.email);
+      // console.log("✅ User already exists:", existingUser.email);
       return NextResponse.json({ user: existingUser, created: false });
     }
 
@@ -57,10 +57,10 @@ export async function POST(req: Request) {
 });
 
 
-    console.log("✅ User created and stored:", newUser.email);
+    // console.log("✅ User created and stored:", newUser.email);
     return NextResponse.json({ user: newUser, created: true });
   } catch (error: unknown) {
-    console.error("❌ Error creating user:", error);
+    // console.error("❌ Error creating user:", error);
 
     if (error && typeof error === 'object' && 'code' in error && error.code === "P2002") {
       return NextResponse.json({ error: "Duplicate user" }, { status: 409 });

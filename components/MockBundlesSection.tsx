@@ -33,7 +33,7 @@ export default async function MockBundlesSection() {
       }
     }
   } catch (error) {
-    console.warn("No logged-in user, continuing as guest:", error);
+    // console.warn("No logged-in user, continuing as guest:", error);
   }
 
   let bundles: any[] = [];
@@ -71,7 +71,7 @@ export default async function MockBundlesSection() {
             mockTests
           };
         } catch (error) {
-          console.error(`Error fetching mock tests for bundle ${bundle.id}:`, error);
+          // console.error(`Error fetching mock tests for bundle ${bundle.id}:`, error);
           return {
             ...bundle,
             mockTests: []
@@ -80,7 +80,7 @@ export default async function MockBundlesSection() {
       })
     );
   } catch (error) {
-    console.error("Error fetching mock bundles:", error);
+    // console.error("Error fetching mock bundles:", error);
     bundlesWithMockDetails = [];
   }
 

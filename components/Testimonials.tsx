@@ -58,7 +58,7 @@ export default function Testimonials({
         const data = await res.json()
         setTestimonials(data)
       } catch (error) {
-        console.error(error)
+        // console.error(error)
       } finally {
         setLoading(false)
       }
