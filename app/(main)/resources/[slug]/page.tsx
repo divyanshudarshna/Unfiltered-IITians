@@ -1,9 +1,52 @@
 // app/(main)/resources/[slug]/page.tsx
 import { prisma } from "@/lib/prisma";
 import { FileDown } from "lucide-react";
+import { getYouTubeEmbedUrl } from "@/lib/youtube";
+import { Metadata } from "next";
 
 interface Props {
-  params: Promise<{ slug: string }>;
+  readonly params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  
+  const material = await prisma.material.findUnique({
+    where: { slug: String(slug) },
+    include: { subject: true },
+  });
+
+  if (!material) {
+    return {
+      title: "Resource Not Found",
+      description: "The requested study material could not be found.",
+    };
+  }
+
+  const title = `${material.title} - Free Study Material`;
+  const description = `Access free study material: ${material.title} for ${material.subject?.name || 'competitive exams'}. Download PDFs, watch videos, and boost your exam preparation.`;
+
+  return {
+    title,
+    description,
+    keywords: [
+      material.title,
+      material.subject?.name || 'competitive exams',
+      'free study material',
+      'exam preparation',
+      ...(material.tags || [])
+    ],
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    }
+  };
 }
 
 export default async function MaterialDetailPage({ params }: Props) {
@@ -64,7 +107,7 @@ export default async function MaterialDetailPage({ params }: Props) {
           {material.youtubeLink && (
             <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
               <iframe
-                src={material.youtubeLink.includes("embed") ? material.youtubeLink : material.youtubeLink.replace("watch?v=", "embed/")}
+                src={getYouTubeEmbedUrl(material.youtubeLink) || material.youtubeLink}
                 title="YouTube video"
                 allowFullScreen
                 className="absolute top-0 left-0 w-full h-full"

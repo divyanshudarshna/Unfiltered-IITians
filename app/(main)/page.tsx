@@ -3,7 +3,6 @@
 import Hero from "@/components/Hero";
 import HomeAbout from "@/components/HomeAbout";
 import Testimonials from "@/components/Testimonials";
-import FAQPage from "@/components/faq";
 import Link from "next/link";
 export default function Home() {
   return (
