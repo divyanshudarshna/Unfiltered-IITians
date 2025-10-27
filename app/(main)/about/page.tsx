@@ -8,7 +8,6 @@ import {
   Youtube,
   Dna,
   Handshake,
-  Activity,
   Video,
   PenSquare,
   Gamepad2,
@@ -65,13 +64,13 @@ const skills = [
       "Personalized mentorship for students navigating Master's or PhD admissions, research careers, or industry transitions — drawing from our own experiences at premier institutions.",
   },
   {
-    icon: <Activity className="w-12 h-12 text-rose-400" />,
+    icon: <span className="text-5xl">🥋</span>,
     title: "Martial Arts",
     content:
       "As a Taekwondo black belt and MMA practitioner, I've learned discipline and resilience that inform both research and teaching methodologies.",
   },
   {
-    icon: <Activity className="w-12 h-12 text-indigo-400" />,
+    icon: <span className="text-5xl">💪</span>,
     title: "Fitness Philosophy",
     content:
       "Our commitment to physical health mirrors our academic approach — consistent, disciplined training yields transformative results in both body and mind.",
