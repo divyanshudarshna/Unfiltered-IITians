@@ -4,13 +4,16 @@ import BundleMocksClient from "@/components/BundleMocksClient";
 import { auth } from "@clerk/nextjs/server";
 import BundlePurchaseSection from "@/components/BundlePurchaseSection";
 import { ScrollToButton } from "@/components/ScrollToButton";
+import { redirect } from "next/navigation";
 
 export default async function BundleMocksPage({ params }: Readonly<{ params: { bundleId: string } }>) {
   const { bundleId } = params;
   const { userId } = await auth();
 
   if (!userId) {
-    return <p className="text-center mt-10">Please sign in to view bundle mocks.</p>;
+    // Redirect to sign-in with the current page as return URL
+    const returnUrl = encodeURIComponent(`/mockBundles/${bundleId}/mocks`);
+    redirect(`/sign-in?redirectUrl=${returnUrl}`);
   }
 
   // Fetch bundle with pricing information

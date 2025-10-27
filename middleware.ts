@@ -10,6 +10,9 @@ const isPublicRoute = createRouteMatcher([
   '/contact',
   '/youtube',
   '/guidance(.*)', // ✅ Add this line
+  '/privacy-policy(.*)', // ✅ Static route - Privacy Policy
+  '/refund-policy(.*)', // ✅ Static route - Refund Policy  
+  '/terms-of-service(.*)', // ✅ Static route - Terms of Service
   '/api/webhooks/clerk',
   '/api/user/(.*)',
   '/api/mock/(.*)',
