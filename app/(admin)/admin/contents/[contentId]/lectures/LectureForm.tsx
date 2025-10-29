@@ -40,6 +40,7 @@ export default function LectureForm({ contentId, lecture, onSuccess }: LectureFo
   const [title, setTitle] = useState(lecture?.title || "");
   const [videoUrl, setVideoUrl] = useState(lecture?.videoUrl || "");
   const [pdfUrl, setPdfUrl] = useState(lecture?.pdfUrl || "");
+  const [order, setOrder] = useState(lecture?.order || 0);
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{video: number, pdf: number}>({
     video: 0,
@@ -140,7 +141,7 @@ export default function LectureForm({ contentId, lecture, onSuccess }: LectureFo
         videoUrl,
         pdfUrl,
         summary: editor?.getHTML() || "",
-        order: lecture?.order || 0
+        order: order
       };
 
       const url = lecture
@@ -182,6 +183,22 @@ export default function LectureForm({ contentId, lecture, onSuccess }: LectureFo
           placeholder="Enter lecture title"
           className="text-lg"
         />
+      </div>
+
+      {/* Order */}
+      <div>
+        <Label htmlFor="order" className="mb-2 block">Order (Position in Content) *</Label>
+        <Input
+          id="order"
+          type="number"
+          value={order}
+          onChange={(e) => setOrder(parseInt(e.target.value) || 0)}
+          placeholder="Enter display order (e.g., 1, 2, 3...)"
+          min="0"
+        />
+        <p className="text-sm text-muted-foreground mt-1">
+          Lower numbers appear first. Use 1 for first lecture, 2 for second, etc.
+        </p>
       </div>
 
       {/* Video upload */}

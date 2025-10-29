@@ -37,11 +37,9 @@ export const useUserProfile = () => {
           throw new Error('Failed to fetch user profile')
         }
         const data = await res.json()
-        console.log('📥 Profile fetched from API:', data.user);
         setUserProfile(data.user)
         setError(null)
       } catch (err) {
-        console.error('❌ Error fetching user profile:', err)
         setError(err instanceof Error ? err.message : 'Unknown error')
         setUserProfile(null)
       } finally {
@@ -54,25 +52,21 @@ export const useUserProfile = () => {
 
   const refreshProfile = useCallback(async () => {
     if (!isSignedIn || !clerkUser?.id) {
-      console.log('⚠️ Cannot refresh profile - not signed in or no clerk user ID');
       return;
     }
 
     try {
       setIsLoading(true)
-      console.log('🔄 Refreshing profile for user:', clerkUser.id);
       
       const res = await fetch(`/api/user/profile?clerkUserId=${clerkUser.id}`)
       if (!res.ok) {
         throw new Error('Failed to fetch user profile')
       }
       const data = await res.json()
-      console.log('✅ Profile refreshed successfully:', data.user);
       
       setUserProfile(data.user)
       setError(null)
     } catch (err) {
-      console.error('❌ Error refreshing user profile:', err)
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsLoading(false)
@@ -82,7 +76,6 @@ export const useUserProfile = () => {
   // Listen for profile update events
   useEffect(() => {
     const unsubscribe = profileUpdateEmitter.subscribe(() => {
-      console.log('📡 Received profile update event, refreshing...');
       refreshProfile();
     });
 
@@ -90,13 +83,9 @@ export const useUserProfile = () => {
   }, [refreshProfile]);
 
   const updateProfile = (updatedProfile: Partial<UserProfile>) => {
-    console.log('🔄 Updating profile in context:', updatedProfile);
     if (userProfile) {
       const newProfile = { ...userProfile, ...updatedProfile };
-      console.log('✅ New profile state:', newProfile);
       setUserProfile(newProfile);
-    } else {
-      console.log('⚠️ Cannot update profile - no existing profile');
     }
   }
 

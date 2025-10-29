@@ -82,6 +82,23 @@ export const CourseProvider = ({ courseId, children }: Props) => {
       const progressRes = await fetch(`/api/courses/progress?courseId=${courseId}`, { credentials: "include" });
       const progressJson = progressRes.ok ? await progressRes.json() : [];
 
+      // Sort contents and lectures by order before merging progress
+      // Ensure proper numeric sorting
+      courseJson.contents = courseJson.contents
+        .sort((a: any, b: any) => {
+          const orderA = Number(a.order) || 0;
+          const orderB = Number(b.order) || 0;
+          return orderA - orderB;
+        })
+        .map((content: any) => ({
+          ...content,
+          lectures: content.lectures.sort((a: any, b: any) => {
+            const orderA = Number(a.order) || 0;
+            const orderB = Number(b.order) || 0;
+            return orderA - orderB;
+          }),
+        }));
+
       // Merge progress into course
       courseJson.contents.forEach((content: CourseContent) => {
         content.lectures.forEach((lecture) => {

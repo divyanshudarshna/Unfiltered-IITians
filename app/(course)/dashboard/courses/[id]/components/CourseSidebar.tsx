@@ -237,7 +237,14 @@ export default function CourseSidebar({
             <ScrollArea className="h-full w-full px-2 overflow-x-hidden">
               {/* Give content a tiny right padding so text/buttons don't sit under the scrollbar */}
               <div className="space-y-3 min-w-0 pr-2">
-                {course.contents.map((content: any, idx: number) => {
+                {[...course.contents]
+                  .sort((a: any, b: any) => {
+                    // Ensure proper numeric sorting by order field
+                    const orderA = Number(a.order) || 0;
+                    const orderB = Number(b.order) || 0;
+                    return orderA - orderB;
+                  })
+                  .map((content: any, idx: number) => {
                   const contentCompleted =
                     content.lectures.every((l: any) => l.completed) &&
                     (!content.hasQuiz || content.quizCompleted)
@@ -291,7 +298,14 @@ export default function CourseSidebar({
 
                       <CollapsibleContent>
                         <div className="pl-14 pr-3 pb-3 space-y-2">
-                          {content.lectures.map((lecture: any) => (
+                          {[...content.lectures]
+                            .sort((a: any, b: any) => {
+                              // Ensure proper numeric sorting by order field
+                              const orderA = Number(a.order) || 0;
+                              const orderB = Number(b.order) || 0;
+                              return orderA - orderB;
+                            })
+                            .map((lecture: any) => (
                             <Button
                               key={lecture.id}
                               variant="ghost"

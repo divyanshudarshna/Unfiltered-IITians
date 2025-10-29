@@ -47,6 +47,8 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   File,
   Eye,
   X,
@@ -57,6 +59,12 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Lecture {
   id: string;
@@ -85,6 +93,7 @@ export default function LectureTable({
   const [pdfPreview, setPdfPreview] = useState<string | null>(null);
   const [summaryPreview, setSummaryPreview] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
 
   const handleDelete = async (id: string) => {
     try {
@@ -116,6 +125,47 @@ export default function LectureTable({
     setSummaryPreview(summary);
   };
 
+  const handleReorderLectures = async (newOrder: Lecture[]) => {
+    try {
+      setIsReordering(true);
+      
+      const lectureOrders = newOrder.map((lecture, index) => ({
+        id: lecture.id,
+        order: index + 1,
+      }));
+
+      const response = await fetch('/api/admin/lectures/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lectureOrders }),
+      });
+
+      if (!response.ok) throw new Error('Failed to reorder lectures');
+
+      toast.success('Lecture order updated successfully');
+      refresh();
+    } catch (error) {
+      console.error('Error reordering lectures:', error);
+      toast.error('Failed to update lecture order');
+    } finally {
+      setIsReordering(false);
+    }
+  };
+
+  const moveUp = (index: number) => {
+    if (index === 0) return;
+    const newLectures = [...lectures];
+    [newLectures[index], newLectures[index - 1]] = [newLectures[index - 1], newLectures[index]];
+    handleReorderLectures(newLectures);
+  };
+
+  const moveDown = (index: number) => {
+    if (index === lectures.length - 1) return;
+    const newLectures = [...lectures];
+    [newLectures[index], newLectures[index + 1]] = [newLectures[index + 1], newLectures[index]];
+    handleReorderLectures(newLectures);
+  };
+
   const columns: ColumnDef<Lecture>[] = [
     {
       id: "serial",
@@ -128,6 +178,16 @@ export default function LectureTable({
         </div>
       ),
       size: 60,
+    },
+    {
+      accessorKey: "order",
+      header: "Order",
+      cell: ({ row }) => (
+        <Badge variant="outline" className="w-12 justify-center">
+          {row.original.order || 0}
+        </Badge>
+      ),
+      size: 70,
     },
     {
       accessorKey: "title",
@@ -255,32 +315,71 @@ export default function LectureTable({
       header: "Actions",
       cell: ({ row }) => {
         const lecture = row.original;
+        const lectureIndex = lectures.findIndex(l => l.id === lecture.id);
         return (
-          <div className="flex gap-2 justify-center">
-            <Link href={`/admin/contents/${contentId}/lectures/edit?lectureId=${lecture.id}`}>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="h-8 gap-1 transition-all hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/30 dark:hover:text-blue-400"
+          <TooltipProvider>
+            <div className="flex gap-1 flex-wrap justify-center">
+              {/* Reorder buttons */}
+              <div className="flex flex-col gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
+                      onClick={() => moveUp(lectureIndex)}
+                      disabled={lectureIndex === 0 || isReordering}
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Move Up</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
+                      onClick={() => moveDown(lectureIndex)}
+                      disabled={lectureIndex === lectures.length - 1 || isReordering}
+                    >
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Move Down</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              
+              <Link href={`/admin/contents/${contentId}/lectures/edit?lectureId=${lecture.id}`}>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="h-8 gap-1 transition-all hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/30 dark:hover:text-blue-400"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                  Edit
+                </Button>
+              </Link>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={deleting === lecture.id}
+                onClick={() => setDeleteConfirm(lecture.id)}
+                className="h-8 gap-1 transition-all"
               >
-                <Edit className="h-3.5 w-3.5" />
-                Edit
+                <Trash2 className="h-3.5 w-3.5" />
+                {deleting === lecture.id ? "Deleting..." : "Delete"}
               </Button>
-            </Link>
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={deleting === lecture.id}
-              onClick={() => setDeleteConfirm(lecture.id)}
-              className="h-8 gap-1 transition-all"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              {deleting === lecture.id ? "Deleting..." : "Delete"}
-            </Button>
-          </div>
+            </div>
+          </TooltipProvider>
         );
       },
-      size: 150,
+      size: 200,
     },
   ];
 

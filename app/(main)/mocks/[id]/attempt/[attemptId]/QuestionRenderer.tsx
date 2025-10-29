@@ -99,17 +99,19 @@ export default function QuestionRenderer({
                 <Button
                   key={i}
                   variant={selected ? "default" : "outline"}
-                  className={`w-full justify-start text-left h-auto py-3 ${
+                  className={`w-full justify-start text-left h-auto py-3 px-4 ${
                     selected
                       ? "bg-purple-600 hover:bg-purple-700 text-white"
                       : "text-black dark:text-white hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-black dark:hover:text-white border-gray-200 dark:border-gray-700"
                   }`}
                   onClick={() => handleSelectOption(option, i)}
                 >
-                  <span className="mr-3 font-medium">
+                  <span className="mr-3 font-medium flex-shrink-0">
                     {String.fromCharCode(65 + i)}.
                   </span>
-                  <span className="text-left">{cleanedOption}</span>
+                  <span className="text-left break-words whitespace-normal flex-1">
+                    {cleanedOption}
+                  </span>
                 </Button>
               );
             })}
@@ -126,7 +128,7 @@ export default function QuestionRenderer({
                 return (
                   <div
                     key={i}
-                    className={`flex items-center p-3 rounded-lg border transition-all cursor-pointer ${
+                    className={`flex items-start p-3 rounded-lg border transition-all cursor-pointer ${
                       isSelected
                         ? "bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700"
                         : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750"
@@ -136,12 +138,12 @@ export default function QuestionRenderer({
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={() => handleSelectOption(option, i)}
-                      className="mr-3"
+                      className="mr-3 mt-1 flex-shrink-0"
                     />
-                    <span className="font-medium text-muted-foreground mr-2">
+                    <span className="font-medium text-muted-foreground mr-2 flex-shrink-0">
                       {String.fromCharCode(65 + i)}.
                     </span>
-                    <span className="text-gray-800 dark:text-gray-200 flex-1">
+                    <span className="text-gray-800 dark:text-gray-200 flex-1 break-words whitespace-normal">
                       {cleanedOption}
                     </span>
                   </div>
@@ -151,7 +153,7 @@ export default function QuestionRenderer({
 
             {getMSQAnswersDisplay() && (
               <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                <p className="text-sm font-medium text-blue-800 dark:text-blue-300 break-words">
                   Selected answers: {getMSQAnswersDisplay()}
                 </p>
               </div>
