@@ -1,6 +1,6 @@
 // app/api/courses/[id]/check-access/route.ts
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 interface Params {
@@ -21,6 +21,7 @@ export async function GET(req: Request, { params }: Params) {
     // Map Clerk user → DB user
     const user = await prisma.user.findUnique({
       where: { clerkUserId },
+      select: { id: true, role: true }
     });
     if (!user) {
       return NextResponse.json({ 
@@ -28,6 +29,30 @@ export async function GET(req: Request, { params }: Params) {
         reason: "User not found",
         redirectTo: "/courses"
       }, { status: 404 });
+    }
+
+    // Check if user is admin (from database role)
+    if (user.role === 'ADMIN') {
+      return NextResponse.json({ 
+        hasAccess: true,
+        isAdmin: true,
+        reason: "Admin access granted"
+      });
+    }
+
+    // Check if user is admin (from Clerk metadata)
+    try {
+      const client = await clerkClient()
+      const clerkUser = await client.users.getUser(clerkUserId)
+      if (clerkUser.publicMetadata?.role === 'ADMIN') {
+        return NextResponse.json({ 
+          hasAccess: true,
+          isAdmin: true,
+          reason: "Admin access granted"
+        });
+      }
+    } catch (clerkError) {
+      console.log('⚠️ Could not fetch Clerk user data, continuing with regular access check')
     }
 
     // Check if user is enrolled in the course
@@ -76,6 +101,7 @@ export async function GET(req: Request, { params }: Params) {
 
     return NextResponse.json({ 
       hasAccess: true,
+      isAdmin: false,
       enrollmentExpiresAt: enrollment.expiresAt,
       subscriptionExpiresAt: subscription?.expiresAt
     });

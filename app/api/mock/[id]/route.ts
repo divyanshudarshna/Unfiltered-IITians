@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getAuth } from '@clerk/nextjs/server'
+import { getAuth, clerkClient } from '@clerk/nextjs/server'
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -37,15 +37,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     // Find user by clerkUserId
     const user = await prisma.user.findUnique({
       where: { clerkUserId },
-      select: { id: true }
+      select: { id: true, role: true }
     })
 
     if (!user) {
       return NextResponse.json({ mock, hasAccess: false, reason: 'user_not_found' })
     }
 
-    // Check access control
-    const hasAccess = await checkMockAccess(user.id, id)
+    // Check access control (includes admin check)
+    const hasAccess = await checkMockAccess(user.id, id, user.role, clerkUserId)
     
     // Get user's attempt count for this mock
     const attemptCount = await prisma.mockAttempt.count({
@@ -78,9 +78,29 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 // Helper function to check mock access - using same logic as mocks page
-async function checkMockAccess(userId: string, mockTestId: string) {
+async function checkMockAccess(userId: string, mockTestId: string, userRole?: string, clerkUserId?: string) {
   try {
     // console.log(`🔍 Checking access for user ${userId} to mock ${mockTestId}`)
+    
+    // Check if user is admin (from database role)
+    if (userRole === 'ADMIN') {
+      // console.log(`✅ Admin access granted from database role`)
+      return { allowed: true, reason: 'admin_access', subscriptionType: 'admin' }
+    }
+
+    // Check if user is admin (from Clerk metadata)
+    if (clerkUserId) {
+      try {
+        const client = await clerkClient()
+        const clerkUser = await client.users.getUser(clerkUserId)
+        if (clerkUser.publicMetadata?.role === 'ADMIN') {
+          // console.log(`✅ Admin access granted from Clerk metadata`)
+          return { allowed: true, reason: 'admin_access', subscriptionType: 'admin' }
+        }
+      } catch (clerkError) {
+        // console.log('⚠️ Could not fetch Clerk user data, continuing with regular access check')
+      }
+    }
     
     // Get mock details
     const mock = await prisma.mockTest.findUnique({
@@ -118,8 +138,7 @@ async function checkMockAccess(userId: string, mockTestId: string) {
     if (userSubscription) {
       // console.log(`✅ Subscription found: ${userSubscription.id}`)
       const subscriptionType = userSubscription.mockBundle ? 'bundle' : 'individual'
-      const bundleInfo = userSubscription.mockBundle ? ` (from bundle: ${userSubscription.mockBundle.title})` : ''
-      // console.log(`📦 Subscription type: ${subscriptionType}${bundleInfo}`)
+      // console.log(`📦 Subscription type: ${subscriptionType}`)
       return { allowed: true, reason: 'subscription_found', subscriptionType }
     }
 

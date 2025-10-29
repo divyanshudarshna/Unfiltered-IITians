@@ -583,7 +583,33 @@ export default function StartMockPage({ params }: StartMockPageProps) {
                 )}
 
                 {/* Access Status Badge */}
-                {hasAccess && (
+                {hasAccess && subscriptionType === 'admin' && (
+                  <div className="w-full overflow-hidden rounded-xl border-2 border-purple-300 dark:border-purple-600 shadow-lg">
+                    <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-lg">
+                            <Shield className="h-5 w-5 text-white" />
+                          </div>
+                          <span className="font-bold text-white">Admin Testing Mode</span>
+                        </div>
+                        <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm font-semibold text-xs">
+                          PRIVILEGED
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="bg-purple-50 dark:bg-purple-950/30 px-4 py-3">
+                      <div className="flex items-start gap-2">
+                        <Zap className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-purple-700 dark:text-purple-300 font-medium">
+                          Full access granted • All subscription checks bypassed for testing
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {hasAccess && subscriptionType !== 'admin' && (
                   <div className="w-full p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                     <div className="flex items-center">
                       <CheckCircle className="h-5 w-5 text-green-500 mr-2" />

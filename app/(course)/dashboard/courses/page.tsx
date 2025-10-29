@@ -209,37 +209,40 @@ export default function MyCoursesPage() {
     return (
       <div className="w-full min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
         <Navbar />
-        <main className="flex-1 p-6 max-w-7xl mx-auto w-full flex flex-col items-center justify-center">
-          <div
-            className={cn(
-              "text-center max-w-md mx-auto p-8 rounded-2xl backdrop-blur-sm shadow-md border",
-              "bg-white/80 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800"
-            )}
-          >
-            <div className="w-20 h-20 bg-sky-100 dark:bg-sky-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-              <BookOpen className="h-10 w-10 text-sky-600 dark:text-sky-400" />
-            </div>
-            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">
-              Your Learning Journey Awaits
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400 mb-6">
-              You haven't enrolled in any courses yet. Explore our catalog to
-              start your learning adventure.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                asChild
-                className="rounded-full px-6 py-3 shadow-md bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700"
-              >
-                <Link href="/courses">Browse Courses</Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                className="rounded-full px-6 py-3 border-sky-300 text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:border-sky-700 dark:hover:bg-slate-800"
-              >
-                <Link href="/mocks">Try Practice Mocks</Link>
-              </Button>
+        <main className="flex-1 flex items-center justify-center px-4 py-12 sm:py-16 lg:py-20 mt-16 sm:mt-20">
+          <div className="w-full max-w-2xl">
+            <div
+              className={cn(
+                "text-center p-6 sm:p-8 md:p-10 lg:p-12 rounded-2xl backdrop-blur-sm shadow-xl border",
+                "bg-white/80 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800",
+                "transform transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
+              )}
+            >
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-sky-100 dark:bg-sky-900/30 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <BookOpen className="h-8 w-8 sm:h-10 sm:w-10 text-sky-600 dark:text-sky-400" />
+              </div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 mb-2 sm:mb-3">
+                Your Learning Journey Awaits
+              </h1>
+              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mb-6 sm:mb-8 max-w-md mx-auto">
+                You haven't enrolled in any courses yet. Explore our catalog to
+                start your learning adventure.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-stretch sm:items-center">
+                <Button
+                  asChild
+                  className="rounded-full px-6 py-3 shadow-md bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 w-full sm:w-auto"
+                >
+                  <Link href="/courses">Browse Courses</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="rounded-full px-6 py-3 border-sky-300 text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:border-sky-700 dark:hover:bg-slate-800 w-full sm:w-auto"
+                >
+                  <Link href="/mocks">Try Practice Mocks</Link>
+                </Button>
+              </div>
             </div>
           </div>
         </main>

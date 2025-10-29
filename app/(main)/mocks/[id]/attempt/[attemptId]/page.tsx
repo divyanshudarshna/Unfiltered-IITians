@@ -212,6 +212,28 @@ export default function MockAttemptPage() {
   const bookmarkedQuestions = Object.values(bookmarked).filter(Boolean).length;
   const totalDuration = mock.duration || 0;
 
+  // Safety check: If no current question, show error
+  if (!currentQuestion) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 max-w-md text-center">
+          <div className="text-gray-700 text-lg font-semibold mb-2">
+            No Questions Available
+          </div>
+          <p className="text-gray-600 mb-4">
+            This test doesn&apos;t have any questions yet.
+          </p>
+          <Button
+            onClick={() => router.push("/mocks")}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            Browse Tests
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
       {/* Main Area */}

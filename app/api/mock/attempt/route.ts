@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { clerkClient } from '@clerk/nextjs/server'
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
     // ✅ Find user by clerkUserId
     const user = await prisma.user.findUnique({
       where: { clerkUserId },
+      select: { id: true, role: true }
     })
 
     if (!user) {
@@ -29,9 +31,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Mock test not found' }, { status: 404 })
     }
 
-    // ✅ Check access control for paid mocks
+    // ✅ Check access control for paid mocks (skip for admins)
     if (mockTest.price > 0) {
-      const hasAccess = await checkMockAccess(user.id, mockTestId)
+      const hasAccess = await checkMockAccess(user.id, mockTestId, user.role, clerkUserId)
       
       if (!hasAccess.allowed) {
         let errorMessage = 'You need to purchase this mock test to attempt it.'
@@ -94,9 +96,29 @@ export async function POST(req: Request) {
 }
 
 // Helper function to check mock access - using same logic as mocks page
-async function checkMockAccess(userId: string, mockTestId: string) {
+async function checkMockAccess(userId: string, mockTestId: string, userRole?: string, clerkUserId?: string) {
   try {
     // console.log(`🔍 [ATTEMPT] Checking access for user ${userId} to mock ${mockTestId}`)
+    
+    // Check if user is admin (from database role)
+    if (userRole === 'ADMIN') {
+      // console.log(`✅ [ATTEMPT] Admin access granted from database role`)
+      return { allowed: true, reason: 'admin_access', subscriptionType: 'admin' }
+    }
+
+    // Check if user is admin (from Clerk metadata)
+    if (clerkUserId) {
+      try {
+        const client = await clerkClient()
+        const clerkUser = await client.users.getUser(clerkUserId)
+        if (clerkUser.publicMetadata?.role === 'ADMIN') {
+          // console.log(`✅ [ATTEMPT] Admin access granted from Clerk metadata`)
+          return { allowed: true, reason: 'admin_access', subscriptionType: 'admin' }
+        }
+      } catch (clerkError) {
+        // console.log('⚠️ [ATTEMPT] Could not fetch Clerk user data, continuing with regular access check')
+      }
+    }
     
     // Get mock details
     const mock = await prisma.mockTest.findUnique({
@@ -109,11 +131,11 @@ async function checkMockAccess(userId: string, mockTestId: string) {
       return { allowed: false, reason: 'mock_not_found' }
     }
 
-    console.log(`💰 [ATTEMPT] Mock price: ${mock.price}`)
+    // console.log(`💰 [ATTEMPT] Mock price: ${mock.price}`)
 
     // If mock is free, allow access
     if (mock.price === 0) {
-      console.log(`✅ [ATTEMPT] Free mock - access allowed`)
+      // console.log(`✅ [ATTEMPT] Free mock - access allowed`)
       return { allowed: true, reason: 'free_mock', subscriptionType: 'free' }
     }
 
@@ -132,17 +154,16 @@ async function checkMockAccess(userId: string, mockTestId: string) {
     })
 
     if (userSubscription) {
-      console.log(`✅ [ATTEMPT] Subscription found: ${userSubscription.id}`)
+      // console.log(`✅ [ATTEMPT] Subscription found: ${userSubscription.id}`)
       const subscriptionType = userSubscription.mockBundle ? 'bundle' : 'individual'
-      const bundleInfo = userSubscription.mockBundle ? ` (from bundle: ${userSubscription.mockBundle.title})` : ''
-      console.log(`📦 [ATTEMPT] Subscription type: ${subscriptionType}${bundleInfo}`)
+      // console.log(`📦 [ATTEMPT] Subscription type: ${subscriptionType}`)
       return { allowed: true, reason: 'subscription_found', subscriptionType }
     }
 
-    console.log(`❌ [ATTEMPT] No subscription found for mock ${mockTestId}`)
+    // console.log(`❌ [ATTEMPT] No subscription found for mock ${mockTestId}`)
     return { allowed: false, reason: 'no_subscription' }
   } catch (error) {
-    console.error('❌ [ATTEMPT] Error checking mock access:', error)
+    // console.error('❌ [ATTEMPT] Error checking mock access:', error)
     return { allowed: false, reason: 'access_check_error' }
   }
 }

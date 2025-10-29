@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 interface CourseAccessResult {
   hasAccess: boolean;
   loading: boolean;
+  isAdmin?: boolean;
   reason?: string;
   enrollmentExpiresAt?: Date | string | null;
   subscriptionExpiresAt?: Date | string | null;
@@ -39,6 +40,8 @@ export const useCourseAccess = (courseId: string): CourseAccessResult => {
           setResult({
             hasAccess: true,
             loading: false,
+            isAdmin: data.isAdmin || false,
+            reason: data.reason,
             enrollmentExpiresAt: data.enrollmentExpiresAt,
             subscriptionExpiresAt: data.subscriptionExpiresAt,
           });

@@ -23,6 +23,12 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import {
   Table,
@@ -48,6 +54,7 @@ import {
   Users,
   ChevronUp,
   ChevronDown,
+  Eye,
 } from "lucide-react";
 
 interface Course {
@@ -272,86 +279,132 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
         const course = row.original;
         const courseIndex = courses.findIndex(c => c.id === course.id);
         return (
-          <div className="flex gap-1 flex-wrap">
-            {/* Reorder buttons */}
-            <div className="flex flex-col gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
-                onClick={() => moveUp(courseIndex)}
-                disabled={courseIndex === 0 || isReordering}
-                title="Move up"
-              >
-                <ChevronUp className="h-3 w-3" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
-                onClick={() => moveDown(courseIndex)}
-                disabled={courseIndex === courses.length - 1 || isReordering}
-                title="Move down"
-              >
-                <ChevronDown className="h-3 w-3" />
-              </Button>
+          <TooltipProvider>
+            <div className="flex gap-1 flex-wrap">
+              {/* Reorder buttons */}
+              <div className="flex flex-col gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
+                      onClick={() => moveUp(courseIndex)}
+                      disabled={courseIndex === 0 || isReordering}
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Move Up</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
+                      onClick={() => moveDown(courseIndex)}
+                      disabled={courseIndex === courses.length - 1 || isReordering}
+                    >
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Move Down</TooltipContent>
+                </Tooltip>
+              </div>
+
+              {/* Inspect Course - NEW */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href={`/dashboard/courses/${course.id}`}>
+                    <Button size="sm" variant="ghost" className="text-purple-600 hover:text-purple-800 hover:bg-purple-50">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>Inspect Course</TooltipContent>
+              </Tooltip>
+
+              {/* Manage Contents */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href={`/admin/courses/${course.id}/contents`}>
+                    <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50">
+                      <BookOpen className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>Manage Contents</TooltipContent>
+              </Tooltip>
+
+              {/* Manage Coupons */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href={`/admin/courses/${course.id}/coupons`}>
+                    <Button size="sm" variant="ghost" className="text-amber-600 hover:text-amber-800 hover:bg-amber-50">
+                      <TicketPercent className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>Manage Coupons</TooltipContent>
+              </Tooltip>
+
+              {/* Edit Course */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                    onClick={() => setEditingCourse(course)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Edit Course</TooltipContent>
+              </Tooltip>
+
+              {/* Delete with confirmation */}
+              <AlertDialog>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete Course</TooltipContent>
+                </Tooltip>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Are you sure you want to delete this course?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the
+                      course <span className="font-semibold">{course.title}</span> and
+                      all its data.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDelete(course.id)}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      Yes, Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
-
-            <Link href={`/admin/courses/${course.id}/contents`}>
-              <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-800">
-                <BookOpen className="h-4 w-4" />
-              </Button>
-            </Link>
-
-            <Link href={`/admin/courses/${course.id}/coupons`}>
-              <Button size="sm" variant="ghost" className="text-amber-600 hover:text-amber-800">
-                <TicketPercent className="h-4 w-4" />
-              </Button>
-            </Link>
-
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-green-600 hover:text-green-800"
-              onClick={() => setEditingCourse(course)}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-
-            {/* Delete with confirmation */}
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-red-600 hover:text-red-800"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                Are you sure you want to delete this course?
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the
-                course <span className="font-semibold">{course.title}</span> and
-                all its data.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => handleDelete(course.id)}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                Yes, Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-          </div>
+          </TooltipProvider>
         );
       },
     },

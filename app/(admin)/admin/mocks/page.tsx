@@ -324,6 +324,20 @@ export default function AdminMocksPage() {
                   <Button
                     variant="outline"
                     size="icon"
+                    className="bg-green-50 hover:bg-green-100 text-green-600 border-green-200"
+                    onClick={() => router.push(`/mocks/${mock.id}/start`)}
+                  >
+                    <Trophy className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Play Quiz</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
                     onClick={() => {
                       setSelectedMock(mock);
                       setEditOpen(true);
