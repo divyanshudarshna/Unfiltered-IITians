@@ -77,14 +77,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   // Create user data from context
   const userData = React.useMemo(() => {
-    if (isLoading) {
-      return {
-        name: "Loading...",
-        email: "loading@example.com",
-        avatar: "/unf_logo.jpeg",
-      };
-    }
-
     // Get the user's full name
     const fullName = userProfile?.name || 
       (clerkUser?.firstName && clerkUser?.lastName 
@@ -95,6 +87,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       name: fullName,
       email: userProfile?.email || clerkUser?.primaryEmailAddress?.emailAddress || "admin@example.com",
       avatar: getProfileImageUrl() || clerkUser?.imageUrl || "/unf_logo.jpeg",
+      isLoading,
     };
   }, [userProfile, clerkUser, getProfileImageUrl, isLoading]);
 

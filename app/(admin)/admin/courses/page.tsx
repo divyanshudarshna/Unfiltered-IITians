@@ -1,6 +1,6 @@
 // app/(admin)/admin/courses/page.tsx
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -75,8 +75,21 @@ export default function CoursesPage() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [totalRevenue, setTotalRevenue] = useState(0);
 
-  const fetchCourses = async () => {
+  const fetchCourseRevenue = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/courses/revenue");
+      if (res.ok) {
+        const data = await res.json();
+        setTotalRevenue(data.totalRevenue || 0);
+      }
+    } catch (err) {
+      console.error("Error fetching course revenue:", err);
+    }
+  }, []);
+
+  const fetchCourses = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/admin/courses", { cache: "no-store" });
@@ -124,13 +137,16 @@ export default function CoursesPage() {
       );
 
       setCourses(coursesWithDetails);
+      
+      // Fetch actual revenue from paid subscriptions
+      await fetchCourseRevenue();
     } catch (err) {
       console.error(err);
       toast.error("Failed to load courses");
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchCourseRevenue]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -141,7 +157,7 @@ export default function CoursesPage() {
 
   useEffect(() => {
     fetchCourses();
-  }, []);
+  }, [fetchCourses]);
 
   // Stats calculations
   const stats = {
@@ -151,10 +167,7 @@ export default function CoursesPage() {
     draft: courses.filter((c) => c.status === PublishStatus.DRAFT).length,
     archived: courses.filter((c) => c.status === PublishStatus.ARCHIVED).length,
     totalEnrollments: courses.reduce((sum, c) => sum + (c.enrollments || 0), 0),
-    totalRevenue: courses.reduce(
-      (sum, c) => sum + c.price * (c.enrollments || 0),
-      0
-    ),
+    totalRevenue: totalRevenue, // ✅ Use actual revenue from paid subscriptions
     avgCoursePrice:
       courses.length > 0
         ? courses.reduce((sum, c) => sum + c.price, 0) / courses.length
