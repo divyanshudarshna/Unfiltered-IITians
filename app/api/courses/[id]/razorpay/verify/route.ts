@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { sendEmail } from "@/lib/email";
 
 interface Params {
   params: { id: string };
@@ -295,6 +296,62 @@ export async function POST(req: Request, { params }: Params) {
       }
     } else {
       console.log(`ℹ️ No inclusions to process for course ${sub.courseId}`);
+    }
+
+    // ✅ Send course purchase confirmation email
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: sub.userId },
+        select: { email: true, name: true }
+      });
+
+      if (user && sub.course) {
+        console.log(`📧 Attempting to send course purchase email to ${user.email}`);
+        
+        // Convert amount from paise to rupees
+        const amountInRupees = ((sub.actualAmountPaid || sub.course.price) / 100).toFixed(2);
+        
+        // Calculate expiry date based on course duration
+        const enrollmentExpiresAt = new Date(Date.now() + (sub.course.durationMonths * 30 * 24 * 60 * 60 * 1000));
+        const expiryDateString = enrollmentExpiresAt.toLocaleDateString('en-IN', { 
+          day: 'numeric', 
+          month: 'long', 
+          year: 'numeric' 
+        });
+        
+        console.log(`📧 Email data:`, {
+          userName: user.name,
+          courseName: sub.course.title,
+          amountInRupees,
+          courseExpiry: expiryDateString,
+          durationMonths: sub.course.durationMonths
+        });
+        
+        const emailResult = await sendEmail({
+          to: user.email,
+          template: 'course_purchase',
+          data: {
+            userName: user.name || 'Student',
+            courseName: sub.course.title,
+            purchaseAmount: amountInRupees,
+            additionalInfo: expiryDateString, // Send expiry date in additionalInfo
+          },
+        });
+        
+        if (emailResult.success) {
+          console.log(`✅ Course purchase email sent successfully to ${user.email}`, emailResult.messageId);
+        } else {
+          console.error(`❌ Failed to send course purchase email:`, emailResult.error);
+        }
+      } else {
+        console.error(`❌ Cannot send email - User or course missing:`, { 
+          hasUser: !!user, 
+          hasCourse: !!sub.course 
+        });
+      }
+    } catch (emailError) {
+      console.error('❌ Error sending course purchase email:', emailError);
+      // Don't fail the payment verification if email fails
     }
 
     return NextResponse.json({ success: true });

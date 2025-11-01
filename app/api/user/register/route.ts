@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { currentUser } from "@clerk/nextjs/server"; // 👈 Import Clerk server-side API
+import { sendEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
   try {
@@ -58,6 +59,21 @@ export async function POST(req: Request) {
 
 
     // console.log("✅ User created and stored:", newUser.email);
+    
+    // Send welcome email asynchronously (don't wait for it to complete)
+    if (newUser) {
+      sendEmail({
+        to: newUser.email,
+        template: 'welcome',
+        data: {
+          userName: newUser.name || 'Student',
+        },
+      }).catch((err) => {
+        console.error('❌ Failed to send welcome email:', err);
+        // Don't throw error - registration should succeed even if email fails
+      });
+    }
+    
     return NextResponse.json({ user: newUser, created: true });
   } catch (error: unknown) {
     // console.error("❌ Error creating user:", error);
