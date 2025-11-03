@@ -293,53 +293,53 @@ export function AdminStatsContainer() {
 
       {/* Comprehensive Stats Overview - 5 Mini Cards */}
       {!overviewLoading && statsOverview && (
-        <div className="grid grid-cols-5 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center space-x-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <Card className="p-4 min-w-0">
+            <div className="flex items-center space-x-2 min-w-0">
               <IndianRupee className="h-5 w-5 text-blue-600" />
-              <div>
-                <p className="text-xs text-muted-foreground">Total Revenue</p>
-                <p className="text-lg font-bold">₹{statsOverview.totalRevenue.toLocaleString()}</p>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Total Revenue</p>
+                <p className="text-lg font-bold truncate">₹{statsOverview.totalRevenue.toLocaleString()}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center space-x-2">
+          <Card className="p-4 min-w-0">
+            <div className="flex items-center space-x-2 min-w-0">
               <Users className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="text-xs text-muted-foreground">Transactions</p>
-                <p className="text-lg font-bold">{statsOverview.totalTransactions}</p>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Transactions</p>
+                <p className="text-lg font-bold truncate">{statsOverview.totalTransactions}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center space-x-2">
+          <Card className="p-4 min-w-0">
+            <div className="flex items-center space-x-2 min-w-0">
               <TrendingUp className="h-5 w-5 text-purple-600" />
-              <div>
-                <p className="text-xs text-muted-foreground">Avg Value</p>
-                <p className="text-lg font-bold">₹{Math.round(statsOverview.avgTransactionValue)}</p>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Avg Value</p>
+                <p className="text-lg font-bold truncate">₹{Math.round(statsOverview.avgTransactionValue)}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center space-x-2">
+          <Card className="p-4 min-w-0">
+            <div className="flex items-center space-x-2 min-w-0">
               <TrendingDown className="h-5 w-5 text-orange-600" />
-              <div>
-                <p className="text-xs text-muted-foreground">Discounts</p>
-                <p className="text-lg font-bold">₹{statsOverview.totalDiscounts.toLocaleString()}</p>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Discounts</p>
+                <p className="text-lg font-bold truncate">₹{statsOverview.totalDiscounts.toLocaleString()}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center space-x-2">
+          <Card className="p-4 min-w-0">
+            <div className="flex items-center space-x-2 min-w-0">
               <CheckCircle className="h-5 w-5 text-emerald-600" />
-              <div>
-                <p className="text-xs text-muted-foreground">Success Rate</p>
-                <p className="text-lg font-bold">
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Success Rate</p>
+                <p className="text-lg font-bold truncate">
                   {statsOverview.totalTransactions > 0 
                     ? Math.round((statsOverview.totalTransactions / (statsOverview.totalTransactions + statsOverview.pendingTransactions)) * 100)
                     : 0}%
@@ -351,12 +351,12 @@ export function AdminStatsContainer() {
       )}
 
       {overviewLoading && (
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {[...Array(5)].map((_, i) => (
-            <Card key={`loading-${i}`} className="p-4">
-              <div className="flex items-center space-x-2">
+            <Card key={`loading-${i}`} className="p-4 min-w-0">
+              <div className="flex items-center space-x-2 min-w-0">
                 <div className="h-5 w-5 bg-muted animate-pulse rounded" />
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="h-3 bg-muted animate-pulse rounded mb-1" />
                   <div className="h-4 bg-muted animate-pulse rounded" />
                 </div>
