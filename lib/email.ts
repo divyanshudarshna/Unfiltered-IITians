@@ -2,11 +2,18 @@ import nodemailer from 'nodemailer';
 
 // Email configuration
 const createTransporter = () => {
+  // Use generic SMTP settings. Hostinger example: smtp.hostinger.com, port 587 (TLS)
+  const host = process.env.EMAIL_HOST || 'smtp.hostinger.com';
+  const port = process.env.EMAIL_PORT ? Number.parseInt(process.env.EMAIL_PORT, 10) : 587;
+  const secure = process.env.EMAIL_SECURE === undefined ? false : (process.env.EMAIL_SECURE === 'true'); // true for 465, false for 587
+
   return nodemailer.createTransport({
-    service: 'gmail',
+    host,
+    port,
+    secure,
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD, // Use App Password for Gmail
+      pass: process.env.EMAIL_PASSWORD,
     },
   });
 };
@@ -433,8 +440,10 @@ export async function sendEmail({
       throw new Error('Either provide a template with data or customSubject with customHtml');
     }
 
+    const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'no-reply@unfilterediitians.com';
+
     const mailOptions = {
-      from: `Unfiltered IITians <${process.env.EMAIL_USER}>`,
+      from: `Unfiltered IITians <${fromAddress}>`,
       to,
       subject,
       html,
@@ -459,6 +468,13 @@ export async function sendEmail({
 // Verify email configuration
 export async function verifyEmailConfig() {
   try {
+  console.log('🔧 Verifying email configuration...');
+  console.log('EMAIL_HOST:', process.env.EMAIL_HOST ? '✅ Set' : '❌ Not set (using smtp.hostinger.com)');
+  console.log('EMAIL_PORT:', process.env.EMAIL_PORT ? `✅ ${process.env.EMAIL_PORT}` : '❌ Not set (using 587)');
+  console.log('EMAIL_SECURE:', process.env.EMAIL_SECURE === undefined ? '❌ Not set (using false)' : `✅ ${process.env.EMAIL_SECURE}`);
+  console.log('EMAIL_USER:', process.env.EMAIL_USER ? '✅ Set' : '❌ Not set');
+  console.log('EMAIL_FROM:', process.env.EMAIL_FROM ? '✅ Set' : '❌ Not set');
+
     const transporter = createTransporter();
     await transporter.verify();
     return { success: true, message: 'Email configuration is valid' };
