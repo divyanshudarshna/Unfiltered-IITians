@@ -96,6 +96,13 @@ export const UserMenu = () => {
             >
               <Download size={18} /> <span>Free Resources</span>
             </Link>
+            <Link 
+              href="/success-stories" 
+              className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors" 
+              onClick={() => setUserMenuOpen(false)}
+            >
+              <FileText size={18} /> <span>Success Stories</span>
+            </Link>
           </div>
 
           {/* Theme Selection */}

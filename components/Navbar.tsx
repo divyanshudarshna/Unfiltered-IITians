@@ -178,6 +178,15 @@ const Navbar = () => {
                   <Download size={20} /> 
                   <span>Free Resources</span>
                 </Link>
+                <Link 
+                  href="/success-stories" 
+                  prefetch 
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-base"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <FileText size={20} /> 
+                  <span>Success Stories</span>
+                </Link>
               </div>
               <MobileLogoutButton onClick={() => setMenuOpen(false)} />
             </div>

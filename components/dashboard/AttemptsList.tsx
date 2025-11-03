@@ -63,6 +63,8 @@ export default function AttemptsList({
   const userSlug = user?.fullName
     ? user.fullName.split(" ")[0] // take first word of fullname
     : "me";
+  // Render attempts in chronological order (oldest first) so Attempt #1 is the earliest
+  const orderedAttempts = [...attempts].slice().reverse();
     
 
   return (
@@ -72,6 +74,7 @@ export default function AttemptsList({
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Test Results</h1>
           <p className="text-sm text-muted-foreground">{mockTestTitle}</p>
+          <p className="text-xs text-muted-foreground">Total attempts: {attempts.length}</p>
         </div>
       {/* Buttons Row */}
         <div className="flex items-center gap-2">
@@ -101,7 +104,7 @@ export default function AttemptsList({
 
       {/* Attempts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {attempts.map((attempt, index) => {
+        {orderedAttempts.map((attempt, index) => {
           const {
             id,
             totalQuestions = 0,

@@ -49,14 +49,16 @@ export default function SuccessStoriesList({ stories }: Props) {
               onClick={() => setSelected(story)}
             >
               <CardHeader className="p-6 pb-3">
-                <div className="flex items-center space-x-4">
-                  <Avatar className="h-14 w-14 ring-2 ring-blue-600/40 shadow-md">
-                    <AvatarImage src={story.image || ""} className="object-cover" />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-semibold">
-                      {story.name.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-full flex justify-center mb-4">
+                    <Avatar className="h-36 w-36 ring-2 ring-blue-600/40 shadow-md">
+                      <AvatarImage src={story.image || ""} className="object-cover h-full w-full rounded-full" />
+                      <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-semibold text-2xl">
+                        {story.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className="mb-1">
                     <h3 className="font-semibold text-white text-lg">{story.name}</h3>
                     <p className="text-sm text-blue-400">{story.role}</p>
                   </div>
