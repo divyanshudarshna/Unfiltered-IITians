@@ -2,13 +2,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
-import { sendEmail } from "@/lib/email";
+import * as Email from "@/lib/email";
 
-interface Params {
-  params: { id: string };
-}
-
-export async function POST(req: Request, { params }: Params) {
+export async function POST(req: Request) {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, couponCode } =
       await req.json();
@@ -327,7 +323,7 @@ export async function POST(req: Request, { params }: Params) {
           durationMonths: sub.course.durationMonths
         });
         
-        const emailResult = await sendEmail({
+        const emailResult = await Email.sendEmail({
           to: user.email,
           template: 'course_purchase',
           data: {

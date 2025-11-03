@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,16 @@ export function AnnouncementForm({ open, courses, announcement, onSuccess, onCan
     courseId: announcement?.courseId || "",
     sendEmail: announcement?.sendEmail || false,
   });
+
+  // Update form values when the announcement prop changes (e.g. when editing an announcement)
+  useEffect(() => {
+    setFormData({
+      title: announcement?.title || "",
+      message: announcement?.message || "",
+      courseId: announcement?.courseId || "",
+      sendEmail: announcement?.sendEmail || false,
+    });
+  }, [announcement, open]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {

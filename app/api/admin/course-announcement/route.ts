@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import nodemailer from "nodemailer";
+import * as Email from '@/lib/email';
 
 // Helper function to validate email
 function isValidEmail(email: string): boolean {
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
 // ================== POST ==================
 export async function POST(req: NextRequest) {
   try {
-    const { courseId, title, message, sendEmail = false } = await req.json();
+  const { courseId, title, message, sendEmail: sendAsEmail = false } = await req.json();
 
     if (!courseId || !title || !message) {
       return NextResponse.json({ error: "courseId, title, message required" }, { status: 400 });
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     // Create announcement
     const announcement = await prisma.courseAnnouncement.create({
-      data: { courseId, title, message, sendEmail },
+      data: { courseId, title, message, sendEmail: sendAsEmail },
     });
 
     // Enrolled users
@@ -93,69 +93,45 @@ export async function POST(req: NextRequest) {
       recipientsCreated = result.count;
     }
 
-    // Send email
+    // Send email via central email service (lib/email.ts)
     let emailsSent = 0;
     let emailErrors = 0;
-    if (sendEmail && enrollments.length > 0) {
-      // Validate SMTP configuration
-      if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.warn("SMTP configuration missing, skipping email sending");
-        return NextResponse.json({ 
-          success: true, 
-          announcement, 
-          recipientsCreated, 
-          emailsSent: 0,
-          warning: "Email sending skipped: SMTP not configured"
-        });
-      }
+    if (sendAsEmail && enrollments.length > 0) {
+      // Verify email config quickly
+  const verifyResult = await Email.verifyEmailConfig();
+  console.log('verifyEmailConfig result:', verifyResult);
+      if (!verifyResult.success) {
+        console.warn('Email configuration invalid, skipping email sending', verifyResult.error);
+      } else {
+        for (const e of enrollments) {
+          const recipientEmail = e.user.email;
+          if (recipientEmail && isValidEmail(recipientEmail)) {
+              try {
+              const result = await Email.sendEmail({
+                to: recipientEmail,
+                template: undefined,
+                customSubject: `[${course.title}] ${title}`,
+                customHtml: `<h2>${title}</h2><p>${message}</p>`,
+              });
 
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT),
-        secure: true,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      });
+              console.log(`sendEmail result for ${recipientEmail}:`, result);
+              if (result.success) {
+                emailsSent++;
+                await prisma.announcementRecipient.updateMany({
+                  where: { announcementId: announcement.id, userId: e.user.id },
+                  data: { deliveredEmail: true },
+                });
+              } else {
+                emailErrors++;
+                console.error(`Failed to send via sendEmail to ${recipientEmail}:`, result.error);
+              }
 
-      // Verify transporter connection
-      try {
-        await transporter.verify();
-      } catch (error) {
-        console.error("SMTP connection failed:", error);
-        return NextResponse.json({ 
-          success: true, 
-          announcement, 
-          recipientsCreated, 
-          emailsSent: 0,
-          warning: "Email sending failed: SMTP connection error"
-        });
-      }
-
-      // Send emails with rate limiting
-      for (const e of enrollments) {
-        if (e.user.email && isValidEmail(e.user.email)) {
-          try {
-            await transporter.sendMail({
-              from: `"Course Announcements" <${process.env.SMTP_FROM}>`,
-              to: e.user.email,
-              subject: `[${course.title}] ${title}`,
-              html: `<h2>${title}</h2><p>${message}</p>`,
-            });
-            emailsSent++;
-            
-            // Update deliveredEmail status
-            await prisma.announcementRecipient.updateMany({
-              where: { 
-                announcementId: announcement.id,
-                userId: e.user.id 
-              },
-              data: { deliveredEmail: true }
-            });
-            
-            // Add small delay to avoid overwhelming SMTP server
-            await new Promise(resolve => setTimeout(resolve, 100));
-          } catch (error) {
-            console.error(`Failed to send email to ${e.user.email}:`, error);
-            emailErrors++;
+              // small delay to be polite to SMTP providers
+              await new Promise((r) => setTimeout(r, 80));
+            } catch (err) {
+              emailErrors++;
+              console.error(`Unexpected error sending email to ${recipientEmail}:`, err);
+            }
           }
         }
       }
@@ -182,13 +158,97 @@ export async function PUT(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "Announcement ID is required" }, { status: 400 });
 
     const body = await req.json();
-    const announcement = await prisma.courseAnnouncement.update({
-      where: { id },
-      data: body,
-      include: { course: { select: { title: true } } },
-    });
+    console.log('PUT /api/admin/course-announcement body:', body);
 
-    return NextResponse.json({ success: true, announcement });
+    // Sanitize update payload to avoid passing unexpected fields to Prisma
+    const updateData: any = {};
+    if (typeof body.title === 'string') updateData.title = body.title;
+    if (typeof body.message === 'string') updateData.message = body.message;
+    if (body.hasOwnProperty('sendEmail')) updateData.sendEmail = Boolean(body.sendEmail);
+
+    let announcement;
+    try {
+      console.log('Updating announcement id:', id, 'with data:', updateData);
+      announcement = await prisma.courseAnnouncement.update({
+        where: { id },
+        data: updateData,
+        include: { course: { select: { title: true } } },
+      });
+      console.log('Announcement updated:', { id: announcement.id, title: announcement.title });
+    } catch (prismaErr) {
+      console.error('Prisma error updating announcement:', prismaErr);
+      // Re-throw so outer catch returns 500 but we have detailed logs
+      throw prismaErr;
+    }
+
+    // If sendEmail flag is set on update, attempt to send emails to enrolled users
+    let emailsSent = 0;
+    let emailErrors = 0;
+    if (body.sendEmail) {
+      const courseId = announcement.courseId;
+      const enrollments = await prisma.enrollment.findMany({
+        where: { courseId },
+        select: { user: { select: { id: true, email: true, name: true } } },
+      });
+
+      if (enrollments.length > 0) {
+        // Ensure recipients exist - use createMany but fall back if skipDuplicates unsupported
+        try {
+          await prisma.announcementRecipient.createMany({
+            data: enrollments.map((e) => ({ announcementId: announcement.id, userId: e.user.id })),
+            skipDuplicates: true,
+          });
+        } catch (createManyErr) {
+          console.warn('createMany with skipDuplicates failed, falling back to individual upserts:', createManyErr);
+          for (const e of enrollments) {
+            try {
+              await prisma.announcementRecipient.upsert({
+                where: { announcementId_userId: { announcementId: announcement.id, userId: e.user.id } },
+                update: {},
+                create: { announcementId: announcement.id, userId: e.user.id },
+              });
+            } catch (upsertErr) {
+              console.error('Failed to upsert announcementRecipient for user', e.user.id, upsertErr);
+            }
+          }
+        }
+
+        const verifyResult = await Email.verifyEmailConfig();
+        if (!verifyResult.success) {
+          console.warn('Email configuration invalid, skipping email sending on update', verifyResult.error);
+        } else {
+          for (const e of enrollments) {
+            const recipientEmail = e.user.email;
+            if (recipientEmail && isValidEmail(recipientEmail)) {
+              try {
+                const result = await Email.sendEmail({
+                  to: recipientEmail,
+                  customSubject: `[${announcement.course.title}] ${announcement.title}`,
+                  customHtml: `<h2>${announcement.title}</h2><p>${announcement.message}</p>`,
+                });
+
+                if (result.success) {
+                  emailsSent++;
+                  await prisma.announcementRecipient.updateMany({
+                    where: { announcementId: announcement.id, userId: e.user.id },
+                    data: { deliveredEmail: true },
+                  });
+                } else {
+                  emailErrors++;
+                }
+
+                await new Promise((r) => setTimeout(r, 80));
+              } catch (err) {
+                emailErrors++;
+                console.error(`Error sending announcement email to ${recipientEmail}:`, err);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true, announcement, emailsSent, emailErrors: emailErrors || undefined });
   } catch (err) {
     console.error("Error updating announcement:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
