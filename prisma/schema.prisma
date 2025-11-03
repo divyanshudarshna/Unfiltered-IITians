@@ -180,6 +180,7 @@ model Coupon {
   validTill   DateTime
   courseId    String        @db.ObjectId
   usageCount  Int           @default(0) // Track total usage count
+  isPublic    Boolean       @default(false) // Whether coupon is visible on frontend
 
   course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
   usages      CouponUsage[] // Relation to individual usages

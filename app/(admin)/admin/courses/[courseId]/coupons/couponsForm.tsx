@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 interface CouponFormProps {
   courseId: string;
@@ -18,7 +19,8 @@ interface CouponFormProps {
     id: string;
     code: string;
     discountPct: number;
-    validTill: Date;
+    validTill: string | Date;
+    isPublic?: boolean;
   } | null;
   open: boolean;
   onClose: () => void;
@@ -32,6 +34,7 @@ export default function CouponForm({ courseId, coupon, open, onClose, onSuccess 
     code: coupon?.code || '',
     discountPct: coupon?.discountPct || 10,
     validTill: coupon?.validTill ? new Date(coupon.validTill).toISOString().split('T')[0] : '',
+    isPublic: coupon?.isPublic || false,
   });
 
   useEffect(() => {
@@ -40,6 +43,7 @@ export default function CouponForm({ courseId, coupon, open, onClose, onSuccess 
         code: coupon?.code || '',
         discountPct: coupon?.discountPct || 10,
         validTill: coupon?.validTill ? new Date(coupon.validTill).toISOString().split('T')[0] : '',
+        isPublic: coupon?.isPublic || false,
       });
       setError(null);
     }
@@ -51,6 +55,10 @@ export default function CouponForm({ courseId, coupon, open, onClose, onSuccess 
       ...prev,
       [name]: name === 'discountPct' ? Number(value) : value
     }));
+  };
+
+  const handleToggle = (value: boolean) => {
+    setFormData(prev => ({ ...prev, isPublic: value }));
   };
 
   const validateForm = (): string | null => {
@@ -103,6 +111,7 @@ export default function CouponForm({ courseId, coupon, open, onClose, onSuccess 
           code: formData.code.trim().toUpperCase(), // Convert to uppercase to avoid case sensitivity issues
           discountPct: formData.discountPct,
           validTill: formData.validTill,
+          isPublic: formData.isPublic,
         }),
       });
 
@@ -194,6 +203,20 @@ export default function CouponForm({ courseId, coupon, open, onClose, onSuccess 
             {formData.validTill && new Date(formData.validTill) <= new Date() && (
               <p className="text-sm text-destructive">Valid until date must be in the future</p>
             )}
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="isPublic">Public Coupon</Label>
+              <p className="text-sm text-muted-foreground">If enabled, this coupon will be shown on the frontend promotional listings.</p>
+            </div>
+            <div>
+              <Switch
+                id="isPublic"
+                checked={!!formData.isPublic}
+                onCheckedChange={(val) => setFormData(prev => ({ ...prev, isPublic: Boolean(val) }))}
+              />
+            </div>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

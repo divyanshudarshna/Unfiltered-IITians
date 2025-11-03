@@ -9,19 +9,21 @@ interface Params {
 // ➕ Create coupon
 export async function POST(req: Request, { params }: Params) {
   try {
-    const { code, discountPct, validTill } = await req.json();
+  const { code, discountPct, validTill, isPublic } = await req.json();
 
     if (!code || !discountPct || !validTill) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
     const coupon = await prisma.coupon.create({
+      // Cast data as any because Prisma client may need regeneration after schema change
       data: {
         code,
         discountPct,
         validTill: new Date(validTill),
         courseId: params.id,
-      },
+        isPublic: Boolean(isPublic || false),
+      } as any,
     });
 
     return NextResponse.json(coupon, { status: 201 });
@@ -60,21 +62,27 @@ export async function GET(req: Request, { params }: Params) {
 }
 
 // ✏️ Update coupon
-export async function PUT(req: Request, { params }: Params) {
+export async function PUT(req: Request) {
   try {
-    const { id, code, discountPct, validTill } = await req.json();
+  const { id, code, discountPct, validTill, isPublic } = await req.json();
 
     if (!id) {
       return NextResponse.json({ error: "Coupon ID required" }, { status: 400 });
     }
 
+    const updateData: any = {
+      code,
+      discountPct,
+      validTill: validTill ? new Date(validTill) : undefined,
+    };
+
+    if (isPublic !== undefined) {
+      updateData.isPublic = Boolean(isPublic);
+    }
+
     const updated = await prisma.coupon.update({
       where: { id },
-      data: {
-        code,
-        discountPct,
-        validTill: validTill ? new Date(validTill) : undefined,
-      },
+      data: updateData as any,
     });
 
     return NextResponse.json(updated);
@@ -85,7 +93,7 @@ export async function PUT(req: Request, { params }: Params) {
 }
 
 // ❌ Delete coupon
-export async function DELETE(req: Request, { params }: Params) {
+export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
 

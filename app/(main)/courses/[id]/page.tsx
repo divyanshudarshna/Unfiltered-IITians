@@ -72,6 +72,8 @@ export default function CourseDetailPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [loading, setLoading] = useState(false);
   const [couponLoading, setCouponLoading] = useState(false);
+  const [publicCoupons, setPublicCoupons] = useState<Array<{id:string;code:string;discountPct:number;validTill:string;usageCount:number}>>([]);
+  const [publicLoading, setPublicLoading] = useState(false);
 
   // Fetch course details
   useEffect(() => {
@@ -89,7 +91,22 @@ export default function CourseDetailPage() {
       }
     };
     fetchCourse();
+    fetchPublicCoupons();
   }, [params.id]);
+
+  const fetchPublicCoupons = async () => {
+    try {
+      setPublicLoading(true);
+      const res = await fetch(`/api/courses/${params.id}/public-coupons`);
+      if (!res.ok) throw new Error('Failed to fetch public coupons');
+      const data = await res.json();
+      setPublicCoupons(data || []);
+    } catch (err) {
+      console.error('Error fetching public coupons:', err);
+    } finally {
+      setPublicLoading(false);
+    }
+  };
 
   // Base price = actualPrice fallback to price
   const basePrice = course?.actualPrice ?? course?.price ?? 0;
@@ -100,27 +117,28 @@ export default function CourseDetailPage() {
     : basePrice;
 
   // Apply coupon
-  const applyCoupon = async () => {
+  const applyCouponWithCode = async (codeToApply: string) => {
     if (!course) return;
-    if (!couponCode.trim()) return toast.error("Please enter a coupon code");
+    if (!codeToApply.trim()) return toast.error("Please enter a coupon code");
 
     setCouponLoading(true);
     try {
       const res = await fetch(`/api/courses/${course.id}/apply-coupon`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: couponCode.trim() }),
+        body: JSON.stringify({ code: codeToApply.trim() }),
       });
 
       const data = await res.json();
 
       if (data.valid) {
         setAppliedCoupon({
-          code: couponCode,
+          code: codeToApply,
           discountPct: data.discountPct,
           discountAmount: Math.round((data.discountPct / 100) * basePrice),
-          newPrice: finalPrice,
+          newPrice: basePrice - Math.round((data.discountPct / 100) * basePrice),
         });
+        setCouponCode(codeToApply);
         toast.success(`Coupon applied! ${data.discountPct}% discount`);
       } else {
         setAppliedCoupon(null);
@@ -132,6 +150,10 @@ export default function CourseDetailPage() {
     } finally {
       setCouponLoading(false);
     }
+  };
+
+  const applyCoupon = async () => {
+    return applyCouponWithCode(couponCode.trim());
   };
 
   const removeCoupon = () => {
@@ -534,6 +556,41 @@ export default function CourseDetailPage() {
                     <CheckCircle className="h-4 w-4 mr-1" /> Coupon "{appliedCoupon.code}" applied successfully
                   </div>
                 )}
+                {/* Public coupons promo */}
+                <div className="pt-4">
+                  <h4 className="text-lg font-semibold">Available Coupons</h4>
+                  {publicLoading ? (
+                    <div className="mt-2 text-sm text-muted-foreground">Checking for offers...</div>
+                  ) : publicCoupons.length > 0 ? (
+                    <div className="mt-2 grid grid-cols-1 gap-2">
+                      {publicCoupons.map((pc) => (
+                        <div
+                          key={pc.id}
+                          className="flex items-center justify-between p-3 rounded-md border border-gray-200 bg-white/50 dark:bg-gray-800/40 hover:shadow-sm transition-shadow"
+                        >
+                          <div>
+                            <div className="text-sm font-semibold">{pc.code}</div>
+                            <div className="text-xs text-emerald-400">{pc.discountPct}% off</div>
+                            <div className="text-xs text-muted-foreground mt-1">Expires: {new Date(pc.validTill).toLocaleDateString()}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => applyCouponWithCode(pc.code)}
+                              disabled={couponLoading}
+                          
+                            >
+                              {couponLoading ? 'Applying...' : 'Apply'}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-sm text-muted-foreground">No public coupons available for this course.</div>
+                  )}
+                </div>
               </div>
             </CardContent>
             <CardFooter>

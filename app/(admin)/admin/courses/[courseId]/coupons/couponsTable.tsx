@@ -36,9 +36,10 @@ interface Coupon {
   id: string;
   code: string;
   discountPct: number;
-  validTill: Date;
+  validTill: string;
   courseId: string;
   usageCount: number;
+  isPublic?: boolean;
   _count?: {
     usages: number;
   };
@@ -49,23 +50,39 @@ interface CouponsTableProps {
   coupons: Coupon[];
   onEdit: (coupon: Coupon) => void;
   onDelete: (id: string) => void;
+  onTogglePublic?: () => void; // callback after toggling to refresh parent
 }
 
-export default function CouponsTable({ coupons, onEdit, onDelete }: CouponsTableProps) {
+export default function CouponsTable({ coupons, onEdit, onDelete, onTogglePublic }: CouponsTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [sortConfig, setSortConfig] = useState<{key: keyof Coupon | null; direction: 'ascending' | 'descending'}>({key: null, direction: 'ascending'});
 
-  const isExpired = (validTill: Date) => {
+  const isExpired = (validTill: string) => {
     return new Date(validTill) < new Date();
   };
 
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  const togglePublic = async (coupon: Coupon) => {
+    try {
+      const response = await fetch(`/api/admin/courses/${coupon.courseId}/coupons`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: coupon.id, isPublic: !coupon.isPublic }),
+      });
+      if (!response.ok) throw new Error('Failed to toggle public');
+      if (typeof onTogglePublic === 'function') onTogglePublic();
+    } catch (err) {
+      console.error('Error toggling public:', err);
+      alert('Failed to update public status');
+    }
   };
 
   // Request sort
@@ -245,6 +262,7 @@ export default function CouponsTable({ coupons, onEdit, onDelete }: CouponsTable
                     )}
                   </div>
                 </TableHead>
+                <TableHead>Visibility</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -284,6 +302,18 @@ export default function CouponsTable({ coupons, onEdit, onDelete }: CouponsTable
                         </Badge>
                       </div>
                     </TableCell>
+
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={coupon.isPublic ? 'default' : 'secondary'} className={coupon.isPublic ? 'bg-emerald-100 text-emerald-800' : 'bg-muted text-muted-foreground'}>
+                          {coupon.isPublic ? 'Public' : 'Private'}
+                        </Badge>
+                        <Button size="sm" variant="outline" onClick={() => togglePublic(coupon)}>
+                          Toggle
+                        </Button>
+                      </div>
+                    </TableCell>
+
                     <TableCell>
                       <Badge 
                         variant={expired ? "secondary" : "default"}

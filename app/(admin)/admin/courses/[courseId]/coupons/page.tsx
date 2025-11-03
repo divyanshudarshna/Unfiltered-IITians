@@ -34,6 +34,7 @@ interface Coupon {
   validTill: string;
   courseId: string;
   usageCount: number;
+    isPublic?: boolean;
   _count?: {
     usages: number;
   };
@@ -272,6 +273,7 @@ export default function CouponsPage() {
               coupons={coupons}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onTogglePublic={() => fetchCoupons()}
             />
           )}
         </CardContent>
