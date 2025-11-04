@@ -50,6 +50,7 @@ const data = {
       submenu: [
         { title: "Manage Courses", url: "/admin/courses" },
         { title: "Manage Details", url: "/admin/course-details" },
+        { title: "Course Enrollments", url: "/admin/course-enrollments" },
         { title: "Manage Announcements", url: "/admin/announcement" },
         { title: "Feedbacks", url: "/admin/feedbacks"},
       ],
