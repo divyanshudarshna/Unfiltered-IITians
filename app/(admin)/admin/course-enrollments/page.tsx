@@ -46,7 +46,9 @@ import {
   Send,
   Clock,
   Tag,
-  User
+  User,
+  Gift,
+  Plus
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -78,6 +80,17 @@ interface Course {
   };
 }
 
+interface MockTest {
+  id: string;
+  title: string;
+  description: string | null;
+  price: number;
+  actualPrice: number | null;
+  difficulty: string;
+  duration: number | null;
+  tags: string[];
+}
+
 export default function CourseEnrollmentsPage() {
   const { getToken } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -106,6 +119,13 @@ export default function CourseEnrollmentsPage() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailMessage, setEmailMessage] = useState('');
+
+  // Add Mocks feature
+  const [addMocksDialogOpen, setAddMocksDialogOpen] = useState(false);
+  const [availableMocks, setAvailableMocks] = useState<MockTest[]>([]);
+  const [selectedMocks, setSelectedMocks] = useState<string[]>([]);
+  const [addingMocks, setAddingMocks] = useState(false);
+  const [loadingMocks, setLoadingMocks] = useState(false);
 
   // Fetch courses with enrollments
   useEffect(() => {
@@ -262,6 +282,87 @@ export default function CourseEnrollmentsPage() {
     }
   };
 
+  // Fetch available mocks
+  const fetchMocks = async () => {
+    setLoadingMocks(true);
+    try {
+      const token = await getToken();
+      const response = await fetch('/api/admin/mocks/list', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableMocks(data.mocks || []);
+      }
+    } catch (error) {
+      console.error('Error fetching mocks:', error);
+      toast.error('Failed to load mocks');
+    } finally {
+      setLoadingMocks(false);
+    }
+  };
+
+  // Open add mocks dialog
+  const openAddMocksDialog = () => {
+    if (selectedEnrollments.length === 0) {
+      toast.error('Please select at least one student');
+      return;
+    }
+    fetchMocks();
+    setAddMocksDialogOpen(true);
+  };
+
+  // Handle mock selection
+  const handleMockSelection = (mockId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedMocks((prev) => [...prev, mockId]);
+    } else {
+      setSelectedMocks((prev) => prev.filter((id) => id !== mockId));
+    }
+  };
+
+  // Add mocks to selected students
+  const addMocksToStudents = async () => {
+    if (selectedMocks.length === 0) {
+      toast.error('Please select at least one mock test');
+      return;
+    }
+
+    setAddingMocks(true);
+    try {
+      const token = await getToken();
+      const response = await fetch('/api/admin/enrollments/add-mocks', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          enrollmentIds: selectedEnrollments,
+          mockIds: selectedMocks,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(data.message || 'Mocks added successfully!');
+        setAddMocksDialogOpen(false);
+        setSelectedMocks([]);
+        setSelectedEnrollments([]);
+        setSelectAll(false);
+      } else {
+        throw new Error(data.error || 'Failed to add mocks');
+      }
+    } catch (error) {
+      console.error('Error adding mocks:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to add mocks');
+    } finally {
+      setAddingMocks(false);
+    }
+  };
+
   const selectedCourseName = courses.find(c => c.id === selectedCourse)?.title || '';
 
   return (
@@ -356,13 +457,23 @@ export default function CourseEnrollmentsPage() {
                         <p className="text-2xl font-bold">{selectedEnrollments.length}</p>
                       </div>
                     </div>
-                    <Button 
-                      onClick={() => setEmailDialogOpen(true)}
-                      className="gap-2"
-                    >
-                      <Send className="h-4 w-4" />
-                      Send Email
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={openAddMocksDialog}
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        <Gift className="h-4 w-4" />
+                        Add Mocks
+                      </Button>
+                      <Button 
+                        onClick={() => setEmailDialogOpen(true)}
+                        className="gap-2"
+                      >
+                        <Send className="h-4 w-4" />
+                        Send Email
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -639,6 +750,147 @@ export default function CourseEnrollmentsPage() {
                   <>
                     <Send className="h-4 w-4" />
                     Send Emails
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Mocks Dialog */}
+      <Dialog open={addMocksDialogOpen} onOpenChange={setAddMocksDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Gift className="h-5 w-5 text-primary" />
+              Add Mock Tests to Selected Students
+            </DialogTitle>
+            <DialogDescription>
+              Grant free access to mock tests for {selectedEnrollments.length} selected student(s). They will receive an automated email notification.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {loadingMocks ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-3">Loading mocks...</span>
+              </div>
+            ) : availableMocks.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No published mocks available</p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg border-2 border-blue-200 dark:border-blue-800">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <Gift className="h-4 w-4 text-blue-600" />
+                    Select mock tests to grant for free (actualAmountPaid = ₹0)
+                  </p>
+                </div>
+
+                <div className="grid gap-3">
+                  {availableMocks.map((mock) => (
+                    <Card 
+                      key={mock.id} 
+                      className={`cursor-pointer transition-all hover:shadow-md ${
+                        selectedMocks.includes(mock.id) ? 'border-2 border-primary bg-primary/5' : ''
+                      }`}
+                      onClick={() => handleMockSelection(mock.id, !selectedMocks.includes(mock.id))}
+                    >
+                      <CardContent className="pt-4">
+                        <div className="flex items-start gap-4">
+                          <Checkbox
+                            checked={selectedMocks.includes(mock.id)}
+                            onCheckedChange={(checked) => handleMockSelection(mock.id, checked as boolean)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-base mb-1">{mock.title}</h4>
+                                {mock.description && (
+                                  <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                                    {mock.description}
+                                  </p>
+                                )}
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {mock.difficulty}
+                                  </Badge>
+                                  {mock.duration && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      {mock.duration} min
+                                    </Badge>
+                                  )}
+                                  {mock.tags.length > 0 && (
+                                    <div className="flex gap-1">
+                                      {mock.tags.slice(0, 3).map((tag, idx) => (
+                                        <Badge key={idx} variant="secondary" className="text-xs">
+                                          {tag}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="flex items-center gap-1 text-green-600 font-semibold">
+                                  <IndianRupee className="h-4 w-4" />
+                                  {mock.actualPrice || mock.price}
+                                </div>
+                                <p className="text-xs text-muted-foreground">Original Price</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {selectedMocks.length > 0 && (
+                  <div className="bg-primary/10 p-4 rounded-lg border-2 border-primary/20">
+                    <p className="text-sm font-medium">
+                      <strong>{selectedMocks.length}</strong> mock{selectedMocks.length > 1 ? 's' : ''} selected for{' '}
+                      <strong>{selectedEnrollments.length}</strong> student{selectedEnrollments.length > 1 ? 's' : ''}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Students will receive email with access links to dashboard and mocks page
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setAddMocksDialogOpen(false);
+                  setSelectedMocks([]);
+                }}
+                disabled={addingMocks}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={addMocksToStudents} 
+                disabled={addingMocks || selectedMocks.length === 0}
+                className="gap-2"
+              >
+                {addingMocks ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Adding Mocks...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Add {selectedMocks.length} Mock{selectedMocks.length !== 1 ? 's' : ''}
                   </>
                 )}
               </Button>

@@ -72,17 +72,39 @@ export async function POST(req: NextRequest) {
           to: enrollment.user.email,
           customSubject: subject,
           customHtml: `
+            <!DOCTYPE html>
             <html>
-              <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 10px; }
+                .message-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
+                .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; padding-top: 20px; border-top: 1px solid #ddd; }
+                .brand { color: #667eea; font-weight: bold; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="content">
                   <h2>Hello ${enrollment.user.name || 'Student'}!</h2>
                   <p><strong>Course:</strong> ${enrollment.course.title}</p>
-                  <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    ${message}
+                  
+                  <div class="message-box">
+                    ${message.replace(/\n/g, '<br>')}
                   </div>
-                  <p>Best regards,<br><strong>Unfiltered IITians Team</strong></p>
+                  
+                  <p>Best regards,<br>
+                  <strong class="brand">Unfiltered IITians Team</strong><br>
+                  <em>Divyanshu Darshna</em></p>
                 </div>
-              </body>
+                <div class="footer">
+                  <p>© ${new Date().getFullYear()} <a href="https://divyanshudarshna.com" style="color: #667eea; text-decoration: none;">divyanshudarshna.com</a></p>
+                  <p><strong>Unfiltered IITians</strong></p>
+                  <p style="font-size: 11px; color: #999;">Divyanshu Darshna</p>
+                </div>
+              </div>
+            </body>
             </html>
           `
         });
