@@ -7,9 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
-    "cleanup-production": "node scripts/cleanup-for-production.js",
-    "cleanup-production-ts": "npx tsx scripts/cleanup-for-production.ts"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.28.0",
