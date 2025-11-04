@@ -48,9 +48,20 @@ import {
   Tag,
   User,
   Gift,
-  Plus
+  Plus,
+  MoreVertical,
+  Eye,
+  Trash2,
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
 import { format } from 'date-fns';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Enrollment {
   id: string;
@@ -91,6 +102,21 @@ interface MockTest {
   tags: string[];
 }
 
+interface UserSubscription {
+  id: string;
+  type: string;
+  title: string;
+  description: string | null;
+  difficulty?: string;
+  actualAmountPaid: number;
+  originalPrice: number;
+  discountApplied: number;
+  couponCode: string | null;
+  paidAt: string;
+  expiresAt: string | null;
+  paid: boolean;
+}
+
 export default function CourseEnrollmentsPage() {
   const { getToken } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -126,6 +152,18 @@ export default function CourseEnrollmentsPage() {
   const [selectedMocks, setSelectedMocks] = useState<string[]>([]);
   const [addingMocks, setAddingMocks] = useState(false);
   const [loadingMocks, setLoadingMocks] = useState(false);
+
+  // View Subscriptions Dialog
+  const [viewSubscriptionsDialogOpen, setViewSubscriptionsDialogOpen] = useState(false);
+  const [selectedEnrollmentForView, setSelectedEnrollmentForView] = useState<Enrollment | null>(null);
+  const [userSubscriptions, setUserSubscriptions] = useState<UserSubscription[]>([]);
+  const [loadingSubscriptions, setLoadingSubscriptions] = useState(false);
+
+  // Delete Enrollment Dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedEnrollmentForDelete, setSelectedEnrollmentForDelete] = useState<Enrollment | null>(null);
+  const [securityPassword, setSecurityPassword] = useState('');
+  const [deletingEnrollment, setDeletingEnrollment] = useState(false);
 
   // Fetch courses with enrollments
   useEffect(() => {
@@ -363,6 +401,112 @@ export default function CourseEnrollmentsPage() {
     }
   };
 
+  // Handle view subscriptions
+  const handleViewSubscriptions = async (enrollment: Enrollment) => {
+    setSelectedEnrollmentForView(enrollment);
+    setLoadingSubscriptions(true);
+    
+    // Delay opening dialog to let dropdown close first
+    setTimeout(() => {
+      setViewSubscriptionsDialogOpen(true);
+    }, 50);
+
+    try {
+      const token = await getToken();
+      const response = await fetch(
+        `/api/admin/enrollments/subscriptions?enrollmentId=${enrollment.id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserSubscriptions(data.subscriptions || []);
+      } else {
+        throw new Error('Failed to fetch subscriptions');
+      }
+    } catch (error) {
+      console.error('Error fetching subscriptions:', error);
+      toast.error('Failed to load user subscriptions');
+    } finally {
+      setLoadingSubscriptions(false);
+    }
+  };
+
+  // Handle delete enrollment
+  const handleDeleteEnrollment = (enrollment: Enrollment) => {
+    setSelectedEnrollmentForDelete(enrollment);
+    setSecurityPassword('');
+    
+    // Delay opening dialog to let dropdown close first
+    setTimeout(() => {
+      setDeleteDialogOpen(true);
+    }, 50);
+  };
+
+  // Confirm delete enrollment
+  const confirmDeleteEnrollment = async () => {
+    if (!selectedEnrollmentForDelete) return;
+
+    if (!securityPassword) {
+      toast.error('Please enter security password');
+      return;
+    }
+
+    setDeletingEnrollment(true);
+    try {
+      const token = await getToken();
+      const response = await fetch('/api/admin/enrollments/delete', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          enrollmentId: selectedEnrollmentForDelete.id,
+          securityPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(data.message || 'Enrollment deleted successfully');
+        setDeleteDialogOpen(false);
+        setSelectedEnrollmentForDelete(null);
+        setSecurityPassword('');
+        fetchEnrollments(); // Refresh the list
+      } else {
+        // Handle specific error cases
+        if (response.status === 403) {
+          if (data.error?.toLowerCase().includes('password')) {
+            toast.error('Invalid security password. Please try again.');
+          } else if (data.error?.toLowerCase().includes('admin')) {
+            toast.error('Admin access required to perform this action.');
+          } else {
+            toast.error(data.error || 'Access denied. Please check your permissions.');
+          }
+        } else if (response.status === 404) {
+          toast.error('Enrollment not found. It may have been already deleted.');
+          setDeleteDialogOpen(false);
+          setSelectedEnrollmentForDelete(null);
+          setSecurityPassword('');
+          fetchEnrollments(); // Refresh the list
+        } else if (response.status === 401) {
+          toast.error('Your session has expired. Please log in again.');
+        } else {
+          toast.error(data.error || 'Failed to delete enrollment. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting enrollment:', error);
+      toast.error('Network error. Please check your connection and try again.');
+    } finally {
+      setDeletingEnrollment(false);
+    }
+  };
+
   const selectedCourseName = courses.find(c => c.id === selectedCourse)?.title || '';
 
   return (
@@ -559,7 +703,7 @@ export default function CourseEnrollmentsPage() {
                 </div>
               ) : (
                 <>
-                  <div className="overflow-x-auto rounded-lg border">
+                  <div className="relative overflow-x-auto rounded-lg border">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -575,6 +719,7 @@ export default function CourseEnrollmentsPage() {
                           <TableHead className="font-semibold">Duration</TableHead>
                           <TableHead className="font-semibold">Enrolled Date</TableHead>
                           <TableHead className="font-semibold">Expires At</TableHead>
+                          <TableHead className="font-semibold text-center">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -647,6 +792,43 @@ export default function CourseEnrollmentsPage() {
                               ) : (
                                 <span className="text-sm text-muted-foreground">N/A</span>
                               )}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-8 w-8 p-0 hover:bg-muted relative z-10"
+                                    aria-label="Actions menu"
+                                    type="button"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48 z-50" sideOffset={5}>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewSubscriptions(enrollment);
+                                    }}
+                                    className="cursor-pointer gap-2"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    View Subscriptions
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteEnrollment(enrollment);
+                                    }}
+                                    className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete Subscription
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -891,6 +1073,266 @@ export default function CourseEnrollmentsPage() {
                   <>
                     <Plus className="h-4 w-4" />
                     Add {selectedMocks.length} Mock{selectedMocks.length !== 1 ? 's' : ''}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Subscriptions Dialog */}
+      <Dialog 
+        open={viewSubscriptionsDialogOpen} 
+        onOpenChange={(open) => {
+          setViewSubscriptionsDialogOpen(open);
+          if (!open) {
+            // Cleanup when dialog closes
+            setTimeout(() => {
+              setSelectedEnrollmentForView(null);
+              setUserSubscriptions([]);
+            }, 100);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-4xl max-h-[80vh] overflow-y-auto"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Eye className="h-5 w-5 text-primary" />
+              User Subscriptions
+            </DialogTitle>
+            <DialogDescription asChild>
+              {selectedEnrollmentForView ? (
+                <div className="mt-2 space-y-1">
+                  <span className="font-semibold text-foreground block">
+                    {selectedEnrollmentForView.user.name || 'N/A'}
+                  </span>
+                  <span className="text-sm block">{selectedEnrollmentForView.user.email}</span>
+                  <span className="text-xs text-muted-foreground block">
+                    Enrolled in: {selectedEnrollmentForView.course.title}
+                  </span>
+                </div>
+              ) : (
+                <span>Loading user information...</span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {loadingSubscriptions ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-3">Loading subscriptions...</span>
+              </div>
+            ) : userSubscriptions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No subscriptions found for this user</p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {userSubscriptions.map((subscription) => (
+                  <Card key={subscription.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="pt-4">
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="outline" className="text-xs">
+                                {subscription.type}
+                              </Badge>
+                              {subscription.difficulty && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {subscription.difficulty}
+                                </Badge>
+                              )}
+                              <Badge variant={subscription.paid ? 'default' : 'destructive'} className="text-xs">
+                                {subscription.paid ? 'Paid' : 'Unpaid'}
+                              </Badge>
+                            </div>
+                            <h4 className="font-semibold text-base mb-1">{subscription.title}</h4>
+                            {subscription.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {subscription.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-1 text-green-600 font-semibold">
+                              <IndianRupee className="h-4 w-4" />
+                              {(subscription.actualAmountPaid / 100).toFixed(2)}
+                            </div>
+                            <p className="text-xs text-muted-foreground">Paid Amount</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t text-sm">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Original Price</p>
+                            <div className="flex items-center gap-1 font-medium">
+                              <IndianRupee className="h-3 w-3" />
+                              {(subscription.originalPrice / 100).toFixed(2)}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Discount</p>
+                            <p className="font-medium">
+                              {subscription.discountApplied}%
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Coupon Code</p>
+                            <p className="font-medium">
+                              {subscription.couponCode ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  <Tag className="h-3 w-3 mr-1" />
+                                  {subscription.couponCode}
+                                </Badge>
+                              ) : (
+                                'N/A'
+                              )}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Paid At</p>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              <span className="text-xs">
+                                {format(new Date(subscription.paidAt), 'MMM dd, yyyy')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {subscription.expiresAt && (
+                          <div className="pt-2 border-t">
+                            <p className="text-xs text-muted-foreground mb-1">Expires At</p>
+                            <div className="flex items-center gap-1 text-sm">
+                              <Clock className="h-3 w-3" />
+                              <span>{format(new Date(subscription.expiresAt), 'MMM dd, yyyy')}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-4 border-t">
+            <Button onClick={() => setViewSubscriptionsDialogOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Enrollment Dialog */}
+      <Dialog 
+        open={deleteDialogOpen} 
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) {
+            // Cleanup when dialog closes
+            setTimeout(() => {
+              setSelectedEnrollmentForDelete(null);
+              setSecurityPassword('');
+            }, 100);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-md"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Delete Subscription & Enrollment
+            </DialogTitle>
+            <DialogDescription className="pt-2" asChild>
+              {selectedEnrollmentForDelete ? (
+                <div className="space-y-3">
+                  <div className="bg-destructive/10 p-4 rounded-lg border-2 border-destructive/20">
+                    <span className="font-semibold text-destructive mb-2 block">⚠️ Warning: This action is irreversible!</span>
+                    <span className="text-sm text-foreground block">
+                      This will permanently delete:
+                    </span>
+                    <ul className="text-sm text-foreground list-disc list-inside mt-2 space-y-1">
+                      <li>All subscription details for this course</li>
+                      <li>The enrollment record</li>
+                      <li>User&apos;s access to the course content</li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium text-foreground block">Student Details:</span>
+                    <div className="bg-muted p-3 rounded-md text-sm">
+                      <span className="font-semibold block">{selectedEnrollmentForDelete.user.name || 'N/A'}</span>
+                      <span className="text-muted-foreground block">{selectedEnrollmentForDelete.user.email}</span>
+                      <span className="text-xs text-muted-foreground mt-1 block">
+                        Course: {selectedEnrollmentForDelete.course.title}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <span>Loading enrollment information...</span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="security-password" className="flex items-center gap-2 text-base font-medium">
+                <Lock className="h-4 w-4" />
+                Security Password
+              </Label>
+              <Input
+                id="security-password"
+                type="password"
+                placeholder="Enter security password to confirm"
+                value={securityPassword}
+                onChange={(e) => setSecurityPassword(e.target.value)}
+                className="h-11"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the security password to enable the delete button
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setDeleteDialogOpen(false);
+                  setSecurityPassword('');
+                  setSelectedEnrollmentForDelete(null);
+                }}
+                disabled={deletingEnrollment}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={confirmDeleteEnrollment} 
+                disabled={deletingEnrollment || !securityPassword}
+                className="gap-2"
+              >
+                {deletingEnrollment ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Delete Permanently
                   </>
                 )}
               </Button>
