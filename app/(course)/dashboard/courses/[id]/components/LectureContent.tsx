@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   BookOpen,
   FileText,
@@ -45,6 +46,7 @@ interface LectureContentProps {
   hasNext: boolean;
   hasPrevious: boolean;
   onMarkComplete: (lectureId: string) => void;
+  isLoading?: boolean;
 }
 
 export default function LectureContent({
@@ -54,13 +56,100 @@ export default function LectureContent({
   hasNext,
   hasPrevious,
   onMarkComplete,
+  isLoading = false,
 }: LectureContentProps) {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(lecture.completed || false);
 
   const handlePlaybackChange = (playing: boolean) => setIsVideoPlaying(playing);
   const handleVideoEnd = () => setIsVideoPlaying(false);
+
+  // Show skeleton loading state
+  if (isLoading) {
+    return (
+      <div className="mx-auto p-2 md:p-4 lg:p-6 space-y-4 md:space-y-8">
+        {/* Video Skeleton */}
+        <Skeleton className="w-full aspect-video rounded-xl md:rounded-2xl" />
+
+        {/* Header Skeleton */}
+        <div className="flex flex-col gap-4 p-4 md:p-5 rounded-xl md:rounded-2xl border bg-card/70 backdrop-blur shadow-sm">
+          <div className="flex-1 space-y-3">
+            <Skeleton className="h-8 md:h-10 w-3/4" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <div className="flex gap-2 w-full md:w-auto">
+            <Skeleton className="h-10 w-28 rounded-full" />
+            <Skeleton className="h-10 w-28 rounded-full" />
+          </div>
+        </div>
+
+        {/* Summary Skeleton */}
+        <Card className="overflow-hidden border-none shadow-lg rounded-xl md:rounded-2xl bg-card/80 backdrop-blur-md">
+          <CardContent className="p-0">
+            <div className="flex items-center px-4 md:px-6 py-3 md:py-4 bg-indigo-950/80 dark:bg-indigo-900/70">
+              <Skeleton className="h-10 w-10 rounded-xl" />
+              <div className="ml-3 md:ml-4 space-y-2 flex-1">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            </div>
+            <div className="p-4 md:p-6 space-y-3">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* PDF Skeleton */}
+        <Card className="overflow-hidden shadow-md border bg-card/70 backdrop-blur-md rounded-xl md:rounded-2xl">
+          <CardContent className="p-0">
+            <div className="flex items-center p-3 md:p-4 bg-muted/50 border-b">
+              <Skeleton className="h-5 w-5 mr-2" />
+              <Skeleton className="h-5 w-40" />
+            </div>
+            <div className="p-4 md:p-6 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-12 w-12 rounded-lg" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 w-full">
+                <Skeleton className="h-10 w-full sm:w-32 rounded-full" />
+                <Skeleton className="h-10 w-full sm:w-32 rounded-full" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Study Tips Skeleton */}
+        <Card className="shadow-lg border-none rounded-xl md:rounded-2xl overflow-hidden bg-card/70 backdrop-blur-md">
+          <CardContent className="p-4 md:p-6 space-y-4 md:space-y-5">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-7 w-7 rounded" />
+              <Skeleton className="h-6 w-32" />
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-lg" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Footer Skeleton */}
+        <div className="flex flex-col gap-3 md:gap-4 p-4 md:p-5 rounded-xl border bg-card/70 backdrop-blur shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <Skeleton className="h-10 w-full sm:w-32 rounded-full" />
+            <Skeleton className="h-10 w-full sm:w-40 rounded-full" />
+            <Skeleton className="h-10 w-full sm:w-32 rounded-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleDownloadPdf = () => {
     if (lecture.pdfUrl) {

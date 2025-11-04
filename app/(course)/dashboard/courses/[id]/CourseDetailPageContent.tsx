@@ -175,6 +175,11 @@ export default function CourseDetailPageContent() {
   const handleNext = async () => {
     if (!course || !selectedLecture || isLoadingLecture) return;
     
+    // Smooth scroll to top of the page
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Also scroll the main content area to top
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+    
     setIsLoadingLecture(true);
     try {
       const pos = findLecturePosition();
@@ -215,6 +220,11 @@ export default function CourseDetailPageContent() {
 
   const handlePrevious = async () => {
     if (!course || !selectedLecture || isLoadingLecture) return;
+    
+    // Smooth scroll to top of the page
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Also scroll the main content area to top
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
     
     setIsLoadingLecture(true);
     try {
@@ -262,6 +272,11 @@ export default function CourseDetailPageContent() {
 
   const handleLectureSelect = async (lecture: any, contentId: string) => {
     if (isLoadingLecture) return;
+    
+    // Smooth scroll to top of the page
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Also scroll the main content area to top
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
     
     setIsLoadingLecture(true);
     try {

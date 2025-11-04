@@ -588,7 +588,7 @@ const handleFinishQuiz = async () => {
           )}
         </CardContent>
         
-        <CardFooter className="flex justify-between">
+        <CardFooter className="flex justify-between flex-wrap gap-2">
           <Button 
             variant="outline" 
             onClick={handlePrevious}
@@ -597,18 +597,32 @@ const handleFinishQuiz = async () => {
             <ChevronLeft className="mr-2 h-4 w-4" /> Previous
           </Button>
 
-          {isAttempted ? (
-            <Button onClick={handleNext}>
-              {currentIdx + 1 === questions.length ? "Finish Quiz" : "Next Question"}
-              {currentIdx + 1 < questions.length && <ChevronRight className="ml-2 h-4 w-4" />}
-            </Button>
-          ) : (
-            <Button onClick={checkAnswer} disabled={ans === null}>
-              Check Answer
-            </Button>
-          )}
+          <div className="flex gap-2 ml-auto">
+            {isAttempted ? (
+              <Button onClick={handleNext}>
+                {currentIdx + 1 === questions.length ? "Finish Quiz" : "Next Question"}
+                {currentIdx + 1 < questions.length && <ChevronRight className="ml-2 h-4 w-4" />}
+              </Button>
+            ) : (
+              <Button onClick={checkAnswer} disabled={ans === null}>
+                Check Answer
+              </Button>
+            )}
+          </div>
         </CardFooter>
       </Card>
+
+      {/* Submit & Back to Lectures Button */}
+      <div className="flex justify-center mt-4">
+        <Button 
+          variant="outline" 
+          onClick={handleFinishQuiz}
+          className="flex items-center gap-2"
+        >
+          <BookOpen className="h-4 w-4" />
+          Submit & Back to Lectures
+        </Button>
+      </div>
     </div>
   );
 }
