@@ -17,12 +17,9 @@ import {
   Save,
   X,
   ArrowLeft,
-  Eye,
   Upload,
   FileUp,
   VideoIcon,
-  Type,
-  Download,
 
 } from "lucide-react";
 import Link from "next/link";
@@ -41,7 +38,6 @@ import TextAlign from "@tiptap/extension-text-align";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 
@@ -72,6 +68,8 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [youtubeEmbedUrl, setYoutubeEmbedUrl] = useState<string>("");
   const [pdfUrl, setPdfUrl] = useState<string>("");
+  const [order, setOrder] = useState<number | null>(null);
+  const [maxOrder, setMaxOrder] = useState<number>(0);
   const [saving, setSaving] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(action === "edit");
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
@@ -83,9 +81,6 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
     pdf: false
   });
 // PDF related states
-
-const [pdfFileName, setPdfFileName] = useState<string | null>(null);
-
 const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
 const [showPdfPreview, setShowPdfPreview] = useState(false);
 
@@ -127,9 +122,19 @@ const [showPdfPreview, setShowPdfPreview] = useState(false);
 
   // Fetch lecture data if editing
   useEffect(() => {
-    if (action === "edit" && lectureId) {
-      const fetchLecture = async () => {
-        try {
+    const fetchData = async () => {
+      try {
+        // Fetch all lectures for this content to get max order
+        const lecturesRes = await fetch(`/api/admin/contents/${contentId}/lectures`);
+        if (lecturesRes.ok) {
+          const lecturesData = await lecturesRes.json();
+          const max = lecturesData.length > 0 
+            ? Math.max(...lecturesData.map((l: { order: number }) => l.order))
+            : 0;
+          setMaxOrder(max);
+        }
+
+        if (action === "edit" && lectureId) {
           const res = await fetch(`/api/admin/lectures/${lectureId}`);
           if (!res.ok) throw new Error("Failed to load lecture");
           const data = await res.json();
@@ -138,22 +143,26 @@ const [showPdfPreview, setShowPdfPreview] = useState(false);
           setVideoUrl(data.videoUrl || "");
           setYoutubeEmbedUrl(data.youtubeEmbedUrl || "");
           setPdfUrl(data.pdfUrl || "");
+          setOrder(data.order);
           if (editor && data.summary) {
             editor.commands.setContent(data.summary);
           }
-        } catch (err) {
-          console.error(err);
-          toast.error("Failed to load lecture");
-        } finally {
-          setLoading(false);
         }
-      };
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load lecture");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      fetchLecture();
-    } else if (action === "add") {
+    if (action === "add" || (action === "edit" && lectureId)) {
+      fetchData();
+    } else {
       setLoading(false);
     }
-  }, [action, lectureId, editor]);
+  }, [action, lectureId, editor, contentId]);
+
 
  const handleUpload = async (file: File, type: "video" | "pdf") => {
   try {
@@ -187,14 +196,14 @@ const [showPdfPreview, setShowPdfPreview] = useState(false);
 
     if (type === "pdf") {
      setPdfUrl(data.url);
-    setPdfFileName(data.originalFileName || "document.pdf");
     }
 
     console.log(`${type} uploaded to:`, finalUrl);
     toast.success(`${type.toUpperCase()} uploaded successfully`);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Upload error:", err);
-    toast.error(err.message || `Failed to upload ${type}`);
+    const errorMessage = err instanceof Error ? err.message : `Failed to upload ${type}`;
+    toast.error(errorMessage);
   } finally {
     setUploading(prev => ({ ...prev, [type]: false }));
   }
@@ -237,7 +246,7 @@ console.log("PDF Preview URL:", pdfPreviewUrl);
         youtubeEmbedUrl,
         pdfUrl,
         summary: editor?.getHTML() || "",
-        order: 0
+        order: order ?? undefined // Only send order if explicitly set
       };
 
       const url = action === "edit" && lectureId
@@ -260,9 +269,10 @@ console.log("PDF Preview URL:", pdfPreviewUrl);
       toast.success(`Lecture ${action === "edit" ? "updated" : "created"} successfully`);
       router.push(`/admin/contents/${contentId}/lectures`);
       router.refresh();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(err.message || "Failed to save lecture");
+      const errorMessage = err instanceof Error ? err.message : "Failed to save lecture";
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -321,6 +331,70 @@ console.log("PDF Preview URL:", pdfPreviewUrl);
               placeholder="Enter lecture title"
               className="text-lg border-border/50 focus-visible:ring-primary"
             />
+          </CardContent>
+        </Card>
+
+        {/* Order/Position */}
+        <Card className="border-border/40 bg-card/50 backdrop-blur-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg text-amber-500 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h5a1 1 0 000-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM13 16a1 1 0 102 0v-5.586l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 101.414 1.414L13 10.414V16z" />
+              </svg>
+              Display Order
+            </CardTitle>
+            <CardDescription>
+              Set the position of this lecture in the content module
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <Label htmlFor="order" className="text-sm font-medium mb-2 block">
+                  Position {order !== null && `(${order})`}
+                </Label>
+                <Input
+                  id="order"
+                  type="number"
+                  min="1"
+                  max={action === "edit" ? maxOrder : maxOrder + 1}
+                  value={order ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setOrder(val === "" ? null : Number.parseInt(val, 10));
+                  }}
+                  placeholder={`Leave empty for last position (${maxOrder + 1})`}
+                  className="border-border/50 focus-visible:ring-primary"
+                />
+              </div>
+              {order !== null && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOrder(null)}
+                  className="mt-7"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Reset
+                </Button>
+              )}
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+              <div className="flex gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <div className="text-sm text-blue-700 dark:text-blue-300">
+                  <p className="font-medium mb-1">How ordering works:</p>
+                  <ul className="space-y-1 list-disc list-inside ml-2">
+                    <li><strong>Leave empty:</strong> Lecture will be added at the end (position {maxOrder + 1})</li>
+                    <li><strong>Set a position:</strong> Other lectures will automatically shift to make room</li>
+                    <li><strong>No conflicts:</strong> You cannot occupy an existing lecture&apos;s position - they will move</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -455,7 +529,7 @@ console.log("PDF Preview URL:", pdfPreviewUrl);
                    <Button
   variant="outline"
   onClick={handlePreviewPdf}
-  disabled={!pdfUrl && !pdfPublicId}
+  disabled={!pdfUrl}
 >
   Preview PDF
 </Button>
@@ -585,7 +659,7 @@ console.log("PDF Preview URL:", pdfPreviewUrl);
           </div>
           <div className="space-y-2">
             <h3 className="text-lg font-medium text-gray-900">No PDF available</h3>
-            <p className="text-sm text-gray-500">There's no PDF document available for preview at this time.</p>
+            <p className="text-sm text-gray-500">There&apos;s no PDF document available for preview at this time.</p>
           </div>
           <Button
             onClick={() => setShowPdfPreview(false)}

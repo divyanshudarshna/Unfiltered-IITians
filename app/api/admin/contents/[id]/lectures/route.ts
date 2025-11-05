@@ -14,6 +14,45 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
 
+    const contentId = params.id;
+
+    // Get existing lectures for this content
+    const existingLectures = await prisma.lecture.findMany({
+      where: { contentId },
+      orderBy: { order: 'asc' }
+    });
+
+    let finalOrder: number;
+
+    if (order !== undefined && order !== null) {
+      // User specified an order
+      const requestedOrder = Number.parseInt(order.toString(), 10);
+      
+      // Check if the requested order conflicts with existing lectures
+      const conflictingLecture = existingLectures.find(l => l.order === requestedOrder);
+      
+      if (conflictingLecture) {
+        // Shift all lectures at or after this position forward by 1
+        await prisma.lecture.updateMany({
+          where: {
+            contentId,
+            order: { gte: requestedOrder }
+          },
+          data: {
+            order: { increment: 1 }
+          }
+        });
+      }
+      
+      finalOrder = requestedOrder;
+    } else {
+      // No order specified - assign to last position
+      const maxOrder = existingLectures.length > 0 
+        ? Math.max(...existingLectures.map(l => l.order))
+        : 0;
+      finalOrder = maxOrder + 1;
+    }
+
     const lecture = await prisma.lecture.create({
       data: {
         title,
@@ -21,8 +60,8 @@ export async function POST(req: Request, { params }: Params) {
         youtubeEmbedUrl,
         pdfUrl,
         summary,
-        order,
-        contentId: params.id,
+        order: finalOrder,
+        contentId,
       },
     });
 
