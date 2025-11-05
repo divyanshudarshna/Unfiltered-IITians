@@ -31,10 +31,10 @@ export default function SuccessStoriesList({ stories }: Props) {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg mb-6">
             <Sparkles className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3 text-white">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3 dark:text-white text-slate-900">
             Success Stories
           </h1>
-          <p className="text-gray-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="dark:text-gray-400 text-gray-600 max-w-2xl mx-auto leading-relaxed">
             Real stories from real people who transformed their careers with our programs.
           </p>
         </div>
@@ -44,7 +44,7 @@ export default function SuccessStoriesList({ stories }: Props) {
           {stories.map((story, index) => (
             <Card
               key={story.id}
-              className="group bg-slate-900/60 border border-slate-800 hover:border-blue-700/60 shadow-md hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden backdrop-blur-sm flex flex-col cursor-pointer"
+              className="group dark:bg-slate-900/60  border border-slate-800 hover:border-blue-700/60 hover:bg-blue-50 shadow-md hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden backdrop-blur-sm flex flex-col cursor-pointer"
               style={{ animationDelay: `${index * 80}ms` }}
               onClick={() => setSelected(story)}
             >
@@ -59,15 +59,15 @@ export default function SuccessStoriesList({ stories }: Props) {
                     </Avatar>
                   </div>
                   <div className="mb-1">
-                    <h3 className="font-semibold text-white text-lg">{story.name}</h3>
-                    <p className="text-sm text-blue-400">{story.role}</p>
+                    <h3 className="font-semibold text-slate-800 dark:text-white text-lg">{story.name}</h3>
+                    <p className="text-sm dark:text-blue-400 text-blue-800">{story.role}</p>
                   </div>
                 </div>
               </CardHeader>
 
               <CardContent className="p-6 pt-0 flex flex-col flex-1">
                 {/* Content Preview */}
-                <p className="text-gray-400 text-sm leading-relaxed line-clamp-4 mb-6">
+                <p className="dark:text-gray-400 text-slate-800 text-sm leading-relaxed line-clamp-4 mb-6">
                   {story.content.replace(/<[^>]+>/g, "").substring(0, 160)}...
                 </p>
 
@@ -91,7 +91,7 @@ export default function SuccessStoriesList({ stories }: Props) {
                 {/* Button */}
                 <Button
                   variant="ghost"
-                  className="w-full mt-auto bg-slate-800/50 hover:bg-blue-600/20 text-blue-400 border border-slate-700 hover:border-blue-600 font-medium rounded-xl transition-all"
+                  className="w-full mt-auto dark:bg-slate-800/50 hover:bg-blue-600/20 text-blue-400 border border-slate-700 hover:border-blue-600 font-medium rounded-xl transition-all"
                 >
                   <span>Read Full Story</span>
                   <ExternalLink className="h-4 w-4 ml-2 opacity-80" />

@@ -97,7 +97,7 @@ export default function GuidanceSessionsList({
 
   return (
     <div className="container mx-auto px-6 py-10">
-      <h1 className="text-5xl font-bold text-center mb-10 text-primary bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+      <h1 className="text-5xl font-bold text-center mb-10 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 bg-clip-text text-transparent">
         Available Guidance Sessions
       </h1>
 
@@ -180,19 +180,19 @@ export default function GuidanceSessionsList({
                     </div>
 
                     <CardHeader className="relative z-5 pb-4">
-                      <CardTitle className="text-xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+                      <CardTitle className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                         {session.title}
                       </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                      <p className="text-sm text-gray-700 dark:text-gray-400 mt-2 line-clamp-2">
                         {session.description}
                       </p>
                     </CardHeader>
 
                     <CardContent className="relative z-5">
-                      <div className="mt-4 mb-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <div className="mt-4 mb-4 text-sm font-semibold text-gray-900 dark:text-gray-300">
                         What you'll get:
                       </div>
-                      <ul className="space-y-2.5 text-sm text-muted-foreground">
+                      <ul className="space-y-2.5 text-sm">
                         {[
                           "Expert tips on syllabus coverage",
                           "Live Interaction based service",
@@ -201,9 +201,9 @@ export default function GuidanceSessionsList({
                         ].map((item, idx) => (
                           <li key={idx} className="flex items-center gap-3 transition-transform duration-200 group-hover:translate-x-1">
                             <div className="flex-shrink-0 w-5 h-5 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                              <Check className="h-3 w-3 text-green-600 dark:text-green-400" />
+                              <Check className="h-3 w-3 text-green-700 dark:text-green-400" />
                             </div>
-                            <span className="text-gray-700 dark:text-gray-300">{item}</span>
+                            <span className="text-gray-900 dark:text-gray-300">{item}</span>
                           </li>
                         ))}
                       </ul>
@@ -211,11 +211,11 @@ export default function GuidanceSessionsList({
                       <div className="mt-8 mb-2">
                         {session.discountedPrice ? (
                           <div className="flex items-center gap-3 flex-wrap">
-                            <span className="text-2xl font-bold bg-gradient-to-r from-amber-500 to-amber-600 dark:from-amber-400 dark:to-amber-500 bg-clip-text text-transparent flex items-center gap-1">
+                            <span className="text-2xl font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
                               <IndianRupee className="h-5 w-5" />
                               {session.discountedPrice}
                             </span>
-                            <span className="text-sm line-through text-muted-foreground">
+                            <span className="text-sm line-through text-gray-600 dark:text-gray-400">
                               ₹{session.price}
                             </span>
                             <Badge variant="destructive" className="px-2 py-1 text-xs font-bold">
@@ -226,7 +226,7 @@ export default function GuidanceSessionsList({
                             </Badge>
                           </div>
                         ) : (
-                          <div className="text-2xl font-bold flex items-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-500 bg-clip-text text-transparent">
+                          <div className="text-2xl font-bold flex items-center gap-1 text-green-700 dark:text-green-400">
                             <IndianRupee className="h-5 w-5" />
                             {session.price}
                           </div>

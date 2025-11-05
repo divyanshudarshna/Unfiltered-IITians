@@ -40,7 +40,7 @@ export default function FAQPage({ categories }: FAQPageProps) {
     materials:
       "text-pink-700 bg-slate-700 border-pink-500 dark:text-pink-400 dark:border-pink-200/20",
     general:
-      "text-light-300 bg-slate-700 border-light-400 dark:text-light-200 dark:border-light-300/30",
+      "text-gray-300 bg-slate-700 border-light-400 dark:text-gray-200 dark:border-light-300/30",
   };
 
   useEffect(() => {
@@ -85,18 +85,18 @@ export default function FAQPage({ categories }: FAQPageProps) {
   }, [categories]);
 
   return (
-    <div className="min-h-screen bg-dark-900 text-light-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-dark-900 text-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="flex flex-col items-center gap-10 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex flex-col items-center gap-4 xl:max-w-[30%] xl:items-start">
-            <span className="inline-flex items-center border-purple-400 border justify-center rounded-full bg-dark-500 px-3 py-1 text-light-300 text-sm font-medium">
+            <span className="inline-flex items-center border-purple-400 border justify-center rounded-full bg-dark-500 px-3 py-1 text-black dark:text-gray-300 text-sm font-medium">
               Find Answers to Common Queries
             </span>
-            <h3 className="text-4xl lg:text-5xl font-bold text-center text-light-100 xl:text-left">
+            <h3 className="text-4xl lg:text-5xl font-bold text-center text-slate-950 dark:text-gray-100 xl:text-left">
               Frequently Asked Questions
             </h3>
-            <p className="text-lg text-center text-light-200 xl:text-left">
+            <p className="text-lg text-center text-muted-foreground dark:text-gray-200 xl:text-left">
               Your path to clarity and understanding
             </p>
 
@@ -131,7 +131,7 @@ export default function FAQPage({ categories }: FAQPageProps) {
                     <p
                       className={`text-sm font-medium capitalize border rounded-full p-2 ${
                         categoryColors[section.category.toLowerCase()] ||
-                        "text-light-300 border-light-400"
+                        "text-gray-300 border-light-400"
                       }`}
                     >
                       {section.category}
@@ -147,13 +147,13 @@ export default function FAQPage({ categories }: FAQPageProps) {
                       return (
                         <div
                           key={index}
-                          className="rounded-lg dark:bg-slate-900 bg-gray-200 overflow-hidden"
+                          className="rounded-lg dark:bg-slate-900 bg-gray-800 overflow-hidden"
                         >
                           <button
                             type="button"
                             onClick={() => toggleItem(itemIndex)}
                             className={`flex w-full justify-between items-center gap-5 p-6 ${
-                              isActive ? "text-cyan-400" : "text-light-100"
+                              isActive ? "text-cyan-400" : "text-gray-100"
                             }`}
                             aria-expanded={isActive}
                           >
@@ -169,7 +169,7 @@ export default function FAQPage({ categories }: FAQPageProps) {
                               className={`flex-shrink-0 transition-transform duration-300 ${
                                 isActive
                                   ? "rotate-180 text-primary-400"
-                                  : "text-light-300"
+                                  : "text-gray-300"
                               }`}
                             >
                               <path
@@ -189,7 +189,7 @@ export default function FAQPage({ categories }: FAQPageProps) {
                             }`}
                           >
                             <div className="px-6 pb-6">
-                              <p className="text-light-300 leading-relaxed">
+                              <p className="text-gray-300 leading-relaxed">
                                 {item.answer}
                               </p>
                             </div>

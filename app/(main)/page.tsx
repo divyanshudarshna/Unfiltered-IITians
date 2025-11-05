@@ -20,10 +20,10 @@ export default function Home() {
       <section className="py-16 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="bg-gradient-to-r from-[#6C2BD9]/10 to-[#8A4FFF]/10 border border-[#8A4FFF]/20 rounded-2xl p-8 md:p-12 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            <h2 className="text-3xl md:text-4xl dark:text-white text-purple-800 font-bold mb-4">
               Need Personalized Guidance?
             </h2>
-            <p className="text-gray-300 max-w-2xl mx-auto mb-8 text-lg">
+            <p className="dark:text-gray-300 text-black max-w-2xl mx-auto mb-8 text-lg">
               Book a one-on-one session with Divyanshu to get expert advice on
               exam preparation strategies, career guidance, and personalized
               study plans.

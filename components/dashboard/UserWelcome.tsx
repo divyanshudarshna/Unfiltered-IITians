@@ -31,7 +31,7 @@ export function UserWelcome({ user }) {
 
       {/* Name */}
       {user?.name && (
-        <h2 className="mt-4 text-2xl font-semibold">{user.name}</h2>
+        <h2 className="mt-4 text-2xl dark:text-white text-black font-semibold">{user.name}</h2>
       )}
 
       {/* Email */}

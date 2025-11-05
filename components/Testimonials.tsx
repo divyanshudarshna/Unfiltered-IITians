@@ -103,21 +103,21 @@ export default function Testimonials({
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium group-hover:text-primary-foreground text-base">{t.name}</p>
-                      <p className="text-sm text-muted-foreground group-hover:text-primary-foreground mt-1">
+                      <p className="font-medium dark:group-hover:text-primary-foreground text-base">{t.name}</p>
+                      <p className="text-sm text-muted-foreground dark:group-hover:text-primary-foreground mt-1">
                         {t.role}
                       </p>
                     </div>
                   </CardContent>
 
-                  <div className="text-sm text-muted-foreground mb-4 group-hover:text-primary-foreground transition-colors duration-500 leading-relaxed">
+                  <div className="text-sm text-muted-foreground mb-4 dark:group-hover:text-primary-foreground transition-colors duration-500 leading-relaxed">
                     {t.content}
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <StarRating rating={t.rating} />
-                      <span className="text-sm text-muted-foreground group-hover:text-primary-foreground transition-colors duration-500">
+                      <span className="text-sm text-muted-foreground dark:group-hover:text-primary-foreground transition-colors duration-500">
                         {t.rating.toFixed(1)}
                       </span>
                     </div>

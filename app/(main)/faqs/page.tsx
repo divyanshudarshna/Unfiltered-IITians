@@ -113,13 +113,13 @@ export default function FAQPage() {
         {/* Header Section */}
         <div className="flex flex-col items-center gap-6 xl:flex-row xl:items-center xl:justify-between mb-10">
           <div className="flex flex-col items-center gap-4 xl:items-start">
-            <span className="inline-flex items-center border-cyan-400 border justify-center rounded-full bg-dark-500 px-3 py-1 text-light-300 text-sm font-medium">
+            <span className="inline-flex items-center border-cyan-400 border justify-center rounded-full bg-dark-500 px-3 py-1 text-slate-800 dark:text-gray-300 text-sm font-medium">
               Find Answers to Common Queries
             </span>
-            <h3 className="text-4xl lg:text-5xl font-bold text-center text-light-100 xl:text-left">
+            <h3 className="text-4xl lg:text-5xl font-bold text-center text-slate-900 dark:text-gray-100 xl:text-left">
               Frequently Asked Questions
             </h3>
-            <p className="text-lg text-center text-light-200 xl:text-left">
+            <p className="text-lg text-center text-slate-700 dark:text-gray-200 xl:text-left">
               Your path to clarity and understanding
             </p>
           </div>
@@ -135,8 +135,8 @@ export default function FAQPage() {
               onClick={() => setSelectedCategory(cat)}
               className={`px-4 py-1 rounded-full border font-medium capitalize ${
                 selectedCategory === cat
-                  ? " text-dark-900 border-purple-500"
-                  : "bg-dark-700 text-light-300 border-light-400"
+                  ? " text-slate-900 dark:text-gray-300 border-purple-500"
+                  : "bg-dark-700 text-black dark:text-gray-300 border-light-400"
               }`}
             >
               {cat}
@@ -178,7 +178,7 @@ export default function FAQPage() {
                   return (
                     <div
                       key={index}
-                      className="rounded-lg dark:bg-slate-900 bg-gray-200 overflow-hidden"
+                      className="rounded-lg dark:bg-slate-900 bg-gray-800 overflow-hidden"
                     >
                       <button
                         type="button"

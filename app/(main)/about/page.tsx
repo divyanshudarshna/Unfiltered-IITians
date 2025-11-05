@@ -109,7 +109,7 @@ export default function About() {
         <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-500 via-cyan-400 to-blue-500 bg-clip-text text-transparent mb-6">
           Bridging Science & Education Through Passionate Mentorship
         </h1>
-        <p className="text-lg text-slate-300 max-w-3xl mx-auto mb-12">
+        <p className="text-lg text-slate-800 dark:text-slate-300 max-w-3xl mx-auto mb-12">
           As an IIT researcher and educator, I'm dedicated to transforming
           complex scientific concepts into accessible knowledge. My journey from
           student to mentor has equipped me with unique insights into what it
@@ -140,7 +140,7 @@ export default function About() {
         </div>
 
         <div className="mb-12">
-          <h2 className="text-3xl font-semibold mb-4">Academic Milestones</h2>
+          <h2 className="text-3xl font-semibold mb-4 dark:text-white text-black ">Academic Milestones</h2>
           <div className="flex flex-wrap justify-center gap-3">
             {academicMilestones.map((milestone, idx) => (
               <span
@@ -160,19 +160,19 @@ export default function About() {
     const CardInner = (
       <Card
         className={`relative h-full transition-all duration-500
-          hover:scale-[1.02] hover:shadow-xl
-          bg-slate-900/30 border hover:bg-violet-900/20 border-slate-700
+          hover:scale-[1.02] hover:shadow-xl bg-gray-100
+          dark:bg-slate-900/30 border hover:bg-violet-900/20 border-slate-700
           before:absolute before:inset-0 before:rounded-2xl before:border-2 before:border-transparent
           hover:before:border-violet-500 hover:before:shadow-[0_0_25px_5px_rgba(139,92,246,0.5)] flex flex-col items-center text-center p-6`}
       >
         <div className="mb-4 flex justify-center ">{skill.icon}</div>
         <CardHeader className="p-0 mb-3 flex flex-col items-center">
-          <CardTitle className="text-xl font-bold text-slate-200 whitespace-nowrap">
+          <CardTitle className="text-xl font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
             {skill.title}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <p className="text-base text-slate-300">{skill.content}</p>
+          <p className="text-base text-slate-700 dark:text-slate-300">{skill.content}</p>
         </CardContent>
       </Card>
     );
