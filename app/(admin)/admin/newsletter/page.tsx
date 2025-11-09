@@ -7,6 +7,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -29,7 +40,9 @@ import {
   Mail, 
   Search,
   Users,
-  Calendar
+  Calendar,
+  Send,
+  X
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -57,6 +70,11 @@ export default function NewsletterAdmin() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('Important Update from Unfiltered IITians');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const fetchSubscriptions = async (page: number = 1) => {
     try {
@@ -135,6 +153,68 @@ export default function NewsletterAdmin() {
     toast.success('Email copied to clipboard');
   };
 
+  const toggleEmailSelection = (email: string) => {
+    setSelectedEmails(prev => 
+      prev.includes(email) 
+        ? prev.filter(e => e !== email)
+        : [...prev, email]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedEmails.length === filteredSubscriptions.length) {
+      setSelectedEmails([]);
+    } else {
+      setSelectedEmails(filteredSubscriptions.map(sub => sub.email));
+    }
+  };
+
+  const handleOpenEmailDialog = () => {
+    if (selectedEmails.length === 0) {
+      toast.error('Please select at least one subscriber');
+      return;
+    }
+    setIsEmailDialogOpen(true);
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailMessage.trim()) {
+      toast.error('Please enter an email message');
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const response = await fetch('/api/admin/newsletter/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          emails: selectedEmails,
+          subject: emailSubject,
+          message: emailMessage,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send emails');
+      }
+
+      toast.success(`Email sent successfully to ${selectedEmails.length} subscriber(s)`);
+      setIsEmailDialogOpen(false);
+      setSelectedEmails([]);
+      setEmailMessage('');
+      setEmailSubject('Important Update from Unfiltered IITians');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to send emails');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   const filteredSubscriptions = subscriptions.filter(subscription =>
     subscription.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -193,13 +273,26 @@ export default function NewsletterAdmin() {
           <p className="text-muted-foreground flex items-center gap-2">
             <Users className="w-4 h-4" />
             {pagination.totalCount} total subscribers
+            {selectedEmails.length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {selectedEmails.length} selected
+              </Badge>
+            )}
           </p>
         </div>
         
-        <Button onClick={handleExportCSV} className="gap-2">
-          <Download className="w-4 h-4" />
-          Export CSV
-        </Button>
+        <div className="flex gap-2">
+          {selectedEmails.length > 0 && (
+            <Button onClick={handleOpenEmailDialog} className="gap-2" variant="default">
+              <Send className="w-4 h-4" />
+              Send Email ({selectedEmails.length})
+            </Button>
+          )}
+          <Button onClick={handleExportCSV} variant="outline" className="gap-2">
+            <Download className="w-4 h-4" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -270,6 +363,12 @@ export default function NewsletterAdmin() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedEmails.length === filteredSubscriptions.length && filteredSubscriptions.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead className="w-[400px]">Email</TableHead>
                   <TableHead>Subscription Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -278,7 +377,7 @@ export default function NewsletterAdmin() {
               <TableBody>
                 {filteredSubscriptions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                       <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
                       <div>No subscribers found</div>
                       {searchTerm && (
@@ -289,6 +388,12 @@ export default function NewsletterAdmin() {
                 ) : (
                   filteredSubscriptions.map((subscription) => (
                     <TableRow key={subscription.id} className="group">
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedEmails.includes(subscription.email)}
+                          onCheckedChange={() => toggleEmailSelection(subscription.email)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
@@ -382,6 +487,115 @@ export default function NewsletterAdmin() {
           )}
         </CardContent>
       </Card>
+
+      {/* Email Compose Dialog */}
+      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5" />
+              Send Email to Subscribers
+            </DialogTitle>
+            <DialogDescription>
+              Compose and send a custom email to {selectedEmails.length} selected subscriber(s)
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="recipients">Recipients</Label>
+              <div className="p-3 border rounded-md bg-muted/50 max-h-32 overflow-y-auto">
+                <div className="flex flex-wrap gap-2">
+                  {selectedEmails.map((email, index) => (
+                    <Badge key={index} variant="secondary" className="gap-1">
+                      {email}
+                      <button
+                        onClick={() => toggleEmailSelection(email)}
+                        className="ml-1 hover:text-destructive"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Click on a badge to remove a recipient
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="subject">Email Subject</Label>
+              <Input
+                id="subject"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="Enter email subject"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="message">Email Message</Label>
+              <Textarea
+                id="message"
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                placeholder="Enter your message here... This will be sent using the Unfiltered IITians email template with professional formatting."
+                rows={10}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                Your message will be formatted with the Unfiltered IITians branding and footer template
+              </p>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+              <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                Email Preview
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                The email will include:
+              </p>
+              <ul className="text-xs text-muted-foreground mt-2 space-y-1 ml-4 list-disc">
+                <li>Professional header with Unfiltered IITians branding</li>
+                <li>Your custom message content</li>
+                <li>Links to courses, resources, and contact</li>
+                <li>Footer with copyright and social links</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEmailDialogOpen(false);
+                setEmailMessage('');
+              }}
+              disabled={isSendingEmail}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendEmail}
+              disabled={isSendingEmail || !emailMessage.trim() || selectedEmails.length === 0}
+            >
+              {isSendingEmail ? (
+                <>
+                  <Mail className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Email
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
