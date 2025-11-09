@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pencil, Trash2, Search, Mail, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface Announcement {
   id: string;
@@ -50,7 +51,6 @@ export function AnnouncementTable({ data, loading, onEdit, onDelete }: Announcem
     return matchesSearch && matchesCourse && matchesEmail;
   });
 
-  const courses = Array.from(new Set(data.map(a => a.course?.id).filter(Boolean) as string[]));
   const uniqueCourses = data
     .map(a => a.course)
     .filter((course, index, self) => 
@@ -74,7 +74,7 @@ export function AnnouncementTable({ data, loading, onEdit, onDelete }: Announcem
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -86,7 +86,7 @@ export function AnnouncementTable({ data, loading, onEdit, onDelete }: Announcem
         </div>
         
         <Select value={courseFilter} onValueChange={setCourseFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Filter by course" />
           </SelectTrigger>
           <SelectContent>
@@ -100,7 +100,7 @@ export function AnnouncementTable({ data, loading, onEdit, onDelete }: Announcem
         </Select>
 
         <Select value={emailFilter} onValueChange={setEmailFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Email status" />
           </SelectTrigger>
           <SelectContent>
@@ -111,7 +111,75 @@ export function AnnouncementTable({ data, loading, onEdit, onDelete }: Announcem
         </Select>
       </div>
 
-      <div className="rounded-md border">
+      {/* Mobile Card View */}
+      <div className="block md:hidden space-y-4">
+        {filteredData.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              No announcements found
+            </CardContent>
+          </Card>
+        ) : (
+          filteredData.map((announcement) => (
+            <Card key={announcement.id} className="overflow-hidden">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex justify-between items-start gap-2">
+                  <h3 className="font-medium text-base line-clamp-2 flex-1">
+                    {announcement.title}
+                  </h3>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onEdit(announcement)}
+                      className="h-8 w-8"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onDelete(announcement.id)}
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {announcement.course?.title || "Unknown Course"}
+                  </Badge>
+                  {announcement.sendEmail ? (
+                    <Badge variant="secondary" className="gap-1 text-xs">
+                      <Mail className="h-3 w-3" />
+                      Sent
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs">No Email</Badge>
+                  )}
+                </div>
+
+                <div className="flex justify-between items-center text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    <span>
+                      {announcement.readCount || 0}/{announcement.totalRecipients || 0}
+                    </span>
+                  </div>
+                  <span className="text-xs">
+                    {format(new Date(announcement.createdAt), "MMM d, yyyy")}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

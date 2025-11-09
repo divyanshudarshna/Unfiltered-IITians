@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Label } from "recharts";
 import {
   ColumnDef,
   flexRender,
@@ -21,6 +20,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -51,6 +53,10 @@ import {
   ArrowRight,
   Mail,
   Calendar,
+  User,
+  Tag,
+  MessageSquare,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -65,25 +71,28 @@ type ContactUs = {
   updatedAt: string;
 };
 
-import { User, Tag, MessageSquare } from "lucide-react";
-
 export default function AdminContactUsPage() {
   const [contacts, setContacts] = useState<ContactUs[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
 
-  // Modal states
   const [viewOpen, setViewOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<ContactUs | null>(null);
   const [statusUpdateOpen, setStatusUpdateOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] =
     useState<ContactUs["status"]>("PENDING");
+  const [sendEmail, setSendEmail] = useState(false);
+  const [emailMessage, setEmailMessage] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Fetch contacts
   const fetchContacts = async () => {
     setLoading(true);
+    setRefreshing(true);
     try {
       const res = await fetch("/api/contact-us");
       if (!res.ok) throw new Error("Failed to fetch contacts");
@@ -95,6 +104,7 @@ export default function AdminContactUsPage() {
       setError("Failed to load contacts. Please try again.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -102,10 +112,19 @@ export default function AdminContactUsPage() {
     fetchContacts();
   }, []);
 
+  // Handle refresh
+  const handleRefresh = async () => {
+    await fetchContacts();
+    toast.success("Contacts refreshed successfully");
+  };
+
   // Update status
   const handleStatusUpdate = async () => {
     if (!selected) return;
+    
+    setSendingEmail(true);
     try {
+      // Update status
       const res = await fetch(`/api/contact-us/${selected.id}`, {
         method: "PATCH",
         headers: {
@@ -116,14 +135,43 @@ export default function AdminContactUsPage() {
 
       if (!res.ok) throw new Error("Failed to update status");
 
+      // Send email if requested
+      if (sendEmail && emailMessage && emailSubject) {
+        const emailRes = await fetch("/api/contact-us/send-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            to: selected.email,
+            subject: emailSubject,
+            message: emailMessage,
+            userName: selected.name,
+            status: selectedStatus,
+          }),
+        });
+
+        if (!emailRes.ok) {
+          console.error("Failed to send email");
+          toast.error("Status updated but email sending failed");
+        } else {
+          toast.success("Status updated and email sent successfully");
+        }
+      } else {
+        toast.success("Status updated successfully");
+      }
+
       setStatusUpdateOpen(false);
       setSelected(null);
+      setSendEmail(false);
+      setEmailMessage("");
+      setEmailSubject("");
       fetchContacts();
-
-      toast.success("Status updated successfully");
     } catch (err) {
       console.error(err);
       toast.error("Failed to update status");
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -158,7 +206,30 @@ export default function AdminContactUsPage() {
   const openStatusUpdateModal = (contact: ContactUs) => {
     setSelected(contact);
     setSelectedStatus(contact.status);
+    setSendEmail(false);
+    setEmailMessage("");
+    setEmailSubject(getDefaultEmailSubject(contact.status));
     setStatusUpdateOpen(true);
+  };
+
+  // Get default email subject based on status
+  const getDefaultEmailSubject = (status: ContactUs["status"]) => {
+    switch (status) {
+      case "RESOLVED":
+        return "Your inquiry has been resolved - Unfiltered IITians";
+      case "PENDING":
+        return "Update on your inquiry - Unfiltered IITians";
+      default:
+        return "Regarding your inquiry - Unfiltered IITians";
+    }
+  };
+
+  // Update email subject when status changes
+  const handleStatusChange = (value: ContactUs["status"]) => {
+    setSelectedStatus(value);
+    if (!emailSubject || emailSubject === getDefaultEmailSubject(selectedStatus)) {
+      setEmailSubject(getDefaultEmailSubject(value));
+    }
   };
 
   // Open delete modal
@@ -172,15 +243,19 @@ export default function AdminContactUsPage() {
     const statusConfig = {
       PENDING: {
         label: "Pending",
-        variant: "secondary",
+        variant: "secondary" as const,
         style: "bg-yellow-800" as const,
       },
       RESOLVED: {
         label: "Resolved",
-        variant: "default",
+        variant: "default" as const,
         style: "bg-green-800 text-white" as const,
       },
-      DELETED: { label: "Deleted", variant: "destructive", style: "" as const },
+      DELETED: { 
+        label: "Deleted", 
+        variant: "destructive" as const, 
+        style: "" as const 
+      },
     };
 
     const config = statusConfig[status];
@@ -323,10 +398,22 @@ export default function AdminContactUsPage() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Contact Messages</h1>
-        <div className="text-sm text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} messages
+        <div>
+          <h1 className="text-2xl font-bold">Contact Messages</h1>
+          <div className="text-sm text-muted-foreground mt-1">
+            {table.getFilteredRowModel().rows.length} messages
+          </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </div>
 
       <div className="flex items-center justify-between mb-4">
@@ -531,22 +618,20 @@ export default function AdminContactUsPage() {
       </Dialog>
       {/* Status Update Modal */}
       <Dialog open={statusUpdateOpen} onOpenChange={setStatusUpdateOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Update Status</DialogTitle>
             <DialogDescription>
-              Update the status for {selected?.name}'s message
+              Update the status for {selected?.name}&apos;s message and optionally send them an email notification
             </DialogDescription>
           </DialogHeader>
           {selected && (
-            <div className="space-y-4">
+            <div className="space-y-4 py-4">
               <div>
                 <Label>Status</Label>
                 <Select
                   value={selectedStatus}
-                  onValueChange={(value: ContactUs["status"]) =>
-                    setSelectedStatus(value)
-                  }
+                  onValueChange={handleStatusChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
@@ -558,16 +643,81 @@ export default function AdminContactUsPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="flex items-center space-x-2 p-4 border rounded-lg bg-muted/50">
+                <Checkbox
+                  id="send-email"
+                  checked={sendEmail}
+                  onCheckedChange={(checked) => setSendEmail(checked as boolean)}
+                />
+                <label
+                  htmlFor="send-email"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  Send email notification to user
+                </label>
+              </div>
+
+              {sendEmail && (
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <div className="space-y-2">
+                    <Label htmlFor="email-subject">Email Subject</Label>
+                    <Input
+                      id="email-subject"
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      placeholder="Enter email subject"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email-message">Email Message</Label>
+                    <Textarea
+                      id="email-message"
+                      value={emailMessage}
+                      onChange={(e) => setEmailMessage(e.target.value)}
+                      placeholder={`Dear ${selected.name},\n\nThank you for reaching out to us regarding "${selected.subject}".\n\n[Your message here]\n\nBest regards,\nUnfiltered IITians Team`}
+                      rows={8}
+                      className="resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      This message will be sent to: <strong>{selected.email}</strong>
+                    </p>
+                  </div>
+
+                  <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950 p-3 rounded border border-blue-200 dark:border-blue-800">
+                    <strong>Original Message:</strong>
+                    <p className="mt-1 text-xs whitespace-pre-wrap">{selected.message}</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setStatusUpdateOpen(false)}
+              onClick={() => {
+                setStatusUpdateOpen(false);
+                setSendEmail(false);
+                setEmailMessage("");
+              }}
+              disabled={sendingEmail}
             >
               Cancel
             </Button>
-            <Button onClick={handleStatusUpdate}>Update Status</Button>
+            <Button 
+              onClick={handleStatusUpdate}
+              disabled={sendingEmail || (sendEmail && (!emailMessage || !emailSubject))}
+            >
+              {sendingEmail ? (
+                <>
+                  <Mail className="w-4 h-4 mr-2 animate-spin" />
+                  {sendEmail ? "Updating & Sending..." : "Updating..."}
+                </>
+              ) : (
+                <>Update Status</>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

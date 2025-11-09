@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Mail, Eye, Users, TrendingUp } from "lucide-react";
+import { Mail, Users, TrendingUp } from "lucide-react";
 
 interface Announcement {
   id: string;
@@ -44,7 +44,7 @@ export function AnnouncementStats({ announcements }: AnnouncementStatsProps) {
   const chartData = Object.values(courseData);
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Announcements</CardTitle>
@@ -97,20 +97,26 @@ export function AnnouncementStats({ announcements }: AnnouncementStatsProps) {
         </CardContent>
       </Card>
 
-      <Card className="col-span-full">
+      <Card className="col-span-1 sm:col-span-2 lg:col-span-4">
         <CardHeader>
-          <CardTitle>Announcements by Course</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-lg sm:text-xl">Announcements by Course</CardTitle>
+          <CardDescription className="text-sm">
             Distribution of announcements and read rates across courses
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-80">
+          <div className="h-64 sm:h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
+                <XAxis 
+                  dataKey="name" 
+                  fontSize={12}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis fontSize={12} />
                 <Tooltip />
                 <Bar dataKey="announcements" fill="#3b82f6" name="Announcements" />
                 <Bar dataKey="reads" fill="#10b981" name="Reads" />

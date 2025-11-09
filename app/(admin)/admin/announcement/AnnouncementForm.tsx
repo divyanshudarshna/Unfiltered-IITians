@@ -93,11 +93,13 @@ export function AnnouncementForm({ open, courses, announcement, onSuccess, onCan
 
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            {announcement?.id ? "Edit Announcement" : "Create New Announcement"}
-            <Button variant="ghost" size="icon" onClick={onCancel} className="h-8 w-8">
+          <DialogTitle className="flex items-center justify-between pr-8">
+            <span className="text-lg sm:text-xl">
+              {announcement?.id ? "Edit Announcement" : "Create New Announcement"}
+            </span>
+            <Button variant="ghost" size="icon" onClick={onCancel} className="h-8 w-8 absolute right-4 top-4">
               <X className="h-4 w-4" />
             </Button>
           </DialogTitle>
@@ -148,12 +150,12 @@ export function AnnouncementForm({ open, courses, announcement, onSuccess, onCan
             />
           </div>
 
-          <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg gap-3">
             <div className="space-y-0.5">
-              <Label htmlFor="sendEmail" className="text-base">
+              <Label htmlFor="sendEmail" className="text-sm sm:text-base">
                 Send as email notification
               </Label>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Send this announcement as an email to all enrolled students
               </p>
             </div>
@@ -161,16 +163,19 @@ export function AnnouncementForm({ open, courses, announcement, onSuccess, onCan
               id="sendEmail"
               checked={formData.sendEmail}
               onCheckedChange={(checked) => handleChange("sendEmail", checked)}
+              className="self-end sm:self-auto"
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={onCancel} disabled={loading} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {announcement?.id ? "Update Announcement" : "Create Announcement"}
+              <span className="truncate">
+                {announcement?.id ? "Update Announcement" : "Create Announcement"}
+              </span>
             </Button>
           </div>
         </form>

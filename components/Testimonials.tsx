@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Star, StarHalf, StarOff, ArrowRight } from 'lucide-react'
 import { Button } from './ui/button'
-import Image from 'next/image'
-import { routerServerGlobal } from 'next/dist/server/lib/router-utils/router-server-context'
 import { useRouter } from 'next/navigation'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+
 type Testimonial = {
   id: string
   content: string
@@ -20,6 +20,14 @@ interface TestimonialsProps {
   title?: string
   description?: string
   button?: boolean
+}
+
+function getInitials(name: string): string {
+  const words = name.trim().split(/\s+/)
+  if (words.length === 1) {
+    return words[0].substring(0, 2).toUpperCase()
+  }
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase()
 }
 
 function StarRating({ rating }: { rating: number }) {
@@ -94,13 +102,16 @@ export default function Testimonials({
                 >
                   <CardContent className="flex items-start gap-4 p-0 mb-4">
                     <div className="relative flex-shrink-0">
-                      <Image
-                        src={t.image || '/default-avatar.png'}
-                        alt={t.name}
-                        width={56}
-                        height={56}
-                        className="rounded-full object-cover w-14 h-14 border-2 border-muted group-hover:border-primary shadow-sm group-hover:shadow-primary/50 transition-all duration-500"
-                      />
+                      <Avatar className="w-14 h-14 border-2 border-muted group-hover:border-primary shadow-sm group-hover:shadow-primary/50 transition-all duration-500">
+                        <AvatarImage 
+                          src={t.image || undefined} 
+                          alt={t.name}
+                          className="object-cover"
+                        />
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {getInitials(t.name)}
+                        </AvatarFallback>
+                      </Avatar>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium dark:group-hover:text-primary-foreground text-base">{t.name}</p>

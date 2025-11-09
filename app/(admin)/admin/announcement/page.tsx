@@ -149,31 +149,32 @@ export default function CourseAnnouncementsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Course Announcements</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Course Announcements</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage and track all course announcements
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap sm:flex-nowrap">
           <Button
             variant="outline"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="gap-2"
+            className="gap-2 flex-1 sm:flex-none"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
           <Button
             onClick={() => setOpenForm(true)}
-            className="gap-2"
+            className="gap-2 flex-1 sm:flex-none"
             disabled={courses.length === 0}
           >
             <Plus className="h-4 w-4" />
-            New Announcement
+            <span className="hidden sm:inline">New Announcement</span>
+            <span className="sm:hidden">New</span>
           </Button>
         </div>
       </div>
@@ -191,19 +192,21 @@ export default function CourseAnnouncementsPage() {
         </Card>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="announcements" className="flex items-center gap-2">
+          <TabsTrigger value="announcements" className="flex items-center gap-1 sm:gap-2">
             <Bell className="h-4 w-4" />
-            Announcements
+            <span className="hidden sm:inline">Announcements</span>
+            <span className="sm:hidden text-xs">List</span>
           </TabsTrigger>
-          <TabsTrigger value="stats" className="flex items-center gap-2">
+          <TabsTrigger value="stats" className="flex items-center gap-1 sm:gap-2">
             <BarChart3 className="h-4 w-4" />
-            Analytics
+            <span className="hidden sm:inline">Analytics</span>
+            <span className="sm:hidden text-xs">Stats</span>
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
+          <TabsTrigger value="settings" className="flex items-center gap-1 sm:gap-2">
             <Settings className="h-4 w-4" />
-            Settings
+            <span className="text-xs sm:text-sm">Settings</span>
           </TabsTrigger>
         </TabsList>
 
