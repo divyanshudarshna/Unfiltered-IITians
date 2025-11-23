@@ -6,6 +6,7 @@ export interface UserData {
   phoneNumber?: string | null
   fieldOfStudy?: string | null
   isSubscribed: boolean
+  isPaid: boolean // ✅ NEW: Calculated based on actual paid subscriptions and session enrollments
   profileImageUrl?: string | null
   createdAt: string
   joinedAt: string
@@ -13,6 +14,8 @@ export interface UserData {
   // Statistics
   subscriptionsCount: number
   enrollmentsCount: number
+  mockAttemptsCount: number // ✅ NEW: Mock attempts count
+  avgMockScore: number // ✅ NEW: Average mock score percentage
   totalRevenue: number
   
   // Detailed data for user details

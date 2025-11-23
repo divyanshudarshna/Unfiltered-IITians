@@ -218,8 +218,8 @@ export default function CourseSidebar({
                 {completedItems}/{totalItems} done
               </span>
               <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                <span>{formatDuration(totalDuration)}</span>
+                <Target className="h-3 w-3" />
+                <span>{progress}% completed</span>
               </div>
             </div>
           </div>

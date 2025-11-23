@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2 } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2, ChevronDown, Copy, AlertCircle, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -12,6 +12,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserData } from "./types"
@@ -19,7 +22,8 @@ import { UserData } from "./types"
 export const createColumns = (
   onViewDetails: (user: UserData) => void,
   onUpdateRole: (user: UserData) => void,
-  onDeleteUser: (user: UserData) => void
+  onDeleteUser: (user: UserData) => void,
+  onClearMockAttempts: (user: UserData) => void
 ): ColumnDef<UserData>[] => [
   {
     id: "select",
@@ -98,7 +102,44 @@ export const createColumns = (
   },
   {
     accessorKey: "role",
-    header: "Role",
+    header: ({ column }) => {
+      const filterValue = column.getFilterValue() as string | undefined
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="hover:bg-gray-100 dark:hover:bg-gray-800 h-8 gap-2"
+            >
+              Role
+              {filterValue ? (
+                <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">
+                  {filterValue}
+                </Badge>
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[160px]">
+            <DropdownMenuLabel>Filter by Role</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => column.setFilterValue(undefined)}>
+              All Roles
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => column.setFilterValue("ADMIN")}>
+              <Badge variant="destructive" className="mr-2">ADMIN</Badge>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => column.setFilterValue("INSTRUCTOR")}>
+              <Badge variant="default" className="mr-2">INSTRUCTOR</Badge>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => column.setFilterValue("STUDENT")}>
+              <Badge variant="secondary" className="mr-2">STUDENT</Badge>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
     cell: ({ row }) => {
       const role = row.getValue("role") as string
       let variant: "destructive" | "default" | "secondary"
@@ -117,23 +158,65 @@ export const createColumns = (
         </Badge>
       )
     },
+    filterFn: (row, id, value) => {
+      if (!value) return true
+      return row.getValue(id) === value
+    },
   },
   {
-    accessorKey: "isSubscribed",
-    header: "Status",
+    accessorKey: "isPaid",
+    header: ({ column }) => {
+      const filterValue = column.getFilterValue() as boolean | undefined
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="hover:bg-gray-100 dark:hover:bg-gray-800 h-8 gap-2"
+            >
+              Status
+              {filterValue !== undefined ? (
+                <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">
+                  {filterValue ? "Paid" : "Free"}
+                </Badge>
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[160px]">
+            <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => column.setFilterValue(undefined)}>
+              All Status
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => column.setFilterValue(true)}>
+              <Badge className="mr-2 bg-green-100 text-green-800 border-green-300">Paid</Badge>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => column.setFilterValue(false)}>
+              <Badge variant="outline" className="mr-2">Free</Badge>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
     cell: ({ row }) => {
-      const isSubscribed = row.getValue("isSubscribed") as boolean
+      const isPaid = row.getValue("isPaid") as boolean
       return (
         <Badge
-          variant={isSubscribed ? "default" : "outline"}
-          className={isSubscribed 
+          variant={isPaid ? "default" : "outline"}
+          className={isPaid 
             ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-900 dark:text-green-100" 
             : "bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-300"
           }
         >
-          {isSubscribed ? "Premium" : "Free"}
+          {isPaid ? "Paid" : "Free"}
         </Badge>
       )
+    },
+    filterFn: (row, id, value) => {
+      if (value === undefined) return true
+      return row.getValue(id) === value
     },
   },
   {
@@ -237,14 +320,31 @@ export const createColumns = (
             className="w-[200px] bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
           >
             <DropdownMenuLabel className="text-gray-900 dark:text-gray-100">
-              Actions
+              User Actions
             </DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(user.id)}
-              className="hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              Copy ID
-            </DropdownMenuItem>
+            
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="hover:bg-gray-100 dark:hover:bg-gray-700">
+                <span>Actions</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <DropdownMenuItem
+                  onClick={() => navigator.clipboard.writeText(user.id)}
+                  className="hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy ID
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onClearMockAttempts(user)}
+                  className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <AlertCircle className="mr-2 h-4 w-4" />
+                  Clear Mock Attempts
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            
             <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-600" />
             <DropdownMenuItem
               onClick={() => onViewDetails(user)}

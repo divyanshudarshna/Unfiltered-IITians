@@ -66,6 +66,13 @@ export async function GET() {
             paymentStatus: true,
             enrolledAt: true,
           }
+        },
+        mockAttempts: { // ✅ NEW: Include mock attempts for statistics
+          select: {
+            id: true,
+            score: true,
+            percentage: true,
+          }
         }
       },
       orderBy: {
@@ -74,30 +81,16 @@ export async function GET() {
     });
 
     const formattedUsers = users.map((u) => {
-      // ✅ Calculate actual revenue from paid subscriptions using actualAmountPaid
+      // ✅ Calculate actual revenue from paid subscriptions using actualAmountPaid ONLY
       const subscriptionRevenue = u.subscriptions.reduce((sum: number, sub) => {
-        if (!sub.paid) return sum;
-        
-        // Use actualAmountPaid if available (new field), otherwise fallback to old method
-        if (sub.actualAmountPaid) {
-          return sum + (sub.actualAmountPaid / 100); // Convert from paise to rupees
-        }
-        
-        // Fallback for old records (before actualAmountPaid was implemented)
-        let itemPrice = 0;
-        if (sub.mockTest) {
-          itemPrice = sub.mockTest.actualPrice || sub.mockTest.price;
-        } else if (sub.course) {
-          itemPrice = sub.course.actualPrice || sub.course.price;
-        }
-        
-        return sum + itemPrice;
+        if (!sub.paid || !sub.actualAmountPaid) return sum;
+        return sum + (sub.actualAmountPaid / 100); // Convert from paise to rupees
       }, 0);
 
-      // ✅ Calculate revenue from session enrollments
+      // ✅ Calculate revenue from session enrollments using amountPaid
       const sessionRevenue = u.sessionEnrollments.reduce((sum: number, enrollment) => {
-        if (enrollment.paymentStatus !== "SUCCESS") return sum;
-        return sum + (enrollment.amountPaid || 0);
+        if (enrollment.paymentStatus !== "SUCCESS" || !enrollment.amountPaid) return sum;
+        return sum + enrollment.amountPaid; // Already in rupees
       }, 0);
 
       const totalRevenue = subscriptionRevenue + sessionRevenue;
@@ -123,6 +116,22 @@ export async function GET() {
           }))
       ]
 
+      // ✅ Calculate isPaid status based on actual paid subscriptions or session enrollments
+      const hasPaidSubscriptions = u.subscriptions.some(sub => sub.paid);
+      const hasSuccessfulSessionEnrollments = u.sessionEnrollments.some(
+        enrollment => enrollment.paymentStatus === "SUCCESS"
+      );
+      const isPaid = hasPaidSubscriptions || hasSuccessfulSessionEnrollments;
+
+      // ✅ Calculate mock attempts statistics
+      const mockAttemptsCount = u.mockAttempts.length;
+      const avgMockScore = mockAttemptsCount > 0
+        ? Math.round(
+            (u.mockAttempts.reduce((sum, attempt) => sum + (attempt.percentage || 0), 0) / 
+            mockAttemptsCount) * 10
+          ) / 10
+        : 0;
+
       return {
         id: u.id,
         name: u.name,
@@ -132,10 +141,13 @@ export async function GET() {
         phoneNumber: u.phoneNumber,
         fieldOfStudy: u.fieldOfStudy,
         isSubscribed: u.isSubscribed,
+        isPaid, // ✅ NEW: Calculated based on actual payments
         createdAt: u.createdAt.toISOString(),
         joinedAt: u.createdAt.toISOString().split("T")[0],
         subscriptionsCount: u.subscriptions.length,
         enrollmentsCount: u.enrollments.length,
+        mockAttemptsCount, // ✅ NEW: Mock attempts count
+        avgMockScore, // ✅ NEW: Average mock score
         totalRevenue: Math.round(totalRevenue * 100) / 100, // Round to 2 decimal places
         paidSubscriptions
       };

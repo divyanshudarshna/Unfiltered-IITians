@@ -68,6 +68,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid role" }, { status: 400 })
     }
 
+    // Get user's Clerk ID
+    const userToUpdate = await prisma.user.findUnique({
+      where: { id: params.userId },
+      select: { clerkUserId: true }
+    })
+
+    if (!userToUpdate) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    // Update role in database
     const updatedUser = await prisma.user.update({
       where: { id: params.userId },
       data: { role },
@@ -79,6 +90,32 @@ export async function PATCH(
         updatedAt: true
       }
     })
+
+    // ✅ Sync role with Clerk public metadata
+    try {
+      const clerkResponse = await fetch(`https://api.clerk.com/v1/users/${userToUpdate.clerkUserId}/metadata`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${process.env.CLERK_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          public_metadata: {
+            role: role
+          }
+        })
+      })
+
+      if (!clerkResponse.ok) {
+        console.error('Failed to sync role with Clerk:', await clerkResponse.text())
+        // Don't fail the request, but log the error
+      } else {
+        console.log(`✅ Successfully synced role ${role} to Clerk for user ${updatedUser.email}`)
+      }
+    } catch (clerkError) {
+      console.error('Error syncing with Clerk:', clerkError)
+      // Don't fail the request
+    }
 
     return NextResponse.json(updatedUser)
   } catch (error) {
@@ -130,10 +167,46 @@ export async function PUT(req: Request, { params }: { params: { userId: string }
     if (data.dob !== undefined) updateData.dob = data.dob ? new Date(data.dob) : null;
     if (data.fieldOfStudy !== undefined) updateData.fieldOfStudy = data.fieldOfStudy;
 
+    // Get user's Clerk ID before update
+    const userToUpdate = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { clerkUserId: true }
+    })
+
+    if (!userToUpdate) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
     });
+
+    // ✅ If role was updated, sync with Clerk
+    if (updateData.role) {
+      try {
+        const clerkResponse = await fetch(`https://api.clerk.com/v1/users/${userToUpdate.clerkUserId}/metadata`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${process.env.CLERK_SECRET_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            public_metadata: {
+              role: updateData.role
+            }
+          })
+        })
+
+        if (!clerkResponse.ok) {
+          console.error('Failed to sync role with Clerk:', await clerkResponse.text())
+        } else {
+          console.log(`✅ Successfully synced role ${updateData.role} to Clerk for user ${updatedUser.email}`)
+        }
+      } catch (clerkError) {
+        console.error('Error syncing with Clerk:', clerkError)
+      }
+    }
 
     return NextResponse.json({ user: updatedUser });
   } catch (error) {
