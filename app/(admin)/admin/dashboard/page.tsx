@@ -1,6 +1,6 @@
 import { SectionCards } from "@/components/admin/section-cards"
 import { ChartAreaInteractive } from "@/components/admin/chart-area-interactive"
-import { DashboardDataTable } from "@/components/admin/dashboard-data-table"
+import { UserManagement } from "@/components/admin/user-management"
 
 export default function Page() {
   return (
@@ -11,7 +11,9 @@ export default function Page() {
               <div className="px-4 lg:px-6">
                 <ChartAreaInteractive />
               </div>
-              <DashboardDataTable />
+              <div className="px-4 lg:px-6">
+                <UserManagement />
+              </div>
             </div>
           </div>
         </div>
