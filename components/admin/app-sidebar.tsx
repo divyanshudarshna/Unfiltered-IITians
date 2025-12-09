@@ -58,7 +58,14 @@ const data = {
     { title: "Coupons", url: "/admin/coupons", icon: IconTicket },
     { title: "Free Materials", url: "/admin/materials", icon: IconFolder },
     { title: "Success Stories", url: "/admin/successStories", icon: IconStar },
-    { title: "Sessions", url: "/admin/sessions", icon: GraduationCap },
+    {
+      title: "Sessions",
+      icon: GraduationCap,
+      submenu: [
+        { title: "Manage Sessions", url: "/admin/sessions" },
+        { title: "Session Enrollments", url: "/admin/session-enrollments" },
+      ],
+    },
     { title: "Manage YouTube", url: "/admin/youtube", icon: Video },
     { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquare },
     { title: "Contacts", url: "/admin/contact-us", icon: IconAddressBook },
