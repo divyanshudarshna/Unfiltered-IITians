@@ -72,7 +72,16 @@ const data = {
     { title: "Newsletter", url: "/admin/newsletter", icon: MailOpen },
     { title: "FAQ", url: "/admin/faq", icon: IconHelpCircle },
   ],
-  navSecondary: [{ title: "Settings", url: "/admin/settings", icon: IconBook }],
+  navSecondary: [
+    {
+      title: "Settings",
+      url: "/admin/settings",
+      icon: IconBook,
+      actions: [
+        { title: "Email Logs", url: "/admin/settings/emails" },
+      ],
+    },
+  ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

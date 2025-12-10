@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import prisma from './prisma';
 
 // Email configuration
 const createTransporter = () => {
@@ -414,12 +415,18 @@ export async function sendEmail({
   data,
   customSubject,
   customHtml,
+  source,
+  sentBy,
+  metadata,
 }: {
   to: string;
   template?: EmailTemplate;
   data?: EmailData;
   customSubject?: string;
   customHtml?: string;
+  source?: string;
+  sentBy?: string;
+  metadata?: Record<string, unknown>;
 }) {
   try {
     const transporter = createTransporter();
@@ -450,6 +457,26 @@ export async function sendEmail({
     };
 
     const info = await transporter.sendMail(mailOptions);
+    
+    // Log email to database if source is provided (indicating admin-sent email)
+    if (source) {
+      try {
+        await prisma.emailLog.create({
+          data: {
+            subject,
+            body: html,
+            recipients: Array.isArray(to) ? to : [to],
+            recipientCount: Array.isArray(to) ? to.length : 1,
+            sentBy: sentBy || 'Unknown',
+            source,
+            metadata: metadata || {},
+          },
+        });
+      } catch (logError) {
+        console.error('Failed to log email to database:', logError);
+        // Don't fail the email send if logging fails
+      }
+    }
     
     return {
       success: true,

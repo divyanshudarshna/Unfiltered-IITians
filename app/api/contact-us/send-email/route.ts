@@ -89,6 +89,13 @@ export async function POST(req: Request) {
       to,
       customSubject: subject,
       customHtml,
+      source: 'contact-us',
+      sentBy: req.headers.get('x-admin-email') || 'Admin',
+      metadata: {
+        recipientEmail: to,
+        status: status,
+        userName: userName
+      }
     });
 
     if (result.success) {

@@ -96,6 +96,12 @@ export async function POST(req: Request) {
           to: email,
           customSubject: subject,
           customHtml,
+          source: 'newsletter',
+          sentBy: req.headers.get('x-user-email') || 'Admin',
+          metadata: {
+            recipientCount: emails.length,
+            isNewsletter: true,
+          },
         });
         return { email, success: result.success, error: result.error };
       } catch (error) {

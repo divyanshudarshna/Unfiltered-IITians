@@ -667,3 +667,20 @@ model CourseInclusion {
   @@index([courseId])
   @@index([inclusionType])
 }
+
+// ================== EMAIL LOGS ==================
+model EmailLog {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  subject         String
+  body            String   // HTML or plain text body
+  recipients      String[] // Array of email addresses
+  recipientCount  Int      // Number of recipients
+  sentBy          String?  // Admin user who sent the email
+  source          String?  // e.g., "newsletter", "course-enrollments", "users"
+  metadata        Json?    // Additional data like template used, filters applied, etc.
+  sentAt          DateTime @default(now())
+  
+  @@index([sentAt])
+  @@index([source])
+  @@index([sentBy])
+}

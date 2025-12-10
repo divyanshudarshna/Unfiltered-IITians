@@ -137,6 +137,46 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Log batch email to database
+    if (emailsSent > 0) {
+      try {
+        const successfulRecipients = await prisma.announcementRecipient.findMany({
+          where: { 
+            announcementId: announcement.id,
+            deliveredEmail: true
+          },
+          include: {
+            user: {
+              select: { email: true }
+            }
+          }
+        });
+        
+        const successfulEmails = successfulRecipients.map(r => r.user.email);
+        
+        await prisma.emailLog.create({
+          data: {
+            subject: `[${course.title}] ${title}`,
+            body: message,
+            recipients: successfulEmails,
+            recipientCount: emailsSent,
+            sentBy: 'Admin',
+            source: 'course-announcement',
+            metadata: {
+              courseId,
+              announcementId: announcement.id,
+              totalRecipients: enrollments.length,
+              emailsSent,
+              emailErrors
+            }
+          }
+        });
+        console.log('📧 Course announcement email batch logged to database');
+      } catch (logError) {
+        console.error('Failed to log course announcement email batch:', logError);
+      }
+    }
+
     return NextResponse.json({ 
       success: true, 
       announcement, 
@@ -244,6 +284,46 @@ export async function PUT(req: NextRequest) {
               }
             }
           }
+        }
+      }
+
+      // Log batch email to database
+      if (emailsSent > 0) {
+        try {
+          const successfulRecipients = await prisma.announcementRecipient.findMany({
+            where: { 
+              announcementId: announcement.id,
+              deliveredEmail: true
+            },
+            include: {
+              user: {
+                select: { email: true }
+              }
+            }
+          });
+          
+          const successfulEmails = successfulRecipients.map(r => r.user.email);
+          
+          await prisma.emailLog.create({
+            data: {
+              subject: `[${announcement.course.title}] ${announcement.title}`,
+              body: announcement.message,
+              recipients: successfulEmails,
+              recipientCount: emailsSent,
+              sentBy: 'Admin',
+              source: 'course-announcement-update',
+              metadata: {
+                courseId: announcement.courseId,
+                announcementId: announcement.id,
+                totalRecipients: enrollments.length,
+                emailsSent,
+                emailErrors
+              }
+            }
+          });
+          console.log('📧 Course announcement update email batch logged to database');
+        } catch (logError) {
+          console.error('Failed to log course announcement update email batch:', logError);
         }
       }
     }

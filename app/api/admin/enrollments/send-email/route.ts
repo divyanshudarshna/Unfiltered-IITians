@@ -129,6 +129,36 @@ export async function POST(req: NextRequest) {
     const successCount = results.filter(r => r.success).length;
     const failureCount = results.filter(r => !r.success).length;
 
+    // Log batch email to database
+    if (successCount > 0) {
+      try {
+        const successfulEmails = results
+          .filter(r => r.success)
+          .map(r => r.email);
+        
+        await prisma.emailLog.create({
+          data: {
+            subject,
+            body: message,
+            recipients: successfulEmails,
+            recipientCount: successCount,
+            sentBy: req.headers.get('x-admin-email') || 'Admin',
+            source: 'course-enrollments',
+            metadata: {
+              courseId: courseId || 'multiple',
+              enrollmentIds: targetEnrollmentIds,
+              totalAttempted: enrollments.length,
+              successCount,
+              failedCount: failureCount
+            }
+          }
+        });
+        console.log('📧 Email batch logged to database');
+      } catch (logError) {
+        console.error('Failed to log email batch to database:', logError);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: `Sent ${successCount} emails successfully, ${failureCount} failed`,

@@ -210,6 +210,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Log batch email to database
+    if (successCount > 0) {
+      try {
+        const successfulEmails = results
+          .filter(r => r.status === 'success')
+          .map(r => r.email);
+        
+        await prisma.emailLog.create({
+          data: {
+            subject: `${mocks.length} New Mock${mocks.length > 1 ? 's' : ''} Added`,
+            body: `Added ${mocks.length} mock test(s) to enrolled students: ${mocks.map(m => m.title).join(', ')}`,
+            recipients: successfulEmails,
+            recipientCount: successCount,
+            sentBy: req.headers.get('x-admin-email') || 'Admin',
+            source: 'enrollments-add-mocks',
+            metadata: {
+              enrollmentIds,
+              mockIds,
+              mockCount: mocks.length,
+              totalAttempted: enrollments.length,
+              successCount,
+              failedCount: failureCount
+            }
+          }
+        });
+        console.log('📧 Email batch logged to database');
+      } catch (logError) {
+        console.error('Failed to log email batch to database:', logError);
+      }
+    }
+
     return NextResponse.json({
       message: `Successfully added mocks to ${successCount} student(s)`,
       summary: {

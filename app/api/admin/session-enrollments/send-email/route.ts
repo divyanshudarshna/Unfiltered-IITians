@@ -79,6 +79,13 @@ export async function POST(request: NextRequest) {
         to: enrollment.user.email,
         customSubject: subject,
         customHtml,
+        source: 'session-enrollments',
+        sentBy: request.headers.get('x-user-email') || 'Admin',
+        metadata: {
+          sessionId,
+          enrollmentId: enrollment.id,
+          recipientCount: enrollments.length,
+        },
       });
     });
 

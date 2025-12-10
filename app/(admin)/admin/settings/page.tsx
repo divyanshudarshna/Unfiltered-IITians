@@ -23,7 +23,7 @@ import {
   Image, 
   Video, 
   File,
-
+  Mail,
   Loader2
 } from "lucide-react";
 
@@ -173,78 +173,87 @@ export default function AdminSettingsPage() {
           <p className="text-gray-600">Manage your static files and URLs</p>
         </div>
         
-        <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800">
-              <Plus className="w-4 h-4 mr-2" />
-              Upload File
+        <div className="flex gap-2">
+          <Link href="/admin/settings/emails">
+            <Button variant="outline" className="gap-2">
+              <Mail className="w-4 h-4" />
+              Email Logs
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Upload New File</DialogTitle>
-              <DialogDescription>
-                Upload files to Cloudinary and get static URLs for your application.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="title">Title *</Label>
-                <Input
-                  id="title"
-                  value={uploadForm.title}
-                  onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
-                  placeholder="e.g., Main Logo, Course Banner"
-                />
+          </Link>
+          
+          <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800">
+                <Plus className="w-4 h-4 mr-2" />
+                Upload File
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Upload New File</DialogTitle>
+                <DialogDescription>
+                  Upload files to Cloudinary and get static URLs for your application.
+                </DialogDescription>
+                </DialogHeader>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="title">Title *</Label>
+                  <Input
+                    id="title"
+                    value={uploadForm.title}
+                    onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
+                    placeholder="e.g., Main Logo, Course Banner"
+                  />
+                  </div>
+                
+                <div>
+                  <Label htmlFor="purpose">Purpose *</Label>
+                  <Select value={uploadForm.purpose} onValueChange={(value) => setUploadForm({ ...uploadForm, purpose: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select purpose" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="website-logo">Website Logo</SelectItem>
+                      <SelectItem value="banner">Banner Image</SelectItem>
+                      <SelectItem value="course-material">Course Material</SelectItem>
+                      <SelectItem value="profile-picture">Profile Picture</SelectItem>
+                      <SelectItem value="document">Document</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="file">File *</Label>
+                  <Input
+                    id="file"
+                    type="file"
+                    onChange={(e) => setUploadForm({ ...uploadForm, file: e.target.files?.[0] || null })}
+                    className="cursor-pointer"
+                  />
+                  {uploadForm.file && (
+                    <p className="text-sm text-gray-600 mt-1">Selected: {uploadForm.file.name}</p>
+                  )}
+                </div>
               </div>
               
-              <div>
-                <Label htmlFor="purpose">Purpose *</Label>
-                <Select value={uploadForm.purpose} onValueChange={(value) => setUploadForm({ ...uploadForm, purpose: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select purpose" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="website-logo">Website Logo</SelectItem>
-                    <SelectItem value="banner">Banner Image</SelectItem>
-                    <SelectItem value="course-material">Course Material</SelectItem>
-                    <SelectItem value="profile-picture">Profile Picture</SelectItem>
-                    <SelectItem value="document">Document</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="file">File *</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  onChange={(e) => setUploadForm({ ...uploadForm, file: e.target.files?.[0] || null })}
-                  className="cursor-pointer"
-                />
-                {uploadForm.file && (
-                  <p className="text-sm text-gray-600 mt-1">Selected: {uploadForm.file.name}</p>
-                )}
-              </div>
-            </div>
-            
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleUpload} 
-                disabled={uploading || !uploadForm.file || !uploadForm.title}
-                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
-              >
-                {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-                {uploading ? "Uploading..." : "Upload"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleUpload} 
+                  disabled={uploading || !uploadForm.file || !uploadForm.title}
+                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                >
+                  {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                  {uploading ? "Uploading..." : "Upload"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Search Bar */}

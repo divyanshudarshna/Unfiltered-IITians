@@ -139,6 +139,7 @@ export async function POST(req: Request) {
           to: user.email,
           customSubject: subject,
           customHtml,
+          // Don't log individual emails - we'll log the batch below
         });
         
         return { 
@@ -166,6 +167,34 @@ export async function POST(req: Request) {
     console.log(`✅ Sent ${successCount} emails successfully`);
     if (failedCount > 0) {
       console.error(`❌ Failed to send ${failedCount} emails`);
+    }
+
+    // Log the batch email send to database
+    if (successCount > 0) {
+      try {
+        const successfulEmails = results.filter(r => r.success).map(r => r.email);
+        
+        await prisma.emailLog.create({
+          data: {
+            subject,
+            body: message,
+            recipients: successfulEmails,
+            recipientCount: successCount,
+            sentBy: req.headers.get('x-admin-email') || 'Admin',
+            source: 'admin-users',
+            metadata: {
+              totalAttempted: users.length,
+              successCount,
+              failedCount,
+              userIds
+            }
+          }
+        });
+        console.log('📧 Email batch logged to database');
+      } catch (logError) {
+        console.error('Failed to log email batch to database:', logError);
+        // Don't fail the request if logging fails
+      }
     }
 
     return NextResponse.json({
