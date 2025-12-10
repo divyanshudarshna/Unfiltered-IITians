@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
               title: true,
               price: true,
               duration: true,
+              expiryDate: true,
             },
           },
         },

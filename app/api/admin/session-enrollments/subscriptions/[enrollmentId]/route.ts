@@ -22,44 +22,67 @@ export async function GET(
     }
 
     // Fetch all paid subscriptions for this user
-    const subscriptions = await prisma.subscription.findMany({
-      where: {
-        userId: enrollment.userId,
-        paid: true,
-      },
-      include: {
-        course: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            price: true,
+    const [subscriptions, sessionEnrollments] = await Promise.all([
+      prisma.subscription.findMany({
+        where: {
+          userId: enrollment.userId,
+          paid: true,
+        },
+        include: {
+          course: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              price: true,
+            },
+          },
+          mockTest: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              price: true,
+              actualPrice: true,
+              difficulty: true,
+            },
+          },
+          mockBundle: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              basePrice: true,
+              discountedPrice: true,
+            },
           },
         },
-        mockTest: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            price: true,
-            actualPrice: true,
-            difficulty: true,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      prisma.sessionEnrollment.findMany({
+        where: {
+          userId: enrollment.userId,
+          paymentStatus: 'SUCCESS',
+        },
+        include: {
+          session: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              price: true,
+              duration: true,
+              expiryDate: true,
+            },
           },
         },
-        mockBundle: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            basePrice: true,
-            discountedPrice: true,
-          },
+        orderBy: {
+          enrolledAt: 'desc',
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+      }),
+    ]);
 
     // Transform subscriptions to a unified format
     const transformedSubscriptions = subscriptions.map((sub) => {
@@ -106,7 +129,34 @@ export async function GET(
       };
     });
 
-    return NextResponse.json({ subscriptions: transformedSubscriptions });
+    // Transform session enrollments
+    const transformedSessionEnrollments = sessionEnrollments.map((enrollment) => {
+      const actualAmountPaid = enrollment.amountPaid || 0; // Already in rupees for sessions
+      const originalPrice = enrollment.session?.price || 0;
+      const discountApplied = originalPrice - actualAmountPaid;
+      
+      return {
+        id: enrollment.id,
+        type: 'Session',
+        title: enrollment.session?.title || 'Unknown Session',
+        description: enrollment.session?.description || '',
+        difficulty: null,
+        actualAmountPaid,
+        originalPrice,
+        discountApplied: discountApplied > 0 ? discountApplied : 0,
+        couponCode: enrollment.couponCode,
+        paidAt: enrollment.enrolledAt,
+        expiresAt: enrollment.session?.expiryDate || null,
+        paid: enrollment.paymentStatus === 'SUCCESS',
+      };
+    });
+
+    // Combine and sort by date
+    const allSubscriptions = [...transformedSubscriptions, ...transformedSessionEnrollments].sort(
+      (a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime()
+    );
+
+    return NextResponse.json({ subscriptions: allSubscriptions });
   } catch (error) {
     console.error('Error fetching subscriptions:', error);
     return NextResponse.json(

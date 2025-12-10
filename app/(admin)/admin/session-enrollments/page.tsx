@@ -66,6 +66,7 @@ import {
 interface Enrollment {
   id: string;
   enrolledAt: string;
+  completedAt?: string | null;
   amountPaid: number | null;
   paymentStatus: string;
   razorpayOrderId: string | null;
@@ -81,6 +82,7 @@ interface Enrollment {
     title: string;
     price: number;
     duration: number | null;
+    expiryDate: string | null;
   };
 }
 
@@ -756,8 +758,8 @@ export default function SessionEnrollmentsPage() {
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-1 font-semibold text-green-600">
                                   <IndianRupee className="h-4 w-4" />
-                                  {enrollment.actualAmountPaid 
-                                    ? (enrollment.actualAmountPaid / 100).toFixed(2)
+                                  {enrollment.amountPaid 
+                                    ? enrollment.amountPaid.toFixed(2)
                                     : (enrollment.session?.price || 0).toFixed(2)}
                                 </div>
                                 {enrollment.couponCode && (
@@ -782,15 +784,22 @@ export default function SessionEnrollmentsPage() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              {enrollment.expiresAt ? (
+                              {enrollment.completedAt ? (
                                 <div className="flex items-center gap-2">
-                                  <Clock className="h-4 w-4 text-muted-foreground" />
+                                  <Clock className="h-4 w-4 text-green-600" />
+                                  <span className="text-sm text-green-600">
+                                    Completed: {format(new Date(enrollment.completedAt), 'MMM dd, yyyy')}
+                                  </span>
+                                </div>
+                              ) : enrollment.session?.expiryDate ? (
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-orange-600" />
                                   <span className="text-sm">
-                                    {format(new Date(enrollment.expiresAt), 'MMM dd, yyyy')}
+                                    {format(new Date(enrollment.session.expiryDate), 'MMM dd, yyyy')}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-sm text-muted-foreground">N/A</span>
+                                <span className="text-sm text-muted-foreground">No Expiry</span>
                               )}
                             </TableCell>
                             <TableCell className="text-center">
@@ -1112,7 +1121,7 @@ export default function SessionEnrollmentsPage() {
                   </span>
                   <span className="text-sm block">{selectedEnrollmentForView.user.email}</span>
                   <span className="text-xs text-muted-foreground block">
-                    Enrolled in: {selectedEnrollmentForView.course.title}
+                    Enrolled in: {selectedEnrollmentForView.session?.title || 'N/A'}
                   </span>
                 </div>
               ) : (
@@ -1163,7 +1172,7 @@ export default function SessionEnrollmentsPage() {
                           <div className="text-right">
                             <div className="flex items-center gap-1 text-green-600 font-semibold">
                               <IndianRupee className="h-4 w-4" />
-                              {(subscription.actualAmountPaid / 100).toFixed(2)}
+                              {subscription.actualAmountPaid.toFixed(2)}
                             </div>
                             <p className="text-xs text-muted-foreground">Paid Amount</p>
                           </div>
@@ -1174,14 +1183,15 @@ export default function SessionEnrollmentsPage() {
                             <p className="text-xs text-muted-foreground mb-1">Original Price</p>
                             <div className="flex items-center gap-1 font-medium">
                               <IndianRupee className="h-3 w-3" />
-                              {(subscription.originalPrice / 100).toFixed(2)}
+                              {subscription.originalPrice.toFixed(2)}
                             </div>
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">Discount</p>
-                            <p className="font-medium">
-                              {subscription.discountApplied}%
-                            </p>
+                            <div className="flex items-center gap-1 font-medium text-orange-600">
+                              <IndianRupee className="h-3 w-3" />
+                              {subscription.discountApplied.toFixed(2)}
+                            </div>
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">Coupon Code</p>
