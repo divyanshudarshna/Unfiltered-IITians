@@ -1,6 +1,23 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   ColumnDef,
   flexRender,
@@ -47,13 +64,13 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
-  ChevronDown,
+  GripVertical,
   File,
   Eye,
   X,
   Download,
   ExternalLink,
+  Save,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -82,18 +99,66 @@ interface LectureTableProps {
   contentId: string;
 }
 
+// Sortable Row Component
+function SortableRow({ lecture, children }: { lecture: Lecture; children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: lecture.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableRow ref={setNodeRef} style={style} className={isDragging ? "bg-muted/50" : ""}>
+      <TableCell className="text-center py-4">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing flex items-center justify-center p-2 hover:bg-muted/50 rounded"
+        >
+          <GripVertical className="h-5 w-5 text-muted-foreground" />
+        </div>
+      </TableCell>
+      {children}
+    </TableRow>
+  );
+}
+
 export default function LectureTable({
   lectures,
   refresh,
   contentId,
 }: LectureTableProps) {
+  const [localLectures, setLocalLectures] = useState<Lecture[]>(lectures);
+  const [hasChanges, setHasChanges] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [pdfPreview, setPdfPreview] = useState<string | null>(null);
   const [summaryPreview, setSummaryPreview] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [isReordering, setIsReordering] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Update local lectures when prop changes
+  useEffect(() => {
+    setLocalLectures(lectures);
+    setHasChanges(false);
+  }, [lectures]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const handleDelete = async (id: string) => {
     try {
@@ -125,11 +190,26 @@ export default function LectureTable({
     setSummaryPreview(summary);
   };
 
-  const handleReorderLectures = async (newOrder: Lecture[]) => {
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setLocalLectures((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+
+        const newOrder = arrayMove(items, oldIndex, newIndex);
+        setHasChanges(true);
+        return newOrder;
+      });
+    }
+  };
+
+  const handleSaveOrder = async () => {
     try {
-      setIsReordering(true);
+      setIsSaving(true);
       
-      const lectureOrders = newOrder.map((lecture, index) => ({
+      const lectureOrders = localLectures.map((lecture, index) => ({
         id: lecture.id,
         order: index + 1,
       }));
@@ -143,27 +223,19 @@ export default function LectureTable({
       if (!response.ok) throw new Error('Failed to reorder lectures');
 
       toast.success('Lecture order updated successfully');
+      setHasChanges(false);
       refresh();
     } catch (error) {
       console.error('Error reordering lectures:', error);
       toast.error('Failed to update lecture order');
     } finally {
-      setIsReordering(false);
+      setIsSaving(false);
     }
   };
 
-  const moveUp = (index: number) => {
-    if (index === 0) return;
-    const newLectures = [...lectures];
-    [newLectures[index], newLectures[index - 1]] = [newLectures[index - 1], newLectures[index]];
-    handleReorderLectures(newLectures);
-  };
-
-  const moveDown = (index: number) => {
-    if (index === lectures.length - 1) return;
-    const newLectures = [...lectures];
-    [newLectures[index], newLectures[index + 1]] = [newLectures[index + 1], newLectures[index]];
-    handleReorderLectures(newLectures);
+  const handleCancelReorder = () => {
+    setLocalLectures(lectures);
+    setHasChanges(false);
   };
 
   const columns: ColumnDef<Lecture>[] = [
@@ -315,46 +387,9 @@ export default function LectureTable({
       header: "Actions",
       cell: ({ row }) => {
         const lecture = row.original;
-        const lectureIndex = lectures.findIndex(l => l.id === lecture.id);
         return (
           <TooltipProvider>
-            <div className="flex gap-1 flex-wrap justify-center">
-              {/* Reorder buttons */}
-              <div className="flex flex-col gap-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
-                      onClick={() => moveUp(lectureIndex)}
-                      disabled={lectureIndex === 0 || isReordering}
-                    >
-                      <ChevronUp className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Move Up</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
-                      onClick={() => moveDown(lectureIndex)}
-                      disabled={lectureIndex === lectures.length - 1 || isReordering}
-                    >
-                      <ChevronDown className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Move Down</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              
+            <div className="flex gap-2 flex-wrap justify-center">
               <Link href={`/admin/contents/${contentId}/lectures/edit?lectureId=${lecture.id}`}>
                 <Button 
                   size="sm" 
@@ -379,12 +414,12 @@ export default function LectureTable({
           </TooltipProvider>
         );
       },
-      size: 200,
+      size: 180,
     },
   ];
 
   const table = useReactTable({
-    data: lectures,
+    data: localLectures,
     columns,
     state: {
       globalFilter,
@@ -402,6 +437,48 @@ export default function LectureTable({
 
   return (
     <div className="space-y-6">
+      {/* Save Changes Banner */}
+      {hasChanges && (
+        <Card className="border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-amber-500 flex items-center justify-center">
+                  <GripVertical className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-amber-900 dark:text-amber-100">
+                    Unsaved Changes
+                  </h4>
+                  <p className="text-sm text-amber-700 dark:text-amber-300">
+                    You have reordered lectures. Click "Save Order" to apply changes.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleCancelReorder}
+                  disabled={isSaving}
+                  className="gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveOrder}
+                  disabled={isSaving}
+                  className="gap-2 bg-amber-600 hover:bg-amber-700"
+                >
+                  <Save className="h-4 w-4" />
+                  {isSaving ? "Saving..." : "Save Order"}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header and Search */}
       <Card className="border-0 shadow-sm bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <CardContent className="p-4 md:p-6">
@@ -568,11 +645,13 @@ export default function LectureTable({
 
       {/* Table */}
       <Card className="border shadow-sm overflow-hidden">
-        {/* <div className="rounded-md border"> */}
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="bg-slate-800 hover:bg-slate/50">
+                  <TableHead className="text-center py-4 font-semibold text-foreground w-[40px]">
+                    <GripVertical className="h-4 w-4 mx-auto text-muted-foreground" />
+                  </TableHead>
                   {headerGroup.headers.map((header) => (
                     <TableHead
                       key={header.id}
@@ -588,47 +667,54 @@ export default function LectureTable({
                 </TableRow>
               ))}
             </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow 
-                    key={row.id} 
-                    className="hover:bg-muted/30 transition-colors group"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell 
-                        key={cell.id} 
-                        className="text-center py-4 group-hover:bg-muted/10 transition-colors"
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={localLectures.map((l) => l.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <TableBody>
+                  {table.getRowModel().rows.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <SortableRow key={row.original.id} lecture={row.original}>
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell 
+                            key={cell.id} 
+                            className="text-center py-4 group-hover:bg-muted/10 transition-colors"
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </SortableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="text-center py-12 text-muted-foreground"
                       >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="text-center py-12 text-muted-foreground"
-                  >
-                    <div className="flex flex-col items-center space-y-4">
-                      <Video className="h-16 w-16 opacity-30" />
-                      <div>
-                        <p className="font-medium">No lectures found</p>
-                        <p className="text-sm mt-1">
-                          {globalFilter ? 'Try adjusting your search query' : 'Create your first lecture to get started'}
-                        </p>
-                      </div>
+                        <div className="flex flex-col items-center space-y-4">
+                          <Video className="h-16 w-16 opacity-30" />
+                          <div>
+                            <p className="font-medium">No lectures found</p>
+                            <p className="text-sm mt-1">
+                              {globalFilter ? 'Try adjusting your search query' : 'Create your first lecture to get started'}
+                            </p>
+                          </div>
                     </div>
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
+              </SortableContext>
+            </DndContext>
           </Table>
-        {/* </div> */}
       </Card>
 
       {/* Pagination */}
