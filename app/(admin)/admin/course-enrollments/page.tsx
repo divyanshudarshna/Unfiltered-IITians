@@ -69,6 +69,8 @@ interface Enrollment {
   expiresAt: string | null;
   actualAmountPaid: number | null;
   couponCode: string | null;
+  courseProgress: number;
+  avgQuizScore: number | null;
   user: {
     id: string;
     name: string | null;
@@ -164,6 +166,21 @@ export default function CourseEnrollmentsPage() {
   const [selectedEnrollmentForDelete, setSelectedEnrollmentForDelete] = useState<Enrollment | null>(null);
   const [securityPassword, setSecurityPassword] = useState('');
   const [deletingEnrollment, setDeletingEnrollment] = useState(false);
+
+  // Column visibility
+  const [visibleColumns, setVisibleColumns] = useState({
+    contact: true,
+    amountPaid: true,
+    duration: true,
+    progress: true,
+    quizScore: true,
+    enrolledDate: false,
+    expiresAt: true,
+  });
+
+  const toggleColumn = (column: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({ ...prev, [column]: !prev[column] }));
+  };
 
   // Fetch courses with enrollments
   useEffect(() => {
@@ -640,7 +657,7 @@ export default function CourseEnrollmentsPage() {
               </div>
 
               {/* Search and Sort Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -686,6 +703,46 @@ export default function CourseEnrollmentsPage() {
                     <SelectItem value="asc">Oldest First</SelectItem>
                   </SelectContent>
                 </Select>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="h-11 gap-2">
+                      <Eye className="h-4 w-4" />
+                      Columns
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <div className="px-2 py-1.5 text-sm font-semibold">Toggle Columns</div>
+                    <DropdownMenuItem onClick={() => toggleColumn('contact')} className="cursor-pointer">
+                      <Checkbox checked={visibleColumns.contact} className="mr-2" />
+                      Contact
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleColumn('amountPaid')} className="cursor-pointer">
+                      <Checkbox checked={visibleColumns.amountPaid} className="mr-2" />
+                      Amount Paid
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleColumn('duration')} className="cursor-pointer">
+                      <Checkbox checked={visibleColumns.duration} className="mr-2" />
+                      Duration
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleColumn('progress')} className="cursor-pointer">
+                      <Checkbox checked={visibleColumns.progress} className="mr-2" />
+                      Progress
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleColumn('quizScore')} className="cursor-pointer">
+                      <Checkbox checked={visibleColumns.quizScore} className="mr-2" />
+                      Quiz Score
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleColumn('enrolledDate')} className="cursor-pointer">
+                      <Checkbox checked={visibleColumns.enrolledDate} className="mr-2" />
+                      Enrolled Date
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleColumn('expiresAt')} className="cursor-pointer">
+                      <Checkbox checked={visibleColumns.expiresAt} className="mr-2" />
+                      Expires At
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </CardHeader>
 
@@ -713,13 +770,15 @@ export default function CourseEnrollmentsPage() {
                               onCheckedChange={handleSelectAll}
                             />
                           </TableHead>
-                          <TableHead className="font-semibold">Student</TableHead>
-                          <TableHead className="font-semibold">Contact</TableHead>
-                          <TableHead className="font-semibold">Amount Paid</TableHead>
-                          <TableHead className="font-semibold">Duration</TableHead>
-                          <TableHead className="font-semibold">Enrolled Date</TableHead>
-                          <TableHead className="font-semibold">Expires At</TableHead>
-                          <TableHead className="font-semibold text-center">Actions</TableHead>
+                          <TableHead className="font-semibold min-w-[180px]">Student</TableHead>
+                          {visibleColumns.contact && <TableHead className="font-semibold hidden lg:table-cell">Contact</TableHead>}
+                          {visibleColumns.amountPaid && <TableHead className="font-semibold">Amount Paid</TableHead>}
+                          {visibleColumns.duration && <TableHead className="font-semibold hidden xl:table-cell">Duration</TableHead>}
+                          {visibleColumns.progress && <TableHead className="font-semibold min-w-[140px]">Progress</TableHead>}
+                          {visibleColumns.quizScore && <TableHead className="font-semibold hidden 2xl:table-cell">Avg Quiz Score</TableHead>}
+                          {visibleColumns.enrolledDate && <TableHead className="font-semibold hidden md:table-cell">Enrolled Date</TableHead>}
+                          {visibleColumns.expiresAt && <TableHead className="font-semibold hidden xl:table-cell">Expires At</TableHead>}
+                          <TableHead className="font-semibold text-center sticky right-0 ">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -736,64 +795,112 @@ export default function CourseEnrollmentsPage() {
                                 }
                               />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="min-w-[180px]">
                               <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9 border-2">
+                                <Avatar className="h-9 w-9 border-2 flex-shrink-0">
                                   <AvatarImage src={enrollment.user.profileImageUrl || ''} />
                                   <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                                     {enrollment.user.name?.charAt(0).toUpperCase() || 'U'}
                                   </AvatarFallback>
                                 </Avatar>
-                                <div>
-                                  <p className="font-medium">{enrollment.user.name || 'N/A'}</p>
+                                <div className="min-w-0">
+                                  <p className="font-medium truncate">{enrollment.user.name || 'N/A'}</p>
+                                  <p className="text-xs text-muted-foreground truncate lg:hidden">{enrollment.user.email}</p>
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <p className="text-sm text-muted-foreground">{enrollment.user.email}</p>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-1 font-semibold text-green-600">
-                                  <IndianRupee className="h-4 w-4" />
-                                  {enrollment.actualAmountPaid 
-                                    ? (enrollment.actualAmountPaid / 100).toFixed(2)
-                                    : (enrollment.course.price).toFixed(2)}
+                            {visibleColumns.contact && (
+                              <TableCell className="hidden lg:table-cell">
+                                <p className="text-sm text-muted-foreground truncate max-w-[200px]">{enrollment.user.email}</p>
+                              </TableCell>
+                            )}
+                            {visibleColumns.amountPaid && (
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-1 font-semibold text-green-600">
+                                    <IndianRupee className="h-4 w-4" />
+                                    {enrollment.actualAmountPaid 
+                                      ? (enrollment.actualAmountPaid / 100).toFixed(2)
+                                      : (enrollment.course.price).toFixed(2)}
+                                  </div>
+                                  {enrollment.couponCode && (
+                                    <Badge variant="secondary" className="w-fit text-xs">
+                                      <Tag className="h-3 w-3 mr-1" />
+                                      {enrollment.couponCode}
+                                    </Badge>
+                                  )}
                                 </div>
-                                {enrollment.couponCode && (
-                                  <Badge variant="secondary" className="w-fit text-xs">
-                                    <Tag className="h-3 w-3 mr-1" />
-                                    {enrollment.couponCode}
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {enrollment.course.durationMonths} months
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">
-                                  {format(new Date(enrollment.enrolledAt), 'MMM dd, yyyy')}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {enrollment.expiresAt ? (
+                              </TableCell>
+                            )}
+                            {visibleColumns.duration && (
+                              <TableCell className="hidden xl:table-cell">
+                                <Badge variant="outline">
+                                  {enrollment.course.durationMonths} months
+                                </Badge>
+                              </TableCell>
+                            )}
+                            {visibleColumns.progress && (
+                              <TableCell className="min-w-[140px]">
                                 <div className="flex items-center gap-2">
-                                  <Clock className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-sm">
-                                    {format(new Date(enrollment.expiresAt), 'MMM dd, yyyy')}
+                                  <div className="w-full max-w-[120px]">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-sm font-medium">{enrollment.courseProgress}%</span>
+                                    </div>
+                                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full bg-primary transition-all" 
+                                        style={{ width: `${enrollment.courseProgress}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            )}
+                            {visibleColumns.quizScore && (
+                              <TableCell className="hidden 2xl:table-cell">
+                                {enrollment.avgQuizScore !== null ? (
+                                  <Badge 
+                                    variant="secondary" 
+                                    className={`font-semibold ${
+                                      enrollment.avgQuizScore >= 80 
+                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                        : enrollment.avgQuizScore >= 60 
+                                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' 
+                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                    }`}
+                                  >
+                                    {enrollment.avgQuizScore}%
+                                  </Badge>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">N/A</span>
+                                )}
+                              </TableCell>
+                            )}
+                            {visibleColumns.enrolledDate && (
+                              <TableCell className="hidden md:table-cell">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-sm whitespace-nowrap">
+                                    {format(new Date(enrollment.enrolledAt), 'MMM dd, yyyy')}
                                   </span>
                                 </div>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">N/A</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center">
+                              </TableCell>
+                            )}
+                            {visibleColumns.expiresAt && (
+                              <TableCell className="hidden xl:table-cell">
+                                {enrollment.expiresAt ? (
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm whitespace-nowrap">
+                                      {format(new Date(enrollment.expiresAt), 'MMM dd, yyyy')}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">N/A</span>
+                                )}
+                              </TableCell>
+                            )}
+                            <TableCell className="text-center sticky right-0 ">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button 

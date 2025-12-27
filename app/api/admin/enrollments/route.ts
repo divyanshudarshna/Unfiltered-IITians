@@ -103,10 +103,45 @@ export async function GET(req: NextRequest) {
           }
         });
 
+        // Get total contents in the course
+        const totalContents = await prisma.content.count({
+          where: { courseId: enrollment.courseId }
+        });
+
+        // Get course progress data
+        const courseProgressData = await prisma.courseProgress.findMany({
+          where: {
+            userId: enrollment.userId,
+            courseId: enrollment.courseId
+          },
+          select: {
+            completed: true,
+            quizScore: true,
+            totalQuizQuestions: true
+          }
+        });
+
+        // Calculate progress percentage
+        const completedContents = courseProgressData.filter(cp => cp.completed).length;
+        const courseProgress = totalContents > 0 
+          ? Math.round((completedContents / totalContents) * 100) 
+          : 0;
+
+        // Calculate average quiz score
+        const quizScores = courseProgressData
+          .filter(cp => cp.quizScore !== null && cp.totalQuizQuestions !== null && cp.totalQuizQuestions > 0)
+          .map(cp => (cp.quizScore! / cp.totalQuizQuestions!) * 100);
+        
+        const avgQuizScore = quizScores.length > 0
+          ? Math.round(quizScores.reduce((sum, score) => sum + score, 0) / quizScores.length)
+          : null;
+
         return {
           ...enrollment,
           actualAmountPaid: subscription?.actualAmountPaid || null,
-          couponCode: subscription?.couponCode || null
+          couponCode: subscription?.couponCode || null,
+          courseProgress,
+          avgQuizScore
         };
       })
     );
