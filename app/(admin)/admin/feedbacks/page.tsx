@@ -70,6 +70,8 @@ export default function FeedbacksPage() {
   const [replyMessage, setReplyMessage] = useState("");
   const [submittingReply, setSubmittingReply] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [markingRead, setMarkingRead] = useState<string | null>(null);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
 
   // Fetch unread feedback count
   const fetchUnreadCount = useCallback(async () => {
@@ -83,7 +85,7 @@ export default function FeedbacksPage() {
       if (!res.ok) throw new Error("Failed to fetch unread count");
 
       const data = await res.json();
-      setUnreadCount(data.unreadCount || 0);
+      setUnreadCount(data.count || 0);
     } catch (err) {
       console.error("Failed to fetch unread count:", err);
       setUnreadCount(0);
@@ -149,6 +151,70 @@ export default function FeedbacksPage() {
     }
   };
 
+  // Mark feedback as read
+  const markAsRead = async (feedbackId: string) => {
+    setMarkingRead(feedbackId);
+    try {
+      const token = await getToken();
+      const res = await fetch("/api/admin/feedback/mark-read", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ feedbackId }),
+      });
+      if (!res.ok) throw new Error("Failed to mark as read");
+
+      // Optimistically update the feedback status in state
+      setFeedbacks(prev => 
+        prev.map(f => f.id === feedbackId ? { ...f, status: "RESOLVED" } : f)
+      );
+      
+      // Update unread count
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      await fetchFeedbacks(); // Refresh to sync with server
+    } catch (err) {
+      console.error(err);
+      alert("Error marking feedback as read");
+    } finally {
+      setMarkingRead(null);
+    }
+  };
+
+  // Mark all feedbacks as read
+  const markAllAsRead = async () => {
+    setMarkingAllRead(true);
+    try {
+      const token = await getToken();
+      const res = await fetch("/api/admin/feedback/mark-read", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ markAll: true }),
+      });
+      if (!res.ok) throw new Error("Failed to mark all as read");
+
+      // Optimistically update all PENDING feedbacks to RESOLVED
+      setFeedbacks(prev => 
+        prev.map(f => f.status === "PENDING" ? { ...f, status: "RESOLVED" } : f)
+      );
+      
+      // Reset unread count
+      setUnreadCount(0);
+      
+      await fetchFeedbacks(); // Refresh to sync with server
+    } catch (err) {
+      console.error(err);
+      alert("Error marking all feedbacks as read");
+    } finally {
+      setMarkingAllRead(false);
+    }
+  };
+
   // Delete a single reply
   const deleteReply = async (replyId: string) => {
     if (!confirm("Are you sure you want to delete this reply?")) return;
@@ -194,7 +260,7 @@ export default function FeedbacksPage() {
                          f.content.toLowerCase().includes(search.toLowerCase());
     
     const matchesStatus = selectedStatus === "all" || 
-                         (selectedStatus === "unread" && f.replies.length === 0) ||
+                         (selectedStatus === "unread" && f.status === "PENDING" && f.replies.length === 0) ||
                          (selectedStatus === "replied" && f.replies.length > 0);
     
     return matchesSearch && matchesStatus;
@@ -250,9 +316,9 @@ export default function FeedbacksPage() {
                   </h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {courseFeedbacks.length} feedback{courseFeedbacks.length !== 1 ? 's' : ''}
-                    {courseFeedbacks.filter(f => f.replies.length === 0).length > 0 && (
+                    {courseFeedbacks.filter(f => f.status === "PENDING" && f.replies.length === 0).length > 0 && (
                       <span className="ml-2 text-red-600 dark:text-red-400 font-medium">
-                        • {courseFeedbacks.filter(f => f.replies.length === 0).length} unread
+                        • {courseFeedbacks.filter(f => f.status === "PENDING" && f.replies.length === 0).length} unread
                       </span>
                     )}
                   </p>
@@ -263,7 +329,7 @@ export default function FeedbacksPage() {
             {/* Course Feedbacks */}
             <div className="grid gap-4 pl-4">
               {courseFeedbacks.map((feedback) => {
-                const isUnread = feedback.replies.length === 0;
+                const isUnread = feedback.status === "PENDING" && feedback.replies.length === 0;
                 return (
                   <Card
                     key={feedback.id}
@@ -321,6 +387,22 @@ export default function FeedbacksPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {isUnread && (
+                            <Button
+                              onClick={() => markAsRead(feedback.id)}
+                              size="sm"
+                              variant="outline"
+                              className="border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+                              disabled={markingRead === feedback.id}
+                            >
+                              {markingRead === feedback.id ? (
+                                <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-4 w-4 mr-1" />
+                              )}
+                              Mark as Read
+                            </Button>
+                          )}
                           <Button
                             onClick={() => setSelectedFeedback(feedback)}
                             size="sm"
@@ -425,6 +507,22 @@ export default function FeedbacksPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <Button
+                  onClick={markAllAsRead}
+                  variant="default"
+                  size="sm"
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                  disabled={markingAllRead}
+                >
+                  {markingAllRead ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+                  Mark All as Read
+                </Button>
+              )}
               <Button
                 onClick={fetchFeedbacks}
                 variant="outline"
@@ -456,7 +554,7 @@ export default function FeedbacksPage() {
                 </TabsTrigger>
                 <TabsTrigger value="unread" className="flex items-center gap-2">
                   <AlertCircle className="h-4 w-4" />
-                  New ({feedbacks.filter(f => f.replies.length === 0).length})
+                  New ({feedbacks.filter(f => f.status === "PENDING" && f.replies.length === 0).length})
                 </TabsTrigger>
                 <TabsTrigger value="replied" className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4" />

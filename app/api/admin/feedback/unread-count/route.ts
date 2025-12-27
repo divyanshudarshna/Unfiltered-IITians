@@ -32,7 +32,7 @@ export async function GET() {
     });
 
     return NextResponse.json({ 
-      unreadCount: unreadFeedbackCount 
+      count: unreadFeedbackCount 
     });
 
   } catch (error) {

@@ -86,11 +86,42 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({});
+  const [contactCount, setContactCount] = React.useState(0);
+  const [feedbackCount, setFeedbackCount] = React.useState(0);
   const { userProfile, clerkUser, getProfileImageUrl, isLoading } = useUserProfileContext();
 
   const toggleMenu = (title: string) => {
     setOpenMenus((prev) => ({ ...prev, [title]: !prev[title] }));
   };
+
+  // Fetch notification counts
+  React.useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const [contactRes, feedbackRes] = await Promise.all([
+          fetch("/api/admin/contact-us/pending-count"),
+          fetch("/api/admin/feedback/unread-count")
+        ]);
+
+        if (contactRes.ok) {
+          const { count } = await contactRes.json();
+          setContactCount(count || 0);
+        }
+
+        if (feedbackRes.ok) {
+          const { count } = await feedbackRes.json();
+          setFeedbackCount(count || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching notification counts:", error);
+      }
+    };
+
+    fetchCounts();
+    // Refresh counts every 30 seconds
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Create user data from context
   const userData = React.useMemo(() => {
@@ -143,6 +174,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       <div className="flex items-center gap-2">
                         {item.icon && <item.icon className="w-4 h-4" />}
                         {item.title}
+                        {/* Show red dot for Courses dropdown if there are unread feedbacks */}
+                        {item.title === "Courses" && feedbackCount > 0 && (
+                          <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                        )}
                       </div>
                       <IconChevronDown
                         className={`w-4 h-4 transition-transform ${
@@ -155,7 +190,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     item.submenu.map((sub, i) => (
                       <SidebarMenuItem key={i}>
                         <SidebarMenuButton asChild className="pl-8">
-                          <Link href={sub.url}>{sub.title}</Link>
+                          <Link href={sub.url} className="flex items-center justify-between w-full">
+                            <span>{sub.title}</span>
+                            {/* Show badge for Feedbacks */}
+                            {sub.title === "Feedbacks" && feedbackCount > 0 && (
+                              <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
+                                {feedbackCount > 99 ? "99+" : feedbackCount}
+                              </span>
+                            )}
+                          </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     ))}
@@ -163,9 +206,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               ) : (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link href={item.url || "#"} className="flex items-center gap-2">
-                      {item.icon && <item.icon className="w-4 h-4" />}
-                      {item.title}
+                    <Link href={item.url || "#"} className="flex items-center gap-2 justify-between w-full">
+                      <div className="flex items-center gap-2">
+                        {item.icon && <item.icon className="w-4 h-4" />}
+                        {item.title}
+                      </div>
+                      {/* Show badge for Contacts */}
+                      {item.title === "Contacts" && contactCount > 0 && (
+                        <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
+                          {contactCount > 99 ? "99+" : contactCount}
+                        </span>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
