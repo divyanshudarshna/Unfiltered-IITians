@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { format } from "date-fns";
 import Image from "next/image";
@@ -13,14 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Trash2, 
   MessageCircle, 
@@ -28,13 +27,21 @@ import {
   Search,
   Clock,
   User,
-  Mail,
   Send,
-  Filter,
   CheckCircle2,
   AlertCircle,
-  BookOpen
+  BookOpen,
+  X,
+  MoreVertical,
+  ChevronRight,
+  Menu
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Feedback {
   id: string;
@@ -67,11 +74,14 @@ export default function FeedbacksPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [search, setSearch] = useState("");
   const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
-  const [replyMessage, setReplyMessage] = useState("");
+  const [quickReplyText, setQuickReplyText] = useState("");
   const [submittingReply, setSubmittingReply] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [markingRead, setMarkingRead] = useState<string | null>(null);
   const [markingAllRead, setMarkingAllRead] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Fetch unread feedback count
   const fetchUnreadCount = useCallback(async () => {
@@ -105,7 +115,18 @@ export default function FeedbacksPage() {
       if (!res.ok) throw new Error("Failed to fetch feedbacks");
 
       const data = await res.json();
-      setFeedbacks(data.feedbacks || []);
+      const newFeedbacks = data.feedbacks || [];
+      setFeedbacks(newFeedbacks);
+      
+      // Auto-select the first unread feedback's course if no course is selected
+      if (!selectedCourse && newFeedbacks.length > 0) {
+        const firstUnread = newFeedbacks.find((f: Feedback) => 
+          f.status === "PENDING" && f.replies.length === 0
+        );
+        if (firstUnread) {
+          setSelectedCourse(firstUnread.course.id);
+        }
+      }
       
       // Also fetch unread count
       await fetchUnreadCount();
@@ -121,9 +142,21 @@ export default function FeedbacksPage() {
     fetchFeedbacks();
   }, [fetchFeedbacks]);
 
+  // Scroll to bottom when course changes or feedbacks update
+  const scrollToBottom = useCallback(() => {
+    if (scrollRef.current) {
+      const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        setTimeout(() => {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }, 100);
+      }
+    }
+  }, []);
+
   // Submit reply to selected feedback
-  const submitReply = async () => {
-    if (!selectedFeedback || !replyMessage.trim()) return;
+  const submitReply = async (feedbackId: string, message: string) => {
+    if (!message.trim()) return;
     setSubmittingReply(true);
     try {
       const token = await getToken();
@@ -134,15 +167,14 @@ export default function FeedbacksPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          feedbackId: selectedFeedback.id,
-          message: replyMessage,
+          feedbackId,
+          message,
         }),
       });
       if (!res.ok) throw new Error("Failed to send reply");
 
-      setReplyMessage("");
-      setSelectedFeedback(null);
-      fetchFeedbacks(); // This will also update unread count
+      setQuickReplyText("");
+      fetchFeedbacks();
     } catch (err) {
       console.error(err);
       alert("Error sending reply");
@@ -166,15 +198,11 @@ export default function FeedbacksPage() {
       });
       if (!res.ok) throw new Error("Failed to mark as read");
 
-      // Optimistically update the feedback status in state
       setFeedbacks(prev => 
         prev.map(f => f.id === feedbackId ? { ...f, status: "RESOLVED" } : f)
       );
-      
-      // Update unread count
       setUnreadCount(prev => Math.max(0, prev - 1));
-      
-      await fetchFeedbacks(); // Refresh to sync with server
+      await fetchFeedbacks();
     } catch (err) {
       console.error(err);
       alert("Error marking feedback as read");
@@ -198,15 +226,11 @@ export default function FeedbacksPage() {
       });
       if (!res.ok) throw new Error("Failed to mark all as read");
 
-      // Optimistically update all PENDING feedbacks to RESOLVED
       setFeedbacks(prev => 
         prev.map(f => f.status === "PENDING" ? { ...f, status: "RESOLVED" } : f)
       );
-      
-      // Reset unread count
       setUnreadCount(0);
-      
-      await fetchFeedbacks(); // Refresh to sync with server
+      await fetchFeedbacks();
     } catch (err) {
       console.error(err);
       alert("Error marking all feedbacks as read");
@@ -215,483 +239,488 @@ export default function FeedbacksPage() {
     }
   };
 
-  // Delete a single reply
-  const deleteReply = async (replyId: string) => {
-    if (!confirm("Are you sure you want to delete this reply?")) return;
+  // Delete entire feedback
+  const deleteFeedback = async (feedbackId: string) => {
+    if (!confirm("Are you sure you want to delete this feedback and all its replies?")) return;
     try {
       const token = await getToken();
-      const res = await fetch(`/api/admin/feedback/reply/${replyId}`, {
+      const res = await fetch(`/api/admin/feedback/${feedbackId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Failed to delete reply");
-      fetchFeedbacks(); // This will also update unread count
-    } catch (err) {
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData?.error || "Failed to delete feedback");
+      }
+      alert("Feedback deleted successfully!");
+      fetchFeedbacks();
+    } catch (err: unknown) {
       console.error(err);
-      alert("Error deleting reply");
+      alert(err instanceof Error ? err.message : "Error deleting feedback");
     }
   };
 
-  // Delete entire feedback
- const deleteFeedback = async (feedbackId: string) => {
-  if (!confirm("Are you sure you want to delete this feedback and all its replies?")) return;
-  try {
-    const token = await getToken();
-    const res = await fetch(`/api/admin/feedback/${feedbackId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData?.error || "Failed to delete feedback");
-    }
-    alert("Feedback deleted successfully!");
-    fetchFeedbacks(); // This will also update unread count
-  } catch (err: unknown) {
-    console.error(err);
-    alert(err instanceof Error ? err.message : "Error deleting feedback");
-  }
-};
+  // Filter feedbacks based on search, status, and selected course
+  const filteredFeedbacks = feedbacks
+    .filter((f) => {
+      const matchesSearch = f.user.name.toLowerCase().includes(search.toLowerCase()) ||
+                           f.user.email.toLowerCase().includes(search.toLowerCase()) ||
+                           f.content.toLowerCase().includes(search.toLowerCase());
+      
+      const matchesStatus = selectedStatus === "all" || 
+                           (selectedStatus === "unread" && f.status === "PENDING" && f.replies.length === 0) ||
+                           (selectedStatus === "replied" && f.replies.length > 0);
+      
+      const matchesCourse = !selectedCourse || f.course.id === selectedCourse;
+      
+      return matchesSearch && matchesStatus && matchesCourse;
+    })
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  // Filter feedbacks based on search and status
-  const filteredFeedbacks = feedbacks.filter((f) => {
-    const matchesSearch = f.user.name.toLowerCase().includes(search.toLowerCase()) ||
-                         f.user.email.toLowerCase().includes(search.toLowerCase()) ||
-                         f.content.toLowerCase().includes(search.toLowerCase());
+  // Get unique courses with feedback counts
+  const courses = feedbacks.reduce((acc, feedback) => {
+    const course = acc.find(c => c.id === feedback.course.id);
+    const isUnread = feedback.status === "PENDING" && feedback.replies.length === 0;
     
-    const matchesStatus = selectedStatus === "all" || 
-                         (selectedStatus === "unread" && f.status === "PENDING" && f.replies.length === 0) ||
-                         (selectedStatus === "replied" && f.replies.length > 0);
-    
-    return matchesSearch && matchesStatus;
-  });
-
-  // Group feedbacks by course
-  const groupedFeedbacks = filteredFeedbacks.reduce((acc, feedback) => {
-    const courseId = feedback.course.id;
-    if (!acc[courseId]) {
-      acc[courseId] = {
-        course: feedback.course,
-        feedbacks: []
-      };
+    if (course) {
+      course.count++;
+      if (isUnread) course.unreadCount++;
+    } else {
+      acc.push({
+        id: feedback.course.id,
+        title: feedback.course.title,
+        count: 1,
+        unreadCount: isUnread ? 1 : 0
+      });
     }
-    acc[courseId].feedbacks.push(feedback);
     return acc;
-  }, {} as Record<string, { course: { id: string; title: string; description?: string }, feedbacks: Feedback[] }>);
+  }, [] as { id: string; title: string; count: number; unreadCount: number }[]);
+
+  // Scroll to bottom when selected course changes or feedbacks change
+  useEffect(() => {
+    if (selectedCourse && filteredFeedbacks.length > 0) {
+      scrollToBottom();
+    }
+  }, [selectedCourse, filteredFeedbacks.length, scrollToBottom]);
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const renderFeedbackContent = () => {
-    if (filteredFeedbacks.length === 0) {
-      return (
-        <Card className="p-12">
-          <div className="text-center">
-            <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No feedback found
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400">
-              {search ? "Try adjusting your search terms" : "No student feedback submitted yet"}
-            </p>
-          </div>
-        </Card>
-      );
-    }
-
-    return (
-      <div className="space-y-8">
-        {Object.entries(groupedFeedbacks).map(([courseId, { course, feedbacks: courseFeedbacks }]) => (
-          <div key={courseId} className="space-y-4">
-            {/* Course Header */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-                  <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {course.title}
-                  </h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {courseFeedbacks.length} feedback{courseFeedbacks.length !== 1 ? 's' : ''}
-                    {courseFeedbacks.filter(f => f.status === "PENDING" && f.replies.length === 0).length > 0 && (
-                      <span className="ml-2 text-red-600 dark:text-red-400 font-medium">
-                        • {courseFeedbacks.filter(f => f.status === "PENDING" && f.replies.length === 0).length} unread
-                      </span>
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Course Feedbacks */}
-            <div className="grid gap-4 pl-4">
-              {courseFeedbacks.map((feedback) => {
-                const isUnread = feedback.status === "PENDING" && feedback.replies.length === 0;
-                return (
-                  <Card
-                    key={feedback.id}
-                    className={`transition-all duration-200 hover:shadow-md ${
-                      isUnread 
-                        ? "ring-2 ring-red-200 dark:ring-red-800 bg-red-50/50 dark:bg-red-900/10" 
-                        : "hover:shadow-lg"
-                    }`}
-                  >
-                    <CardHeader className="pb-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-4">
-                          {/* User Profile Image or Avatar */}
-                          <div className="relative">
-                            {feedback.user.profileImageUrl ? (
-                              <Image
-                                src={feedback.user.profileImageUrl}
-                                alt={feedback.user.name}
-                                width={48}
-                                height={48}
-                                className="rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
-                              />
-                            ) : (
-                              <Avatar className="h-12 w-12 border-2 border-gray-200 dark:border-gray-700">
-                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
-                                  {getInitials(feedback.user.name)}
-                                </AvatarFallback>
-                              </Avatar>
-                            )}
-                            {isUnread && (
-                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></div>
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-gray-900 dark:text-white">
-                                {feedback.user.name}
-                              </h3>
-                              {isUnread && (
-                                <Badge className="bg-red-500 text-white text-xs px-2 py-0.5">
-                                  NEW
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                              <div className="flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
-                                {feedback.user.email}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {format(new Date(feedback.createdAt), "MMM d, yyyy 'at' h:mm a")}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {isUnread && (
-                            <Button
-                              onClick={() => markAsRead(feedback.id)}
-                              size="sm"
-                              variant="outline"
-                              className="border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
-                              disabled={markingRead === feedback.id}
-                            >
-                              {markingRead === feedback.id ? (
-                                <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4 mr-1" />
-                              )}
-                              Mark as Read
-                            </Button>
-                          )}
-                          <Button
-                            onClick={() => setSelectedFeedback(feedback)}
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            <MessageCircle className="h-4 w-4 mr-1" />
-                            Reply
-                          </Button>
-                          <Button
-                            onClick={() => deleteFeedback(feedback.id)}
-                            size="sm"
-                            variant="destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="pt-0">
-                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 mb-4">
-                        <p className="text-gray-800 dark:text-gray-200 leading-relaxed">
-                          {feedback.content}
-                        </p>
-                      </div>
-
-                      {/* Replies Section */}
-                      {feedback.replies.length > 0 && (
-                        <div className="space-y-3">
-                          <Separator />
-                          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                            Admin Replies ({feedback.replies.length})
-                          </div>
-                          <div className="space-y-3">
-                            {feedback.replies.map((reply) => (
-                              <div
-                                key={reply.id}
-                                className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border-l-4 border-blue-500"
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <p className="text-gray-800 dark:text-gray-200 mb-2">
-                                      {reply.message}
-                                    </p>
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                      <User className="h-3 w-3" />
-                                      {reply.admin.name}
-                                      <span>•</span>
-                                      <Clock className="h-3 w-3" />
-                                      {format(new Date(reply.createdAt), "MMM d, yyyy 'at' h:mm a")}
-                                    </div>
-                                  </div>
-                                  <Button
-                                    onClick={() => deleteReply(reply.id)}
-                                    size="sm"
-                                    variant="ghost"
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Header Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <MessageCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Student Feedback
-                </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Manage and respond to course feedback from students
-                </p>
-              </div>
-              {unreadCount > 0 && (
-                <Badge className="bg-red-500 text-white px-3 py-1">
-                  {unreadCount > 9 ? "9+" : unreadCount} New
-                </Badge>
-              )}
+    <div className="h-[calc(100vh-4rem)] flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-700 px-3 md:px-6 py-3 md:py-4">
+        <div className="flex items-center justify-between flex-wrap gap-2 md:gap-4 mt-2 md:mt-4">
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Mobile Menu Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <MessageCircle className="h-4 w-4 md:h-5 md:w-5 text-blue-600 dark:text-blue-400" />
             </div>
-
-            <div className="flex items-center gap-3">
-              {unreadCount > 0 && (
-                <Button
-                  onClick={markAllAsRead}
-                  variant="default"
-                  size="sm"
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                  disabled={markingAllRead}
-                >
-                  {markingAllRead ? (
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                  Mark All as Read
-                </Button>
-              )}
-              <Button
-                onClick={fetchFeedbacks}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </Button>
+            <div>
+              <h1 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">Student Feedback</h1>
+              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                {filteredFeedbacks.length} conversation{filteredFeedbacks.length !== 1 ? 's' : ''}
+                {unreadCount > 0 && (
+                  <span className="ml-2 text-red-600 dark:text-red-400 font-medium">
+                    • {unreadCount} unread
+                  </span>
+                )}
+              </p>
             </div>
           </div>
 
-          {/* Search and Filters */}
-          <div className="mt-6 flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search by student name, email, or feedback content..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Tabs value={selectedStatus} onValueChange={setSelectedStatus} className="w-full sm:w-auto">
-              <TabsList className="grid w-full grid-cols-3 sm:w-auto">
-                <TabsTrigger value="all" className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  All ({feedbacks.length})
-                </TabsTrigger>
-                <TabsTrigger value="unread" className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  New ({feedbacks.filter(f => f.status === "PENDING" && f.replies.length === 0).length})
-                </TabsTrigger>
-                <TabsTrigger value="replied" className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Replied ({feedbacks.filter(f => f.replies.length > 0).length})
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+          <div className="flex items-center gap-1 md:gap-2">
+            {unreadCount > 0 && (
+              <Button
+                onClick={markAllAsRead}
+                variant="default"
+                size="sm"
+                className="bg-green-600 hover:bg-green-700"
+                disabled={markingAllRead}
+              >
+                {markingAllRead ? (
+                  <RefreshCw className="h-4 w-4 animate-spin md:mr-2" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 md:mr-2" />
+                )}
+                <span className="hidden md:inline">Mark All Read</span>
+              </Button>
+            )}
+            <Button onClick={fetchFeedbacks} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
-        {/* Content Section */}
-        {loading ? (
-          <div className="grid gap-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Card key={`skeleton-${i}`} className="p-6">
-                <div className="animate-pulse">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
-                    <div className="flex-1">
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-2"></div>
-                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-                    </div>
-                  </div>
-                  <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                </div>
-              </Card>
-            ))}
+        {/* Search Bar */}
+        <div className="mt-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search conversations..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        ) : (
-          renderFeedbackContent()
-        )}
+        </div>
       </div>
 
-      {/* Reply Dialog */}
-      <Dialog open={!!selectedFeedback} onOpenChange={() => setSelectedFeedback(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
-              Reply to {selectedFeedback?.user.name}
-            </DialogTitle>
-            <DialogDescription>
-              Respond to feedback from {selectedFeedback?.user.email} about {selectedFeedback?.course.title}
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedFeedback && (
-            <div className="space-y-4">
-              {/* Original Feedback */}
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Original Feedback
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    • {selectedFeedback.course.title}
-                  </span>
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile Sidebar Overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        
+        {/* Sidebar - Course Navigation */}
+        <div className={`${
+          sidebarOpen ? 'fixed inset-y-0 left-0 z-50' : 'hidden'
+        } lg:relative lg:flex lg:w-80 w-80 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-700 flex-col transition-transform duration-300`}>
+          {/* Mobile Close Button */}
+          <div className="lg:hidden flex justify-end p-3 border-b border-gray-200 dark:border-gray-700">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Status Filters */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="space-y-2">
+              <button
+                onClick={() => { 
+                  setSelectedStatus("all"); 
+                  setSelectedCourse(null); 
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                  selectedStatus === "all" && !selectedCourse
+                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
+              >
+                <span className="font-medium">All Conversations</span>
+                <Badge variant="secondary">{feedbacks.length}</Badge>
+              </button>
+              <button
+                onClick={() => { 
+                  setSelectedStatus("unread"); 
+                  setSelectedCourse(null); 
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                  selectedStatus === "unread" && !selectedCourse
+                    ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="font-medium">Unread</span>
                 </div>
-                <p className="text-gray-800 dark:text-gray-200">
-                  {selectedFeedback.content}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  Submitted on {format(new Date(selectedFeedback.createdAt), "MMM d, yyyy 'at' h:mm a")}
-                </p>
-              </div>
+                {unreadCount > 0 && (
+                  <Badge className="bg-red-500 text-white">{unreadCount}</Badge>
+                )}
+              </button>
+              <button
+                onClick={() => { 
+                  setSelectedStatus("replied"); 
+                  setSelectedCourse(null); 
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                  selectedStatus === "replied" && !selectedCourse
+                    ? "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="font-medium">Replied</span>
+                </div>
+                <Badge variant="secondary">
+                  {feedbacks.filter(f => f.replies.length > 0).length}
+                </Badge>
+              </button>
+            </div>
+          </div>
 
-              {/* Previous Replies */}
-              {selectedFeedback.replies.length > 0 && (
-                <div className="space-y-3">
-                  <Separator />
-                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Previous Replies ({selectedFeedback.replies.length})
-                  </div>
-                  {selectedFeedback.replies.map((reply) => (
-                    <div
-                      key={reply.id}
-                      className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border-l-4 border-blue-500"
-                    >
-                      <p className="text-gray-800 dark:text-gray-200 mb-2">
-                        {reply.message}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span>By {reply.admin.name}</span>
-                        <span>•</span>
-                        <span>{format(new Date(reply.createdAt), "MMM d, yyyy 'at' h:mm a")}</span>
+          {/* Course List */}
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3 px-2">
+                COURSES
+              </h3>
+              {courses.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
+                  No feedback yet
+                </p>
+              ) : (
+                courses.map((course) => (
+                  <button
+                    key={course.id}
+                    onClick={() => {
+                      setSelectedCourse(course.id);
+                      setSelectedStatus("all");
+                      setSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors text-left ${
+                      selectedCourse === course.id
+                        ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500"
+                        : "hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-transparent"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+                        <span className="font-medium text-sm truncate">{course.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {course.count} message{course.count !== 1 ? 's' : ''}
+                        </span>
+                        {course.unreadCount > 0 && (
+                          <>
+                            <span className="text-xs text-gray-400">•</span>
+                            <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+                              {course.unreadCount} new
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
-                  ))}
-                  <Separator />
-                </div>
+                    {course.unreadCount > 0 && (
+                      <Badge className="bg-red-500 text-white ml-2">
+                        {course.unreadCount}
+                      </Badge>
+                    )}
+                  </button>
+                ))
               )}
+            </div>
+          </ScrollArea>
+        </div>
 
-              {/* Reply Form */}
-              <div className="space-y-3">
-                <Label htmlFor="reply-message" className="text-sm font-medium">
-                  Your Reply
-                </Label>
-                <Textarea
-                  id="reply-message"
-                  placeholder="Write your response here..."
-                  value={replyMessage}
-                  onChange={(e) => setReplyMessage(e.target.value)}
-                  className="min-h-[120px] resize-none"
-                />
+        {/* Chat Area */}
+        <div className="flex-1 flex flex-col bg-white dark:bg-gray-950 overflow-hidden">
+          {selectedCourse && (
+            <div className="px-3 md:px-6 py-2 md:py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-3 md:h-4 w-3 md:w-4 text-blue-600" />
+                  <span className="font-medium text-sm md:text-base text-gray-900 dark:text-white truncate">
+                    {courses.find(c => c.id === selectedCourse)?.title}
+                  </span>
+                </div>
+                <Button
+                  onClick={() => setSelectedCourse(null)}
+                  variant="ghost"
+                  size="sm"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
-
-              <DialogFooter className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedFeedback(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={submitReply}
-                  disabled={!replyMessage.trim() || submittingReply}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {submittingReply ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Sending...
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Send className="h-4 w-4" />
-                      Send Reply
-                    </div>
-                  )}
-                </Button>
-              </DialogFooter>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Loading conversations...</p>
+              </div>
+            </div>
+          ) : filteredFeedbacks.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  No conversations found
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {search ? "Try adjusting your search" : "No feedback submitted yet"}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-hidden">
+              <ScrollArea className="h-full w-full" ref={scrollRef}>
+                <div className="p-3 md:p-6 space-y-4 md:space-y-6 max-w-4xl mx-auto pb-20">
+                {filteredFeedbacks.map((feedback) => {
+                  const isUnread = feedback.status === "PENDING" && feedback.replies.length === 0;
+                  return (
+                    <Card
+                      key={feedback.id}
+                      className={`p-3 md:p-6 transition-all ${
+                        isUnread
+                          ? "ring-2 ring-red-500 bg-red-50/50 dark:bg-red-900/10"
+                          : "hover:shadow-md"
+                      }`}
+                    >
+                      {/* User Message */}
+                      <div className="flex gap-2 md:gap-4">
+                        <div className="relative flex-shrink-0">
+                          {feedback.user.profileImageUrl ? (
+                            <Image
+                              src={feedback.user.profileImageUrl}
+                              alt={feedback.user.name}
+                              width={40}
+                              height={40}
+                              className="rounded-full md:w-12 md:h-12"
+                            />
+                          ) : (
+                            <Avatar className="h-10 w-10 md:h-12 md:w-12">
+                              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                                {getInitials(feedback.user.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          {isUnread && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-2 gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-sm md:text-base text-gray-900 dark:text-white truncate">
+                                  {feedback.user.name}
+                                </span>
+                                {isUnread && (
+                                  <Badge className="bg-red-500 text-white text-xs">NEW</Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 md:gap-2 mt-1 text-xs md:text-sm text-gray-500 flex-wrap">
+                                <span className="truncate max-w-[150px] md:max-w-none">{feedback.user.email}</span>
+                                <span className="hidden sm:inline">•</span>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  <span className="whitespace-nowrap">{format(new Date(feedback.createdAt), "MMM d, h:mm a")}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {isUnread && (
+                                  <DropdownMenuItem onClick={() => markAsRead(feedback.id)}>
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Mark as Read
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  onClick={() => deleteFeedback(feedback.id)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          {/* Feedback Content */}
+                          <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 md:p-4 mb-3 md:mb-4">
+                            <p className="text-sm md:text-base text-gray-800 dark:text-gray-200 leading-relaxed break-words">
+                              {feedback.content}
+                            </p>
+                          </div>
+
+                          {/* Replies */}
+                          {feedback.replies.length > 0 && (
+                            <div className="ml-2 md:ml-4 space-y-2 md:space-y-3 mb-3 md:mb-4">
+                              {feedback.replies.map((reply) => (
+                                <div
+                                  key={reply.id}
+                                  className="flex gap-2 md:gap-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 md:p-4 border-l-4 border-blue-500"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1 md:gap-2 mb-2 flex-wrap">
+                                      <User className="h-3 w-3 md:h-4 md:w-4 text-blue-600" />
+                                      <span className="font-medium text-xs md:text-sm text-gray-900 dark:text-white">
+                                        {reply.admin.name}
+                                      </span>
+                                      <span className="text-xs text-gray-500 whitespace-nowrap">
+                                        {format(new Date(reply.createdAt), "MMM d, h:mm a")}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm md:text-base text-gray-800 dark:text-gray-200 break-words">
+                                      {reply.message}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Quick Reply */}
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Type a reply..."
+                              value={selectedFeedback?.id === feedback.id ? quickReplyText : ""}
+                              onChange={(e) => {
+                                setSelectedFeedback(feedback);
+                                setQuickReplyText(e.target.value);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  if (quickReplyText.trim()) {
+                                    submitReply(feedback.id, quickReplyText);
+                                  }
+                                }
+                              }}
+                              className="flex-1"
+                            />
+                            <Button
+                              onClick={() => {
+                                if (quickReplyText.trim()) {
+                                  submitReply(feedback.id, quickReplyText);
+                                }
+                              }}
+                              disabled={!quickReplyText.trim() || submittingReply}
+                              className="bg-blue-600 hover:bg-blue-700"
+                            >
+                              {submittingReply && selectedFeedback?.id === feedback.id ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Send className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+              </ScrollArea>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

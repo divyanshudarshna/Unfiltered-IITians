@@ -3,6 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
 import {
   IconDashboard,
   IconUsers,
@@ -85,6 +86,7 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { getToken } = useAuth();
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({});
   const [contactCount, setContactCount] = React.useState(0);
   const [feedbackCount, setFeedbackCount] = React.useState(0);
@@ -98,9 +100,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   React.useEffect(() => {
     const fetchCounts = async () => {
       try {
+        const token = await getToken();
+        if (!token) return;
+
         const [contactRes, feedbackRes] = await Promise.all([
-          fetch("/api/admin/contact-us/pending-count"),
-          fetch("/api/admin/feedback/unread-count")
+          fetch("/api/admin/contact-us/pending-count", {
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          fetch("/api/admin/feedback/unread-count", {
+            headers: { Authorization: `Bearer ${token}` }
+          })
         ]);
 
         if (contactRes.ok) {
