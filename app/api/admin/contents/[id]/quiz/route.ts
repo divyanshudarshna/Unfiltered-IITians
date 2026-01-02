@@ -8,6 +8,7 @@ interface Params {
 // ➕ Create quiz
 export async function POST(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     const { questions } = await req.json();
 
     if (!questions) {
@@ -16,7 +17,7 @@ export async function POST(req: Request, { params }: Params) {
 
     // Check if quiz already exists for this content
     const existing = await prisma.quiz.findUnique({
-      where: { contentId: params.id },
+      where: { contentId: id },
     });
 
     if (existing) {
@@ -25,7 +26,7 @@ export async function POST(req: Request, { params }: Params) {
 
     const quiz = await prisma.quiz.create({
       data: {
-        contentId: params.id,
+        contentId: id,
         questions, // JSON { question, options, correctAnswer, explanation }
       },
     });
@@ -40,12 +41,14 @@ export async function POST(req: Request, { params }: Params) {
 // 📖 Get quiz
 export async function GET(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     const quiz = await prisma.quiz.findUnique({
-      where: { contentId: params.id },
+      where: { contentId: id },
     });
 
+    // Return null if quiz doesn't exist (it's a valid state, not an error)
     if (!quiz) {
-      return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+      return NextResponse.json(null);
     }
 
     return NextResponse.json(quiz);
@@ -58,10 +61,11 @@ export async function GET(req: Request, { params }: Params) {
 // ✏️ Update quiz
 export async function PUT(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     const { questions } = await req.json();
 
     const updated = await prisma.quiz.update({
-      where: { contentId: params.id },
+      where: { contentId: id },
       data: { questions },
     });
 
@@ -75,8 +79,9 @@ export async function PUT(req: Request, { params }: Params) {
 // ❌ Delete quiz
 export async function DELETE(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     await prisma.quiz.delete({
-      where: { contentId: params.id },
+      where: { contentId: id },
     });
 
     return NextResponse.json({ success: true });

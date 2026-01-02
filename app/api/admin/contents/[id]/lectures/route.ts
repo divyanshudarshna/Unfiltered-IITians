@@ -8,13 +8,12 @@ interface Params {
 // ➕ Create lecture
 export async function POST(req: Request, { params }: Params) {
   try {
+    const { id: contentId } = await params;
     const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order } = await req.json();
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
-
-    const contentId = params.id;
 
     // Get existing lectures for this content
     const existingLectures = await prisma.lecture.findMany({
@@ -75,8 +74,9 @@ export async function POST(req: Request, { params }: Params) {
 // 📖 List lectures for content
 export async function GET(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     const lectures = await prisma.lecture.findMany({
-      where: { contentId: params.id },
+      where: { contentId: id },
       orderBy: { order: "asc" },
     });
 

@@ -9,8 +9,9 @@ interface Params {
 // ✅ Get single content
 export async function GET(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     const content = await prisma.content.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         id: true,
         title: true,
@@ -40,10 +41,11 @@ export async function GET(req: Request, { params }: Params) {
 // ✏️ Update content
 export async function PUT(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     const { title, description, order } = await req.json();
 
     const updated = await prisma.content.update({
-      where: { id: params.id },
+      where: { id },
       data: { title, description, order },
     });
 
@@ -57,8 +59,9 @@ export async function PUT(req: Request, { params }: Params) {
 // ❌ Delete content
 export async function DELETE(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     await prisma.content.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

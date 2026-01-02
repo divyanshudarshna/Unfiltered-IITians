@@ -13,6 +13,23 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Table,
   TableBody,
   TableCell,
@@ -72,6 +89,9 @@ import {
   Trash2,
   Eye,
   FileText,
+  GripVertical,
+  X,
+  Save,
 } from "lucide-react";
 
 interface Content {
@@ -164,6 +184,9 @@ export default function ContentTable({
   contents,
   refresh,
 }: ContentTableProps) {
+  const [localContents, setLocalContents] = useState<Content[]>(contents);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState<Content | null>(null);
   const [loading, setLoading] = useState(false);
@@ -188,6 +211,12 @@ export default function ContentTable({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contents]); // only to pick up any _count values coming from server
+
+  // Keep localContents synced with prop
+  useEffect(() => {
+    setLocalContents(contents);
+    setHasChanges(false);
+  }, [contents]);
 
   // Fetch lecture counts for contents that don't already have a count.
   useEffect(() => {
@@ -498,8 +527,70 @@ const columns = useMemo<ColumnDef<Content>[]>(
   [deleting, lectureCounts]
 );
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  function SortableRow({ content, children }: { content: Content; children: React.ReactNode }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: content.id });
+    const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+    return (
+      <TableRow ref={setNodeRef} style={style} className={isDragging ? "bg-muted/50" : ""}>
+        <TableCell className="text-center py-4">
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing flex items-center justify-center p-2 hover:bg-muted/50 rounded">
+            <GripVertical className="h-5 w-5 text-muted-foreground" />
+          </div>
+        </TableCell>
+        {children}
+      </TableRow>
+    );
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setLocalContents((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        const newOrder = arrayMove(items, oldIndex, newIndex);
+        setHasChanges(true);
+        return newOrder;
+      });
+    }
+  };
+
+  const handleSaveOrder = async () => {
+    try {
+      setIsSaving(true);
+      const contentOrders = localContents.map((c, i) => ({ id: c.id, order: i + 1 }));
+      const res = await fetch('/api/admin/contents/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentOrders }),
+      });
+      if (!res.ok) throw new Error('Failed to reorder contents');
+      toast.success('Content order updated');
+      setHasChanges(false);
+      refresh();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save content order');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelReorder = () => {
+    setLocalContents(contents);
+    setHasChanges(false);
+  };
+
   const table = useReactTable({
-    data: contents,
+    data: localContents,
     columns,
     state: { globalFilter, sorting },
     onGlobalFilterChange: setGlobalFilter,
@@ -570,11 +661,40 @@ const columns = useMemo<ColumnDef<Content>[]>(
       </div>
 
       {/* Data Table */}
+      {hasChanges && (
+        <div className="border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/20 rounded-md p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-amber-500 flex items-center justify-center">
+                <GripVertical className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-amber-900 dark:text-amber-100">Unsaved Changes</h4>
+                <p className="text-sm text-amber-700 dark:text-amber-300">You have reordered contents. Click "Save Order" to apply changes.</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleCancelReorder} disabled={isSaving} className="gap-2">
+                <X className="h-4 w-4" />
+                Cancel
+              </Button>
+              <Button onClick={handleSaveOrder} disabled={isSaving} className="gap-2 bg-amber-600 hover:bg-amber-700">
+                <Save className="h-4 w-4" />
+                {isSaving ? 'Saving...' : 'Save Order'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border bg-card">
         <Table>
           <TableHeader className="sticky top-0 bg-muted/40 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
+                <TableHead className="text-center py-4 font-semibold w-[40px]">
+                  <GripVertical className="h-4 w-4 mx-auto text-muted-foreground" />
+                </TableHead>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id} className="whitespace-nowrap">
                     {header.isPlaceholder ? null : (
@@ -603,39 +723,32 @@ const columns = useMemo<ColumnDef<Content>[]>(
             ))}
           </TableHeader>
 
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={localContents.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <SortableRow key={row.original.id} content={row.original}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} className="text-center py-4 group-hover:bg-muted/10 transition-colors">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </SortableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length + 1} className="h-40 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">No contents found.</p>
+                      </div>
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-40 text-center"
-                >
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      No contents found.
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
+                  </TableRow>
+                )}
+              </TableBody>
+            </SortableContext>
+          </DndContext>
         </Table>
       </div>
 
