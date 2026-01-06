@@ -1,25 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { auth } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
 
-const SECURITY_PASSWORD = process.env.ADMIN_DELETE_PASSWORD || 'AdminDelete@2024';
-
-export async function DELETE(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify admin access
+    const user = await prisma.user.findUnique({
+      where: { clerkUserId: userId },
+      select: { role: true }
+    });
+
+    if (user?.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    }
+
+    const body = await req.json();
     const { enrollmentId, securityPassword } = body;
 
     if (!enrollmentId) {
-      return NextResponse.json(
-        { error: 'Enrollment ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'enrollmentId is required' }, { status: 400 });
     }
 
-    if (securityPassword !== SECURITY_PASSWORD) {
-      return NextResponse.json(
-        { error: 'Invalid security password' },
-        { status: 403 }
-      );
+    if (!securityPassword) {
+      return NextResponse.json({ error: 'Security password is required' }, { status: 400 });
+    }
+
+    // Verify security password
+    const correctPassword = process.env.SECURITY_PASSWORD || 'RAJ64';
+    if (securityPassword !== correctPassword) {
+      return NextResponse.json({ error: 'Invalid security password' }, { status: 403 });
     }
 
     // Fetch enrollment to get user ID and session ID

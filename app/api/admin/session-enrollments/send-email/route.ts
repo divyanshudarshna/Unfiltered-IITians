@@ -1,104 +1,167 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { sendEmail } from '@/lib/email';
+import { auth } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
+import * as Email from '@/lib/email';
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify admin access
+    const user = await prisma.user.findUnique({
+      where: { clerkUserId: userId },
+      select: { role: true }
+    });
+
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    }
+
+    const body = await req.json();
     const { enrollmentIds, subject, message } = body;
 
-    if (!enrollmentIds || !Array.isArray(enrollmentIds) || enrollmentIds.length === 0) {
-      return NextResponse.json(
-        { error: 'Enrollment IDs are required' },
-        { status: 400 }
-      );
-    }
-
     if (!subject || !message) {
-      return NextResponse.json(
-        { error: 'Subject and message are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Subject and message are required' }, { status: 400 });
     }
 
-    // Fetch enrollments with user details
+    if (!enrollmentIds || enrollmentIds.length === 0) {
+      return NextResponse.json({ error: 'No enrollments selected' }, { status: 400 });
+    }
+
+    // Fetch enrollment details with user email
     const enrollments = await prisma.sessionEnrollment.findMany({
       where: {
-        id: { in: enrollmentIds },
+        id: { in: enrollmentIds }
       },
       include: {
         user: {
           select: {
-            email: true,
             name: true,
-          },
+            email: true
+          }
         },
         session: {
           select: {
             title: true,
-          },
-        },
-      },
+            id: true
+          }
+        }
+      }
     });
 
-    // Send emails
-    const emailPromises = enrollments.map(async (enrollment) => {
-      const customHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Unfiltered IITians</h1>
-            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Session Update</p>
-          </div>
-          
-          <div style="background-color: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <p style="color: #333; font-size: 16px; line-height: 1.6;">Hi ${enrollment.user.name || 'there'},</p>
-            
-            <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 20px;">
-              ${message.replaceAll('\n', '<br>')}
-            </p>
+    console.log('📧 Sending emails to', enrollments.length, 'students');
 
-            <div style="margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-left: 4px solid #667eea; border-radius: 4px;">
-              <p style="color: #333; font-size: 14px; margin: 0;"><strong>Session:</strong> ${enrollment.session.title}</p>
-            </div>
+    // Send emails to all selected students
+    const results = [];
+    for (const enrollment of enrollments) {
+      try {
+        const emailResult = await Email.sendEmail({
+          to: enrollment.user.email,
+          customSubject: subject,
+          customHtml: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 10px; }
+                .message-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
+                .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; padding-top: 20px; border-top: 1px solid #ddd; }
+                .brand { color: #667eea; font-weight: bold; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="content">
+                  <h2>Hello ${enrollment.user.name || 'Student'}!</h2>
+                  <p><strong>Session:</strong> ${enrollment.session?.title || 'N/A'}</p>
+                  
+                  <div class="message-box">
+                    ${message.replace(/\n/g, '<br>')}
+                  </div>
+                  
+                  <p>Best regards,<br>
+                  <strong class="brand">Unfiltered IITians Team</strong><br>
+                  <em>Divyanshu Darshna</em></p>
+                </div>
+                <div class="footer">
+                  <p>© ${new Date().getFullYear()} <a href="https://divyanshudarshna.com" style="color: #667eea; text-decoration: none;">divyanshudarshna.com</a></p>
+                  <p><strong>Unfiltered IITians</strong></p>
+                  <p style="font-size: 11px; color: #999;">Divyanshu Darshna</p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `
+        });
+        
+        results.push({
+          email: enrollment.user.email,
+          success: emailResult.success,
+          error: emailResult.error
+        });
+        
+        console.log(`Email sent to ${enrollment.user.email}:`, emailResult.success ? '✅' : '❌');
+      } catch (error) {
+        console.error(`Failed to send email to ${enrollment.user.email}:`, error);
+        results.push({
+          email: enrollment.user.email,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
 
-            <div style="text-align: center; margin-top: 30px;">
-              <a href="${process.env.NEXT_PUBLIC_BASE_URL}/guidance" 
-                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; display: inline-block; font-weight: bold;">
-                View Sessions
-              </a>
-            </div>
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
 
-            <p style="color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-              © ${new Date().getFullYear()} Unfiltered IITians by Divyanshu Darshna. All rights reserved.
-            </p>
-          </div>
-        </div>
-      `;
-
-      return sendEmail({
-        to: enrollment.user.email,
-        customSubject: subject,
-        customHtml,
-        source: 'session-enrollments',
-        sentBy: request.headers.get('x-user-email') || 'Admin',
-        metadata: {
-          sessionId,
-          enrollmentId: enrollment.id,
-          recipientCount: enrollments.length,
-        },
-      });
-    });
-
-    await Promise.all(emailPromises);
+    // Log batch email to database
+    if (successCount > 0) {
+      try {
+        const successfulEmails = results
+          .filter(r => r.success)
+          .map(r => r.email);
+        
+        await prisma.emailLog.create({
+          data: {
+            subject,
+            body: message,
+            recipients: successfulEmails,
+            recipientCount: successCount,
+            sentBy: req.headers.get('x-admin-email') || 'Admin',
+            source: 'session-enrollments',
+            metadata: {
+              enrollmentIds: enrollmentIds,
+              totalAttempted: enrollments.length,
+              successCount,
+              failedCount: failureCount
+            }
+          }
+        });
+        console.log('📧 Email batch logged to database');
+      } catch (logError) {
+        console.error('Failed to log email batch to database:', logError);
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Email sent to ${enrollments.length} student(s)`,
+      message: `Sent ${successCount} emails successfully, ${failureCount} failed`,
+      results,
+      summary: {
+        total: enrollments.length,
+        success: successCount,
+        failed: failureCount
+      }
     });
   } catch (error) {
-    console.error('Error sending emails:', error);
+    console.error('Error sending emails to session enrollments:', error);
     return NextResponse.json(
-      { error: 'Failed to send emails' },
+      { error: 'Failed to send emails', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

@@ -460,7 +460,7 @@ export default function SessionEnrollmentsPage() {
     try {
       const token = await getToken();
       const response = await fetch('/api/admin/session-enrollments/delete', {
-        method: 'DELETE',
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
