@@ -67,7 +67,7 @@ interface CourseListProps {
 const courseFeatures = [
   { icon: Video, text: "Video Lectures" },
   { icon: FileText, text: "PDF Notes" },
-  { icon: HelpCircle, text: "Weekly Doubt Sessions" },
+  { icon: HelpCircle, text: "Dedicated Doubt Sessions" },
   { icon: Award, text: "Quizzes Included" },
   { icon: Bookmark, text: "Study Materials" },
   { icon: Zap, text: "Exam Preparation" },

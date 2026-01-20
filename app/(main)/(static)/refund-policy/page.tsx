@@ -162,8 +162,7 @@ export default function RefundPolicyPage() {
                 15% of course content is accessed within the initial 3-day
                 period. Partial refunds (50% of purchase price) apply when
                 20-50% of content is accessed within the first week. No refunds
-                are possible after accessing over 50% of course materials or
-                attempting any certification examination.
+                are possible 1 month of purchase .
               </p>
               <p>
                 Digital content becomes non-refundable once downloaded or
@@ -279,11 +278,7 @@ export default function RefundPolicyPage() {
                 Personalized coaching services adhere to a stringent refund
                 schedule. Full refunds are granted for cancellations made at
                 least 48 hours before the first scheduled session for both
-                individual and combo sessions. A 50% refund applies to
-                cancellations occurring after the first session but before the
-                second session commencement. No refunds are available after
-                completing the second session or for no-shows without 24-hour
-                advance notice for individual or combo packages.
+                individual and combo sessions. No refunds are available once the first session has commenced. Additionally, no refunds are provided after completing the second session or for no-shows without 24-hour advance notice for individual or combo packages.
               </p>
               <p>
                 For coaching packages comprising five or more sessions, unused
