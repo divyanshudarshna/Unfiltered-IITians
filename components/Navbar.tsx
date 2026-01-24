@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useState, useEffect } from "react"
+import { useTheme } from "next-themes"
 import { useUser, SignedIn, SignedOut } from "@clerk/nextjs"
 import {
   LayoutDashboard,
@@ -10,7 +11,10 @@ import {
   Menu,
   X,
   Download,
-  LogIn
+  LogIn,
+  Sun,
+  Moon,
+  Monitor
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -23,6 +27,7 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [isTablet, setIsTablet] = useState(false)
   const { user } = useUser()
+  const { theme, setTheme } = useTheme()
   const router = useRouter()
 
   // ✅ Handle responsive breakpoints
@@ -133,19 +138,19 @@ const Navbar = () => {
 
       {/* Mobile & Tablet Menu */}
       <div
-        className={`fixed top-16 left-0 right-0 bg-background border-b shadow-lg overflow-y-auto transition-all duration-300 ease-in-out z-40 ${
+        className={`fixed top-16 left-0 right-0 bg-background border-b border-gray-200 dark:border-gray-800 shadow-lg overflow-y-auto transition-all duration-300 ease-in-out z-40 ${
           menuOpen ? "max-h-[calc(100vh-4rem)] opacity-100 visible" : "max-h-0 opacity-0 invisible"
         }`}
       >
         <div className="p-4 sm:p-6 space-y-4 mobile-menu">
           <SignedIn>
-            <div className="space-y-3 pb-4 border-b">
-              <p className="font-semibold text-lg px-2">Hello, {user?.firstName || "User"}!</p>
+            <div className="space-y-3 pb-4 border-b border-gray-200 dark:border-gray-800">
+              <p className="font-semibold text-lg px-2 text-gray-900 dark:text-white">Hello, {user?.firstName || "User"}!</p>
               <div className="space-y-1">
                 <Link 
                   href={`/${user?.firstName || "user"}/dashboard`} 
                   prefetch 
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-base"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-base text-gray-800 dark:text-gray-200"
                   onClick={() => setMenuOpen(false)}
                 >
                   <LayoutDashboard size={20} /> 
@@ -154,7 +159,7 @@ const Navbar = () => {
                 <Link 
                   href="/dashboard/courses" 
                   prefetch 
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-base"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-base text-gray-800 dark:text-gray-200"
                   onClick={() => setMenuOpen(false)}
                 >
                   <User size={20} /> 
@@ -163,7 +168,7 @@ const Navbar = () => {
                 <Link 
                   href="/mocks" 
                   prefetch 
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-base"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-base text-gray-800 dark:text-gray-200"
                   onClick={() => setMenuOpen(false)}
                 >
                   <FileText size={20} /> 
@@ -172,7 +177,7 @@ const Navbar = () => {
                 <Link 
                   href="/resources" 
                   prefetch 
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-base"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-base text-gray-800 dark:text-gray-200"
                   onClick={() => setMenuOpen(false)}
                 >
                   <Download size={20} /> 
@@ -181,7 +186,7 @@ const Navbar = () => {
                 <Link 
                   href="/success-stories" 
                   prefetch 
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-base"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-base text-gray-800 dark:text-gray-200"
                   onClick={() => setMenuOpen(false)}
                 >
                   <FileText size={20} /> 
@@ -206,7 +211,7 @@ const Navbar = () => {
                 key={href} 
                 href={href} 
                 prefetch 
-                className="font-medium py-3 px-4 hover:bg-accent rounded-lg transition-colors text-base flex items-center"
+                className="font-medium py-3 px-4 hover:bg-accent rounded-lg transition-colors text-base flex items-center text-gray-800 dark:text-gray-200"
                 onClick={() => setMenuOpen(false)}
               >
                 {label}
@@ -214,8 +219,36 @@ const Navbar = () => {
             ))}
           </div>
 
+          {/* Theme toggle for mobile/tablet menu */}
+          <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
+            <p className="text-sm font-semibold px-4 pt-3 pb-2 text-muted-foreground">Theme</p>
+            <div className="grid grid-cols-3 gap-2 px-2">
+              {[
+                { value: "light", label: "Light", icon: Sun },
+                { value: "dark", label: "Dark", icon: Moon },
+                { value: "system", label: "System", icon: Monitor },
+              ].map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => setTheme(value)}
+                  className={`flex flex-col items-center gap-2 py-3 px-2 rounded-lg transition-all ${
+                    theme === value
+                      ? "bg-primary/10 border-2 border-primary"
+                      : "border-2 border-transparent hover:bg-accent"
+                  }`}
+                  aria-label={`Set ${label} theme`}
+                >
+                  <Icon size={20} className={theme === value ? "text-primary" : "text-gray-700 dark:text-gray-300"} />
+                  <span className={`text-xs font-medium ${
+                    theme === value ? "text-primary" : "text-gray-700 dark:text-gray-300"
+                  }`}>{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <SignedOut>
-            <div className="pt-4 border-t space-y-3">
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-800 space-y-3">
               <Link href="/sign-in" prefetch onClick={() => setMenuOpen(false)}>
                 <Button size="lg" className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
                   <LogIn size={18} />

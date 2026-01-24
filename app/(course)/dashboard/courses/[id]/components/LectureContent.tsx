@@ -22,6 +22,8 @@ import {
   Sparkles,
   FlaskConical,
   ClipboardCheck,
+  Expand,
+  Maximize2,
 } from "lucide-react";
 import VideoContent from "./VideoContent";
 import YouTubeEmbed from "@/components/YouTubeEmbed";
@@ -272,35 +274,67 @@ const handleMarkComplete = () => {
       {lecture.pdfUrl && (
         <Card className="overflow-hidden shadow-md border bg-card/70 backdrop-blur-md rounded-xl md:rounded-2xl">
           <CardContent className="p-0">
-            <div className="flex items-center p-3 md:p-4 bg-muted/50 border-b">
-              <FileText className="h-5 w-5 md:h-6 md:w-6 text-indigo-500 mr-2" />
-              <h2 className="text-base md:text-lg font-semibold">Lecture Materials</h2>
+            <div className="flex items-center justify-between p-3 md:p-4 bg-muted/50 border-b">
+              <div className="flex items-center">
+                <FileText className="h-5 w-5 md:h-6 md:w-6 text-indigo-500 mr-2" />
+                <h2 className="text-base md:text-lg font-semibold">Lecture Materials</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full hover:scale-105 transition"
+                  onClick={handlePreviewPdf}
+                  title="Expand to fullscreen"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full hover:scale-105 transition"
+                  onClick={handleDownloadPdf}
+                  title="Download PDF"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div className="p-4 md:p-6 flex flex-col gap-4">
+            
+            {/* Default PDF Preview */}
+            <div className="relative w-full bg-gray-100 dark:bg-gray-900">
+              <iframe
+                src={lecture.pdfUrl}
+                className="w-full h-[400px] md:h-[500px] lg:h-[600px]"
+                title="PDF Preview"
+              />
+            </div>
+            
+            <div className="p-3 md:p-4 bg-muted/30 border-t flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="p-2 md:p-3 rounded-lg bg-indigo-600 text-white">
-                  <FileText className="h-5 w-5 md:h-6 md:w-6" />
+                <div className="p-2 rounded-lg bg-indigo-600 text-white">
+                  <FileText className="h-4 w-4 md:h-5 md:w-5" />
                 </div>
                 <div>
                   <h3 className="font-medium text-sm md:text-base">Supplementary Materials</h3>
                   <p className="text-xs md:text-sm text-muted-foreground">
-                    PDF • {(lecture.duration || 10) * 2} pages
+                    PDF Document
                   </p>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2 w-full">
+              <div className="flex gap-2 w-full sm:w-auto">
                 <Button
                   variant="outline"
-                  className="rounded-full hover:scale-105 transition flex-1 sm:flex-initial"
+                  className="rounded-full hover:scale-105 transition flex-1 sm:flex-initial gap-2"
                   onClick={handlePreviewPdf}
                 >
-                  <Eye className="h-4 w-4 mr-1" /> Preview
+                  <Maximize2 className="h-4 w-4" /> Expand
                 </Button>
                 <Button
-                  className="rounded-full bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105 transition flex-1 sm:flex-initial"
+                  className="rounded-full bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105 transition flex-1 sm:flex-initial gap-2"
                   onClick={handleDownloadPdf}
                 >
-                  <Download className="h-4 w-4 mr-1" /> Download
+                  <Download className="h-4 w-4" /> Download
                 </Button>
               </div>
             </div>
