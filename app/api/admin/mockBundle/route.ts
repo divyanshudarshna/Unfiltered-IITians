@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess } from "@/lib/roleAuth";
 
-export async function GET() {
+export async function GET(req: Request) {
   // Fetch all bundles ordered by display order
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const bundles = await prisma.mockBundle.findMany({
       orderBy: [
         { order: 'asc' },
@@ -20,6 +22,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   // Create new bundle
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { title, description, mockIds, discountedPrice, status } = await req.json();
 
     if (!title || !mockIds?.length) {
@@ -58,6 +61,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   // Update bundle
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id, title, description, mockIds, discountedPrice, status } = await req.json();
 
     if (!id) return NextResponse.json({ error: "Bundle ID is required" }, { status: 400 });
@@ -90,6 +94,7 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   // Delete bundle
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
@@ -98,8 +103,24 @@ export async function DELETE(req: NextRequest) {
     await prisma.mockBundle.delete({ where: { id } });
 
     return NextResponse.json({ message: "Bundle deleted successfully" });
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Failed to delete bundle" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Error deleting mock bundle:", error);
+    
+    // Check if it's a role-based access error
+    if (error instanceof Response) {
+      const status = error.status;
+      if (status === 403) {
+        return NextResponse.json({ 
+          error: "You don't have permission to delete mock bundles. Only admins can delete mock bundles." 
+        }, { status: 403 });
+      }
+      if (status === 401) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+    
+    return NextResponse.json({ 
+      error: error.message || "Failed to delete bundle" 
+    }, { status: 500 });
   }
 }

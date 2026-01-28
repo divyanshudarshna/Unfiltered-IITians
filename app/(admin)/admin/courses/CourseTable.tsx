@@ -129,13 +129,16 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
         method: "DELETE",
       });
 
-      if (!response.ok) throw new Error("Failed to delete course");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to delete course" }));
+        throw new Error(errorData.error || "Failed to delete course");
+      }
 
       toast.success("Course deleted successfully");
       refresh();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting course:", error);
-      toast.error("Failed to delete course");
+      toast.error(error.message || "Failed to delete course");
     }
   };
 

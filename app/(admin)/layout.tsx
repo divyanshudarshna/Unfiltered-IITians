@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Geist, Geist_Mono } from "next/font/google";
+import { toast } from "sonner";
 
 import { AppSidebar } from "@/components/admin/app-sidebar";
 import { SiteHeader } from "@/components/admin/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { UserProfileProvider } from "@/contexts/UserProfileContext";
+import { INSTRUCTOR_ALLOWED_ADMIN_PREFIXES } from "@/lib/roleConfig";
 
 // Configure Geist fonts specifically for admin
 const geistSans = Geist({
@@ -24,14 +26,33 @@ const geistMono = Geist_Mono({
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isLoaded, user } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (isLoaded && (!user || user.publicMetadata.role !== "ADMIN")) {
+    if (isLoaded && !user) {
       router.replace("/");
     }
   }, [isLoaded, user, router]);
 
-  if (!isLoaded || !user || user.publicMetadata.role !== "ADMIN") {
+  // Check if instructor is trying to access unauthorized route
+  useEffect(() => {
+    if (isLoaded && user) {
+      const role = user.publicMetadata?.role as string | undefined;
+      
+      if (role === "INSTRUCTOR") {
+        const isAllowed = INSTRUCTOR_ALLOWED_ADMIN_PREFIXES.some((prefix) => 
+          pathname?.startsWith(prefix)
+        );
+
+        if (!isAllowed && pathname) {
+          toast.error("You don't have permission to access this page. Contact admin for access.");
+          router.replace("/");
+        }
+      }
+    }
+  }, [isLoaded, user, pathname, router]);
+
+  if (!isLoaded || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

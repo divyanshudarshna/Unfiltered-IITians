@@ -9,8 +9,9 @@ interface Params {
 // 📖 Get all enrollments for a course
 export async function GET(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     const enrollments = await prisma.enrollment.findMany({
-      where: { courseId: params.id },
+      where: { courseId: id },
       include: { user: true, course: true },
       orderBy: { enrolledAt: "desc" },
     });
@@ -25,6 +26,7 @@ export async function GET(req: Request, { params }: Params) {
 // ➕ Manually enroll a user
 export async function POST(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     const { userId } = await req.json();
 
     if (!userId) {
@@ -33,7 +35,7 @@ export async function POST(req: Request, { params }: Params) {
 
     // Get course to calculate expiry date
     const course = await prisma.course.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { durationMonths: true }
     });
     
@@ -47,7 +49,7 @@ export async function POST(req: Request, { params }: Params) {
     const enrollment = await prisma.enrollment.create({
       data: {
         userId,
-        courseId: params.id,
+        courseId: id,
         expiresAt,
       },
     });

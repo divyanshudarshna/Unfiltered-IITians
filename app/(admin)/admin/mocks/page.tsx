@@ -141,12 +141,18 @@ export default function AdminMocksPage() {
         method: "DELETE",
         credentials: "include",
       });
+      
       if (res.ok) {
         setMocks((prev) => prev.filter((m) => m.id !== id));
         setStats(calculateStats(mocks.filter((m) => m.id !== id)));
-      } else throw new Error("Delete failed");
-    } catch (err) {
-      alert("Error deleting mock");
+        alert("Mock test deleted successfully");
+      } else {
+        const errorData = await res.json().catch(() => ({ error: "Delete failed" }));
+        alert(errorData.error || "Failed to delete mock");
+      }
+    } catch (err: any) {
+      console.error("Error deleting mock:", err);
+      alert(err.message || "Error deleting mock");
     }
   };
 

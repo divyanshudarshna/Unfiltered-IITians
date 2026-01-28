@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
+import { assertAdminApiAccess } from "@/lib/roleAuth";
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { feedbackId: string } }
 ) {
   try {
-    const { userId: clerkUserId } = await auth(req);
-    if (!clerkUserId) 
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    // Check admin role
-    const admin = await prisma.user.findUnique({ where: { clerkUserId } });
-    if (!admin || admin.role !== "ADMIN")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    await assertAdminApiAccess(req.url, req.method);
 
     const { feedbackId } = params;
     if (!feedbackId)

@@ -27,10 +27,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { IconLock } from "@tabler/icons-react";
 import { NavSecondary } from "@/components/admin/nav-secondary";
 import { NavUser } from "@/components/admin/nav-user";
 import { GraduationCap, MailOpen, MessageSquare, Video } from "lucide-react";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
+import { INSTRUCTOR_ALLOWED_ADMIN_PREFIXES } from "@/lib/roleConfig";
 
 const data = {
   navMain: [
@@ -148,6 +150,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     };
   }, [userProfile, clerkUser, getProfileImageUrl, isLoading]);
 
+  const isInstructor = (userProfile?.role || clerkUser?.publicMetadata?.role) === "INSTRUCTOR";
+
+  const isAllowedForInstructor = (path?: string) => {
+    if (!path) return false
+    return INSTRUCTOR_ALLOWED_ADMIN_PREFIXES.some((p) => path.startsWith(p))
+  }
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -196,38 +205,63 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   {openMenus[item.title] &&
-                    item.submenu.map((sub, i) => (
-                      <SidebarMenuItem key={i}>
-                        <SidebarMenuButton asChild className="pl-8">
-                          <Link href={sub.url} className="flex items-center justify-between w-full">
-                            <span>{sub.title}</span>
-                            {/* Show badge for Feedbacks */}
-                            {sub.title === "Feedbacks" && feedbackCount > 0 && (
-                              <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
-                                {feedbackCount > 99 ? "99+" : feedbackCount}
-                              </span>
-                            )}
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
+                    item.submenu.map((sub, i) => {
+                      const allowed = !isInstructor ? true : isAllowedForInstructor(sub.url)
+                      return (
+                        <SidebarMenuItem key={i}>
+                          {allowed ? (
+                            <SidebarMenuButton asChild className="pl-8">
+                              <Link href={sub.url} className="flex items-center justify-between w-full">
+                                <span>{sub.title}</span>
+                                {sub.title === "Feedbacks" && feedbackCount > 0 && (
+                                  <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
+                                    {feedbackCount > 99 ? "99+" : feedbackCount}
+                                  </span>
+                                )}
+                              </Link>
+                            </SidebarMenuButton>
+                          ) : (
+                            <SidebarMenuButton asChild className="pl-8" tooltip={"These can be access by admin role only please contact admin for access"}>
+                              <div className="flex items-center justify-between w-full cursor-not-allowed opacity-80">
+                                <span className="flex items-center gap-2">
+                                  <span>{sub.title}</span>
+                                </span>
+                                <IconLock className="w-4 h-4 text-red-500" />
+                              </div>
+                            </SidebarMenuButton>
+                          )}
+                        </SidebarMenuItem>
+                      )
+                    })}
                 </>
               ) : (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href={item.url || "#"} className="flex items-center gap-2 justify-between w-full">
-                      <div className="flex items-center gap-2">
-                        {item.icon && <item.icon className="w-4 h-4" />}
-                        {item.title}
+                  {(!isInstructor || isAllowedForInstructor(item.url || "")) ? (
+                    <SidebarMenuButton asChild>
+                      <Link href={item.url || "#"} className="flex items-center gap-2 justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          {item.icon && <item.icon className="w-4 h-4" />}
+                          {item.title}
+                        </div>
+                        {/* Show badge for Contacts */}
+                        {item.title === "Contacts" && contactCount > 0 && (
+                          <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
+                            {contactCount > 99 ? "99+" : contactCount}
+                          </span>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  ) : (
+                    <SidebarMenuButton tooltip={"These can be access by admin role only please contact admin for access"}>
+                      <div className="flex items-center gap-2 justify-between w-full cursor-not-allowed opacity-80">
+                        <div className="flex items-center gap-2">
+                          {item.icon && <item.icon className="w-4 h-4" />}
+                          {item.title}
+                        </div>
+                        <IconLock className="w-4 h-4 text-red-500" />
                       </div>
-                      {/* Show badge for Contacts */}
-                      {item.title === "Contacts" && contactCount > 0 && (
-                        <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
-                          {contactCount > 99 ? "99+" : contactCount}
-                        </span>
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
+                    </SidebarMenuButton>
+                  )}
                 </SidebarMenuItem>
               )}
             </React.Fragment>

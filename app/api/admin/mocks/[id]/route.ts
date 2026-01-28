@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-// import { currentUser } from "@clerk/nextjs/server";
+import { assertAdminApiAccess } from "@/lib/roleAuth";
 
 // async function adminAuth() {
 //   const clerkUser = await currentUser();
@@ -12,7 +12,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    // await adminAuth();
+    await assertAdminApiAccess(req.url, req.method);
 
     const mockId = params.id;
 
@@ -37,7 +37,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
-    // await adminAuth();
+    await assertAdminApiAccess(req.url, req.method);
 
     const mockId = params.id;
     const data = await req.json();
@@ -68,7 +68,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    // await adminAuth();
+    await assertAdminApiAccess(req.url, req.method);
 
     const mockId = params.id;
 
@@ -81,6 +81,20 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     return NextResponse.json({ message: "Mock test deleted" });
   } catch (error: any) {
     console.error("Error deleting mock test:", error);
+    
+    // Check if it's a role-based access error
+    if (error instanceof Response) {
+      const status = error.status;
+      if (status === 403) {
+        return NextResponse.json({ 
+          error: "You don't have permission to delete mocks. Only admins can delete mocks." 
+        }, { status: 403 });
+      }
+      if (status === 401) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+    
     return NextResponse.json(
       { error: error.message || "Internal Server Error" },
       { status: 500 }

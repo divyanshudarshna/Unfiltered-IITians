@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import * as Email from '@/lib/email';
+import { assertAdminApiAccess } from "@/lib/roleAuth";
 
 // Helper function to validate email
 function isValidEmail(email: string): boolean {
@@ -11,6 +12,7 @@ function isValidEmail(email: string): boolean {
 // ================== GET ==================
 export async function GET(req: NextRequest) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
@@ -60,6 +62,7 @@ export async function GET(req: NextRequest) {
 // ================== POST ==================
 export async function POST(req: NextRequest) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
   const { courseId, title, message, sendEmail: sendAsEmail = false } = await req.json();
 
     if (!courseId || !title || !message) {
@@ -193,6 +196,7 @@ export async function POST(req: NextRequest) {
 // ================== PUT ==================
 export async function PUT(req: NextRequest) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "Announcement ID is required" }, { status: 400 });
@@ -338,6 +342,7 @@ export async function PUT(req: NextRequest) {
 // ================== DELETE ==================
 export async function DELETE(req: NextRequest) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "Announcement ID is required" }, { status: 400 });

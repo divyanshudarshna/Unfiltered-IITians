@@ -1,6 +1,7 @@
 // app/api/admin/courses/[id]/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess } from "@/lib/roleAuth";
 
 interface Params {
   params: { id: string };
@@ -202,10 +203,29 @@ export async function PUT(req: Request, { params }: Params) {
 // ================== DELETE COURSE ==================
 export async function DELETE(req: Request, { params }: Params) {
   try {
+    // Enforce role based access: instructors cannot delete courses
+    await assertAdminApiAccess(req.url, req.method);
+
     await prisma.course.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch (err: any) {
     console.error("❌ Delete Course Error:", err);
-    return NextResponse.json({ error: "Failed to delete course" }, { status: 500 });
+    
+    // Check if it's a role-based access error
+    if (err instanceof Response) {
+      const status = err.status;
+      if (status === 403) {
+        return NextResponse.json({ 
+          error: "You don't have permission to delete courses. Only admins can delete courses." 
+        }, { status: 403 });
+      }
+      if (status === 401) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+    
+    return NextResponse.json({ 
+      error: err.message || "Failed to delete course" 
+    }, { status: 500 });
   }
 }

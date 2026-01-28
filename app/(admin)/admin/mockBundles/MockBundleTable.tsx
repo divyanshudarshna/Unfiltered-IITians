@@ -53,14 +53,14 @@ export const MockBundleTable = ({ bundles, loading, onEdit, onRefresh }: Props) 
       const res = await fetch(`/api/admin/mockBundle?id=${id}`, { method: "DELETE" });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        alert(data.message || "Bundle deleted successfully");
         onRefresh();
       } else {
-        alert(data.error);
+        alert(data.error || "Failed to delete bundle");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to delete bundle");
+      alert(err.message || "Failed to delete bundle");
     }
   };
 

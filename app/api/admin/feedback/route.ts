@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
+import { assertAdminApiAccess } from "@/lib/roleAuth";
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId: clerkUserId } = await auth(req);
-    if (!clerkUserId)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const admin = await prisma.user.findUnique({ where: { clerkUserId } });
-    if (!admin || admin.role !== "ADMIN")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    await assertAdminApiAccess(req.url, req.method);
 
     const { searchParams } = new URL(req.url);
     const courseId = searchParams.get("courseId");
@@ -52,13 +46,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId: clerkUserId } = await auth(req);
-    if (!clerkUserId)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const admin = await prisma.user.findUnique({ where: { clerkUserId } });
-    if (!admin || admin.role !== "ADMIN")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const admin = await assertAdminApiAccess(req.url, req.method);
 
     const { feedbackId, message } = await req.json();
     if (!feedbackId || !message)
@@ -97,13 +85,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { userId: clerkUserId } = await auth(req);
-    if (!clerkUserId)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const admin = await prisma.user.findUnique({ where: { clerkUserId } });
-    if (!admin || admin.role !== "ADMIN")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    await assertAdminApiAccess(req.url, req.method);
 
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter(Boolean);
@@ -130,13 +112,7 @@ export async function DELETE(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { userId: clerkUserId } = await auth(req);
-    if (!clerkUserId)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const admin = await prisma.user.findUnique({ where: { clerkUserId } });
-    if (!admin || admin.role !== "ADMIN")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    await assertAdminApiAccess(req.url, req.method);
 
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter(Boolean);

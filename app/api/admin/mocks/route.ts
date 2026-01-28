@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
+import { assertAdminApiAccess } from "@/lib/roleAuth"
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const mocks = await prisma.mockTest.findMany({
       orderBy: { createdAt: "desc" },
       select: {
@@ -38,6 +40,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const data = await req.json()
 
     // Validate required fields
@@ -95,6 +98,7 @@ export async function POST(req: Request) {
 }
 export async function PUT(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { searchParams } = new URL(req.url)
     const id = searchParams.get("id")
     const action = searchParams.get("action")

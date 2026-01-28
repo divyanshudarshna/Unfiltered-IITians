@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess } from "@/lib/roleAuth";
 
 // GET course details for a specific course
 export async function GET(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const url = new URL(req.url);
     const courseId = url.searchParams.get("courseId");
 
@@ -26,6 +28,7 @@ export async function GET(req: Request) {
 // CREATE a new course detail
 export async function POST(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const body = await req.json();
     const { title, description, courseId } = body;
 

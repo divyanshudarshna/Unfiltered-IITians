@@ -1,10 +1,12 @@
 // app/api/admin/courses/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess } from "@/lib/roleAuth";
 
 // ================== CREATE COURSE ==================
 export async function POST(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const body = await req.json();
     const { 
       title, 
@@ -76,8 +78,9 @@ export async function POST(req: Request) {
 }
 
 // ================== LIST COURSES ==================
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const courses = await prisma.course.findMany({
       include: {
         contents: true,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess } from "@/lib/roleAuth";
 
 interface Params {
   params: { id: string };
@@ -8,6 +9,7 @@ interface Params {
 // GET a single course detail
 export async function GET(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = params;
 
     const detail = await prisma.courseDetail.findUnique({
@@ -28,6 +30,7 @@ export async function GET(req: Request, { params }: Params) {
 // UPDATE a single course detail
 export async function PUT(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = params;
     const body = await req.json();
     const { title, description } = body;
@@ -51,6 +54,7 @@ export async function PUT(req: Request, { params }: Params) {
 // DELETE a single course detail
 export async function DELETE(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = params;
 
     await prisma.courseDetail.delete({
