@@ -646,7 +646,7 @@ export default function SessionPage() {
             </Card>
 
             {/* Guarantee Card */}
-            <Card className="rounded-3xl border-0 shadow-xl bg-gradient-to-br from-green-700 to-emerald-600 text-white">
+            {/* <Card className="rounded-3xl border-0 shadow-xl bg-gradient-to-br from-green-700 to-emerald-600 text-white">
               <CardContent className="p-6 text-center">
                 <Shield className="h-12 w-12 mx-auto mb-3 text-white/90" />
                 <h4 className="font-semibold mb-2">
@@ -656,7 +656,7 @@ export default function SessionPage() {
                   Full refund if not satisfied within 7 days
                 </p>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </div>
 
