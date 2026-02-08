@@ -38,10 +38,20 @@ import {
   ChevronRight,
   RefreshCw,
   CheckCircle,
-  Trash2
+  Trash2,
+  Edit
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 interface Transaction {
   id: string
@@ -103,6 +113,11 @@ export function AdminStatsContainer() {
   // Selection for delete functionality
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
+  
+  // Update status functionality
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false)
+  const [securityPassword, setSecurityPassword] = useState("")
+  const [updating, setUpdating] = useState(false)
 
   const fetchTransactions = async () => {
     try {
@@ -225,6 +240,48 @@ export function AdminStatsContainer() {
       toast.error('Failed to delete transactions')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const updateTransactionStatus = async () => {
+    if (!securityPassword.trim()) {
+      toast.error("Please enter security password")
+      return
+    }
+
+    try {
+      setUpdating(true)
+      const token = await getToken()
+      
+      const response = await fetch('/api/admin/update-transaction-status', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          transactionIds: selectedTransactions,
+          securityPassword 
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update transaction status')
+      }
+
+      toast.success(data.message || `Successfully updated ${selectedTransactions.length} transaction(s) to SUCCESS`)
+      setSelectedTransactions([])
+      setUpdateDialogOpen(false)
+      setSecurityPassword("")
+      fetchTransactions() // Refresh the list
+      fetchStatsOverview() // Refresh stats
+    } catch (error: any) {
+      console.error('Error updating transaction status:', error)
+      toast.error(error.message || 'Failed to update transaction status')
+    } finally {
+      setUpdating(false)
     }
   }
 
@@ -534,15 +591,27 @@ export function AdminStatsContainer() {
               )}
             </div>
             {selectedTransactions.length > 0 && (
-              <Button 
-                variant="destructive" 
-                size="sm"
-                onClick={() => deleteTransactions(selectedTransactions)}
-                disabled={deleting}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Selected ({selectedTransactions.length})
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={() => setUpdateDialogOpen(true)}
+                  disabled={updating || deleting}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Update Status ({selectedTransactions.length})
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => deleteTransactions(selectedTransactions)}
+                  disabled={deleting || updating}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected ({selectedTransactions.length})
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -699,6 +768,68 @@ export function AdminStatsContainer() {
           )}
         </CardContent>
       </Card>
+
+      {/* Update Status Dialog */}
+      <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Transaction Status</DialogTitle>
+            <DialogDescription>
+              You are about to update {selectedTransactions.length} transaction(s) from PENDING to SUCCESS.
+              This will activate all associated resources (courses, mocks, bundles, sessions) for the users.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="security-password">Security Password</Label>
+              <Input
+                id="security-password"
+                type="password"
+                placeholder="Enter security password"
+                value={securityPassword}
+                onChange={(e) => setSecurityPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !updating) {
+                    updateTransactionStatus()
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the admin security password to confirm this action.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUpdateDialogOpen(false)
+                setSecurityPassword("")
+              }}
+              disabled={updating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={updateTransactionStatus}
+              disabled={updating || !securityPassword.trim()}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {updating ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Update to SUCCESS
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
