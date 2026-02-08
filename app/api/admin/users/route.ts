@@ -1,31 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    // Check authentication
-    const { userId } = await auth();
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    // Check if user is admin
-    const currentUser = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
-      select: { role: true }
-    });
-
-    if (!currentUser || currentUser.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Forbidden - Admin access required" },
-        { status: 403 }
-      );
-    }
+    // Check authentication and authorization (ADMIN-only for user management)
+    await assertAdminApiAccess(req.url, req.method);
     const users = await prisma.user.findMany({
       include: {
         subscriptions: {
@@ -155,6 +135,8 @@ export async function GET() {
 
     return NextResponse.json(formattedUsers);
   } catch (error: unknown) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error("Error in admin GET users:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal Server Error" },

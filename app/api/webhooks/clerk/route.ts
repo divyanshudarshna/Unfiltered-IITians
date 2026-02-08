@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { WebhookEvent } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { sendEmail } from '@/lib/email'
 
 export async function POST(req: Request) {
   // Get the headers
@@ -65,10 +66,43 @@ export async function POST(req: Request) {
       })
 
       console.log(`✅ Created user in database: ${email} with role: ${role}`)
+      
+      // ✅ Send welcome email to newly registered user
+      sendEmail({
+        to: email,
+        template: 'welcome',
+        data: {
+          userName: name || 'Student',
+        },
+      }).catch((err) => {
+        console.error('❌ Failed to send welcome email to new user:', err);
+        // Don't throw - user creation succeeded
+      });
     } catch (error) {
       console.error('Error creating user in database:', error)
-      // If user already exists, update instead
+      // If user already exists, try to update by clerkUserId first, then by email
       try {
+        let existingUser = await prisma.user.findUnique({
+          where: { clerkUserId: id },
+        });
+
+        // If not found by clerkUserId, check by email and migrate
+        if (!existingUser && email) {
+          existingUser = await prisma.user.findUnique({
+            where: { email },
+          });
+
+          if (existingUser && existingUser.clerkUserId !== id) {
+            console.log(`🔄 [Webhook] Migrating user ${email} from Clerk ID ${existingUser.clerkUserId} to ${id}`);
+            // Update the clerkUserId to the new one
+            await prisma.user.update({
+              where: { email },
+              data: { clerkUserId: id },
+            });
+          }
+        }
+
+        // Now update with the latest data
         await prisma.user.update({
           where: { clerkUserId: id },
           data: {
@@ -95,6 +129,28 @@ export async function POST(req: Request) {
     const role = (public_metadata?.role as 'ADMIN' | 'INSTRUCTOR' | 'STUDENT') || 'STUDENT'
 
     try {
+      // Try to find user by clerkUserId first
+      let existingUser = await prisma.user.findUnique({
+        where: { clerkUserId: id },
+      });
+
+      // If not found by clerkUserId but email exists, migrate the Clerk ID
+      if (!existingUser && email) {
+        existingUser = await prisma.user.findUnique({
+          where: { email },
+        });
+
+        if (existingUser && existingUser.clerkUserId !== id) {
+          console.log(`🔄 [Webhook Update] Migrating user ${email} from Clerk ID ${existingUser.clerkUserId} to ${id}`);
+          // First update the clerkUserId
+          await prisma.user.update({
+            where: { email },
+            data: { clerkUserId: id },
+          });
+        }
+      }
+
+      // Now update with the latest data
       const updatedUser = await prisma.user.update({
         where: { clerkUserId: id },
         data: {

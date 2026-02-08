@@ -48,7 +48,7 @@ export const useUserProfile = () => {
     }
 
     fetchUserProfile()
-  }, [isSignedIn, clerkUser?.id, clerkUser?.updatedAt]) // Add updatedAt to dependency array
+  }, [isSignedIn, clerkUser?.id]) // ✅ Removed clerkUser?.updatedAt to prevent infinite loops
 
   const refreshProfile = useCallback(async () => {
     if (!isSignedIn || !clerkUser?.id) {

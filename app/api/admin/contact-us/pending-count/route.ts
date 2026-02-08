@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { assertAdminApiAccess } from "@/lib/roleAuth";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,6 +15,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ count });
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error("Error fetching pending contact count:", error);
     return NextResponse.json(
       { error: "Failed to fetch pending contact count" },

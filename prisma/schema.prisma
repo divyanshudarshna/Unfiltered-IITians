@@ -32,6 +32,12 @@ enum ContactStatus {
   DELETED
 }
 
+enum ConversationType {
+  NEW_INQUIRY      // User starts a new conversation
+  ADMIN_REPLY      // Admin replies to user
+  USER_REPLY       // User replies to admin's response
+}
+
 // ================== USER ==================
 model User {
   id               String         @id @default(auto()) @map("_id") @db.ObjectId
@@ -280,14 +286,28 @@ model StudentSuccessStory {
 }
 
 model ContactUs {
-  id        String        @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  email     String
-  subject   String
-  message   String
-  status    ContactStatus @default(PENDING)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id               String              @id @default(auto()) @map("_id") @db.ObjectId
+  name             String
+  email            String
+  subject          String
+  message          String
+  status           ContactStatus       @default(PENDING)
+  
+  // Thread management
+  threadId         String?             // Groups related messages together
+  parentId         String?             @db.ObjectId  // Reference to parent message
+  conversationType ConversationType    @default(NEW_INQUIRY)
+  
+  // Rate limiting
+  dailyMessageCount Int                @default(0)
+  lastMessageDate   DateTime?
+  
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  
+  // Self-referential relation for threading
+  parent           ContactUs?          @relation("ContactThread", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies          ContactUs[]         @relation("ContactThread")
 }
 
 // ================== FAQ ==================

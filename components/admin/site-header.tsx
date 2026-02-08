@@ -6,7 +6,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Bell } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { useAuth } from "@clerk/nextjs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,19 +27,13 @@ interface Notification {
 }
 
 export function SiteHeader() {
-  const { getToken } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
   const fetchNotifications = async () => {
     try {
-      const token = await getToken();
-      if (!token) return;
-
-      const res = await fetch("/api/admin/notifications", {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const res = await fetch("/api/admin/notifications")
       if (res.ok) {
         const data = await res.json()
         setNotifications(data.notifications || [])

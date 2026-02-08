@@ -7,7 +7,7 @@ const isPublicRoute = createRouteMatcher([
   '/about',
   '/courses(.*)',
   '/blog(.*)',
-  '/contact',
+  '/contact(.*)', // ✅ Allow all contact routes including /contact/reply
   '/youtube',
   '/guidance(.*)', // ✅ Add this line
   '/privacy-policy(.*)', // ✅ Static route - Privacy Policy
@@ -23,7 +23,6 @@ const isPublicRoute = createRouteMatcher([
   '/api/courses(.*)',
   '/api/sessions(.*)',
   '/api/course-details(.*)',
-  '/api/admin/(.*)',
   '/faq(.*)', // ✅ Add this line
   '/api/faq(.*)', // ✅ Add this to make the API public
   '/mockBundles(.*)', // ✅ Add this to make the API public

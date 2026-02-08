@@ -14,6 +14,7 @@ export const INSTRUCTOR_ALLOWED_ADMIN_PREFIXES: string[] = [
   "/admin/course-enrollments",
   "/admin/announcement",
   "/admin/feedbacks",
+  "/admin/contact-us", // ✅ Allow instructors to view/reply to contact messages
 ]
 
 // Admin API prefixes that an INSTRUCTOR may access

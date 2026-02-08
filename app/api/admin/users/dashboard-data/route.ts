@@ -1,9 +1,12 @@
 // app/api/admin/users/dashboard-data/route.ts
-import { NextResponse } from "next/server"
-import prisma from "@/lib/prisma" // make sure your Prisma client is exported from this path
+import { NextRequest, NextResponse } from "next/server"
+import prisma from "@/lib/prisma"
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
+
     // Fetch users with relations
     const users = await prisma.user.findMany({
       include: {
@@ -78,6 +81,8 @@ export async function GET() {
       },
     })
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error("Error fetching dashboard data:", error)
     return NextResponse.json({ error: "Failed to fetch dashboard data" }, { status: 500 })
   }

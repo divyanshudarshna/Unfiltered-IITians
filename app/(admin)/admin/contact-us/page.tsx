@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -67,6 +67,9 @@ type ContactUs = {
   subject: string;
   message: string;
   status: "PENDING" | "RESOLVED" | "DELETED";
+  threadId: string | null;
+  parentId: string | null;
+  conversationType: "NEW_INQUIRY" | "ADMIN_REPLY" | "USER_REPLY";
   createdAt: string;
   updatedAt: string;
 };
@@ -88,6 +91,8 @@ export default function AdminContactUsPage() {
   const [emailSubject, setEmailSubject] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [threadMessages, setThreadMessages] = useState<ContactUs[]>([]);
+  const [showRepliesOnly, setShowRepliesOnly] = useState(false);
 
   // Fetch contacts
   const fetchContacts = async () => {
@@ -118,6 +123,23 @@ export default function AdminContactUsPage() {
     toast.success("Contacts refreshed successfully");
   };
 
+  // Load conversation thread
+  const loadThreadMessages = useCallback(async (threadId: string) => {
+    if (!threadId) return;
+    
+    try {
+      const threadContacts = contacts.filter(c => c.threadId === threadId);
+      // Sort by creation date to show conversation flow
+      const sorted = [...threadContacts].sort((a, b) => 
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      setThreadMessages(sorted);
+    } catch (err) {
+      console.error('Failed to load thread:', err);
+      setThreadMessages([]);
+    }
+  }, [contacts]);
+
   // Update status
   const handleStatusUpdate = async () => {
     if (!selected) return;
@@ -137,6 +159,15 @@ export default function AdminContactUsPage() {
 
       // Send email if requested
       if (sendEmail && emailMessage && emailSubject) {
+        console.log('📧 Sending email with payload:', {
+          to: selected.email,
+          subject: emailSubject,
+          userName: selected.name,
+          status: selectedStatus,
+          contactId: selected.id,
+          threadId: selected.threadId,
+        });
+
         const emailRes = await fetch("/api/contact-us/send-email", {
           method: "POST",
           headers: {
@@ -148,14 +179,19 @@ export default function AdminContactUsPage() {
             message: emailMessage,
             userName: selected.name,
             status: selectedStatus,
+            contactId: selected.id,
+            threadId: selected.threadId,
           }),
         });
 
-        if (!emailRes.ok) {
-          console.error("Failed to send email");
-          toast.error("Status updated but email sending failed");
-        } else {
+        const emailResult = await emailRes.json();
+        console.log('📬 Email API response:', emailResult);
+
+        if (emailRes.ok) {
           toast.success("Status updated and email sent successfully");
+        } else {
+          console.error("❌ Failed to send email:", emailResult);
+          toast.error(`Status updated but email sending failed: ${emailResult.error || 'Unknown error'}`);
         }
       } else {
         toast.success("Status updated successfully");
@@ -166,6 +202,7 @@ export default function AdminContactUsPage() {
       setSendEmail(false);
       setEmailMessage("");
       setEmailSubject("");
+      setThreadMessages([]);
       fetchContacts();
     } catch (err) {
       console.error(err);
@@ -197,20 +234,42 @@ export default function AdminContactUsPage() {
   };
 
   // Open view modal
-  const openViewModal = (contact: ContactUs) => {
+  const openViewModal = useCallback((contact: ContactUs) => {
     setSelected(contact);
+    
+    // Load conversation thread if exists
+    if (contact.threadId) {
+      loadThreadMessages(contact.threadId);
+    } else {
+      setThreadMessages([]);
+    }
+    
     setViewOpen(true);
-  };
+  }, [loadThreadMessages]);
 
   // Open status update modal
-  const openStatusUpdateModal = (contact: ContactUs) => {
+  const openStatusUpdateModal = useCallback((contact: ContactUs) => {
     setSelected(contact);
     setSelectedStatus(contact.status);
     setSendEmail(false);
     setEmailMessage("");
     setEmailSubject(getDefaultEmailSubject(contact.status));
+    
+    // Load conversation thread if exists
+    if (contact.threadId) {
+      loadThreadMessages(contact.threadId);
+    } else {
+      setThreadMessages([]);
+    }
+    
     setStatusUpdateOpen(true);
-  };
+  }, [loadThreadMessages]);
+
+  // Open delete modal
+  const openDeleteModal = useCallback((contact: ContactUs) => {
+    setSelected(contact);
+    setDeleteOpen(true);
+  }, []);
 
   // Get default email subject based on status
   const getDefaultEmailSubject = (status: ContactUs["status"]) => {
@@ -232,10 +291,16 @@ export default function AdminContactUsPage() {
     }
   };
 
-  // Open delete modal
-  const openDeleteModal = (contact: ContactUs) => {
-    setSelected(contact);
-    setDeleteOpen(true);
+  // Get thread message CSS class
+  const getThreadMessageClass = (type: ContactUs["conversationType"]) => {
+    switch (type) {
+      case 'ADMIN_REPLY':
+        return 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800';
+      case 'USER_REPLY':
+        return 'bg-cyan-50 dark:bg-cyan-950 border-cyan-200 dark:border-cyan-800';
+      default:
+        return 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800';
+    }
   };
 
   // Status badge component
@@ -267,8 +332,37 @@ export default function AdminContactUsPage() {
     );
   };
 
-  // Columns
-  const columns: ColumnDef<ContactUs>[] = [
+  // Conversation type badge component
+  const ConversationTypeBadge = ({ type }: { type: ContactUs["conversationType"] }) => {
+    const typeConfig = {
+      NEW_INQUIRY: {
+        label: "New Inquiry",
+        icon: "📩",
+        style: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+      },
+      ADMIN_REPLY: {
+        label: "Admin Reply",
+        icon: "💬",
+        style: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+      },
+      USER_REPLY: {
+        label: "User Reply",
+        icon: "✉️",
+        style: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+      },
+    };
+
+    const config = typeConfig[type];
+
+    return (
+      <Badge variant="outline" className={`${config.style} text-xs`}>
+        {config.icon} {config.label}
+      </Badge>
+    );
+  };
+
+  // Columns - Memoized to prevent infinite re-renders
+  const columns: ColumnDef<ContactUs>[] = useMemo(() => [
     {
       accessorKey: "name",
       header: "Name",
@@ -318,6 +412,14 @@ export default function AdminContactUsPage() {
       },
     },
     {
+      accessorKey: "conversationType",
+      header: "Type",
+      cell: (info) => {
+        const type = info.getValue() as ContactUs["conversationType"];
+        return <ConversationTypeBadge type={type} />;
+      },
+    },
+    {
       accessorKey: "createdAt",
       header: "Received",
       cell: (info) => (
@@ -359,15 +461,23 @@ export default function AdminContactUsPage() {
         );
       },
     },
-  ];
+  ], [openViewModal, openStatusUpdateModal, openDeleteModal]);  // Add handler dependencies
 
   // helper function
   const getStr = (val: unknown) =>
     typeof val === "string" ? val.toLowerCase() : "";
 
+  // Filter contacts based on showRepliesOnly - show only ADMIN_REPLY and USER_REPLY messages
+  const filteredContacts = useMemo(() => 
+    showRepliesOnly 
+      ? contacts.filter(c => c.conversationType === 'ADMIN_REPLY' || c.conversationType === 'USER_REPLY')
+      : contacts,
+    [showRepliesOnly, contacts]
+  );
+
   // Table instance
   const table = useReactTable({
-    data: contacts,
+    data: filteredContacts,
     columns,
     state: { globalFilter },
     onGlobalFilterChange: setGlobalFilter,
@@ -416,57 +526,68 @@ export default function AdminContactUsPage() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-4">
         <Input
           placeholder="Search contacts..."
           value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-md"
         />
+        <Button
+          variant={showRepliesOnly ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowRepliesOnly(!showRepliesOnly)}
+          className="gap-2 whitespace-nowrap"
+        >
+          <MessageSquare className="h-4 w-4" />
+          {showRepliesOnly ? "All Contacts" : "Replies"}
+        </Button>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader className="bg-gray-900 text-white">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+      <div className="rounded-md border overflow-hidden">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+          <Table className="min-w-[900px]">
+            <TableHeader className="bg-gray-900 text-white">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} className="whitespace-nowrap">
                       {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+                        header.column.columnDef.header,
+                        header.getContext()
                       )}
-                    </TableCell>
+                    </TableHead>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No contact messages found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="whitespace-nowrap">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    No contact messages found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <div className="flex justify-between items-center mt-4">
@@ -564,7 +685,7 @@ export default function AdminContactUsPage() {
                 </div>
                 <div className="p-4 bg-muted/50 rounded-lg border">
                   <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-                    {selected.message}
+                    {selected.message.split('\n\n-------')[0]}
                   </p>
                 </div>
               </div>
@@ -685,10 +806,41 @@ export default function AdminContactUsPage() {
                     </p>
                   </div>
 
-                  <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950 p-3 rounded border border-blue-200 dark:border-blue-800">
-                    <strong>Original Message:</strong>
-                    <p className="mt-1 text-xs whitespace-pre-wrap">{selected.message}</p>
-                  </div>
+                  {/* Conversation Thread History */}
+                  {threadMessages.length > 0 && (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      <strong className="text-sm">Conversation History:</strong>
+                      {threadMessages.map((msg) => (
+                        <div 
+                          key={msg.id} 
+                          className={`text-sm p-3 rounded border ${getThreadMessageClass(msg.conversationType)}`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <ConversationTypeBadge type={msg.conversationType} />
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(msg.createdAt).toLocaleString('en-IN', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-xs whitespace-pre-wrap">{msg.message.split('\n\n-------')[0]}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Current/Original Message if not in thread view */}
+                  {threadMessages.length === 0 && (
+                    <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950 p-3 rounded border border-blue-200 dark:border-blue-800">
+                      <strong>Original Message:</strong>
+                      <p className="mt-1 text-xs whitespace-pre-wrap">{selected.message.split('\n\n-------')[0]}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -700,6 +852,7 @@ export default function AdminContactUsPage() {
                 setStatusUpdateOpen(false);
                 setSendEmail(false);
                 setEmailMessage("");
+                setThreadMessages([]);
               }}
               disabled={sendingEmail}
             >
