@@ -108,11 +108,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         if (contactRes.ok) {
           const { count } = await contactRes.json();
           setContactCount(count || 0);
+        } else {
+          console.warn(`Contact count API returned ${contactRes.status}`);
         }
 
         if (feedbackRes.ok) {
           const { count } = await feedbackRes.json();
           setFeedbackCount(count || 0);
+        } else {
+          console.warn(`Feedback count API returned ${feedbackRes.status}`);
         }
       } catch (error) {
         console.error("Error fetching notification counts:", error);

@@ -34,11 +34,13 @@ export function SiteHeader() {
   const fetchNotifications = async () => {
     try {
       const res = await fetch("/api/admin/notifications")
-      if (res.ok) {
-        const data = await res.json()
-        setNotifications(data.notifications || [])
-        setTotalCount(data.totalCount || 0)
+      if (!res.ok) {
+        console.warn(`Notifications API returned ${res.status}`);
+        return;
       }
+      const data = await res.json()
+      setNotifications(data.notifications || [])
+      setTotalCount(data.totalCount || 0)
     } catch (error) {
       console.error("Error fetching notifications:", error)
     } finally {

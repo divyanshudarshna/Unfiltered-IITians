@@ -57,6 +57,7 @@ import {
   Tag,
   MessageSquare,
   RefreshCw,
+  CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -366,9 +367,18 @@ export default function AdminContactUsPage() {
     {
       accessorKey: "name",
       header: "Name",
-      cell: (info) => (
-        <span className="font-medium">{info.getValue() as string}</span>
-      ),
+      cell: ({ row }) => {
+        const name = row.getValue("name");
+        const isAdminReply = row.original.conversationType === "ADMIN_REPLY";
+        return (
+          <span className="font-medium flex items-center gap-2">
+            {name}
+            {isAdminReply && (
+              <CheckCircle className="w-4 h-4 text-green-600" />
+            )}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "email",
@@ -409,14 +419,6 @@ export default function AdminContactUsPage() {
       cell: (info) => {
         const status = info.getValue() as ContactUs["status"];
         return <StatusBadge status={status} />;
-      },
-    },
-    {
-      accessorKey: "conversationType",
-      header: "Type",
-      cell: (info) => {
-        const type = info.getValue() as ContactUs["conversationType"];
-        return <ConversationTypeBadge type={type} />;
       },
     },
     {
@@ -473,6 +475,12 @@ export default function AdminContactUsPage() {
       ? contacts.filter(c => c.conversationType === 'ADMIN_REPLY' || c.conversationType === 'USER_REPLY')
       : contacts,
     [showRepliesOnly, contacts]
+  );
+
+  // Calculate count of replied messages
+  const repliesCount = useMemo(() => 
+    contacts.filter(c => c.conversationType === 'ADMIN_REPLY' || c.conversationType === 'USER_REPLY').length,
+    [contacts]
   );
 
   // Table instance
@@ -534,13 +542,13 @@ export default function AdminContactUsPage() {
           className="max-w-md"
         />
         <Button
-          variant={showRepliesOnly ? "default" : "outline"}
+          variant="outline"
           size="sm"
           onClick={() => setShowRepliesOnly(!showRepliesOnly)}
           className="gap-2 whitespace-nowrap"
         >
           <MessageSquare className="h-4 w-4" />
-          {showRepliesOnly ? "All Contacts" : "Replies"}
+          {showRepliesOnly ? "All Contacts" : `Replied(${repliesCount})`}
         </Button>
       </div>
 
