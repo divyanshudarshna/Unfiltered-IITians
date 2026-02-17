@@ -1,15 +1,26 @@
 // app/api/upload/route.ts
 import { NextResponse } from 'next/server'
+export const config = {
+  api: {
+    bodyParser: false, // Disable Next.js default body parser for large files
+    sizeLimit: '20mb', // Increase limit to 20MB
+  },
+};
 import { cloudinary } from '@/lib/cloudinary'
 import { v4 as uuidv4 } from 'uuid'
 
 export async function POST(req: Request) {
   try {
-    const formData = await req.formData()
-    const file = formData.get('file') as File
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch (err) {
+      return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 });
+    }
+    const file = formData.get('file') as File;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
     const originalFileName = file.name;
@@ -43,24 +54,22 @@ export async function POST(req: Request) {
         { 
           resource_type: resourceType,
           public_id: publicId,
-          // Critical settings for PDFs
           type: 'upload',
           access_mode: 'public',
           use_filename: false,
-          unique_filename: false, // Use our custom public_id
+          unique_filename: false,
           overwrite: false,
-          // PDF-specific settings
           ...(resourceType === 'raw' && {
             format: 'pdf',
             flags: 'attachment',
           }),
         }, 
         (err, result) => {
-          if (err) return reject(err)
-          resolve(result)
+          if (err) return reject(new Error(typeof err === 'string' ? err : (err?.message || 'Cloudinary upload error')));
+          resolve(result);
         }
-      ).end(buffer)
-    })
+      ).end(buffer);
+    });
 
     const uploadedResult = uploaded as any;
     let fileUrl = uploadedResult.secure_url;
@@ -86,7 +95,8 @@ export async function POST(req: Request) {
     });
 
   } catch (error) {
-    // console.error('❌ Upload failed:', error);
-    return NextResponse.json({ error: 'Upload failed: ' + (error as Error).message }, { status: 500 });
+    let message = 'Upload failed';
+    if (error instanceof Error) message = error.message;
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
