@@ -97,20 +97,17 @@ export default function LectureForm({ contentId, lecture, onSuccess }: LectureFo
       // Cloudinary accepts up to 100 MB per upload — no Vercel limit applies.
       const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
 
+      // IMPORTANT: Only append params that were included in the signature.
+      // Cloudinary re-signs ALL received params server-side — any extra param
+      // not in the original signature will cause an "Invalid Signature" error.
       const formData = new FormData();
       formData.append("file", file);
       formData.append("api_key", apiKey);
       formData.append("signature", signature);
       formData.append("timestamp", String(timestamp));
       formData.append("public_id", publicId);
-      formData.append("type", "upload");
-      formData.append("access_mode", "public");
-      formData.append("overwrite", "false");
-      formData.append("use_filename", "false");
-      formData.append("unique_filename", "false");
       if (resourceType === "raw") {
         formData.append("format", "pdf");
-        formData.append("flags", "attachment");
       }
 
       const xhr = new XMLHttpRequest();
