@@ -169,36 +169,86 @@ const [showPdfPreview, setShowPdfPreview] = useState(false);
     setUploading(prev => ({ ...prev, [type]: true }));
     setUploadProgress(prev => ({ ...prev, [type]: 0 }));
 
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const response = await fetch("/api/upload", {
+    // ── Step 1: Get a signed upload signature from our API ──────────────────
+    // This is a tiny JSON request — well within Vercel's limits.
+    const sigRes = await fetch("/api/cloudinary-signature", {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileName: file.name, fileType: file.type }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+    if (!sigRes.ok) {
+      const sigErr = await sigRes.json().catch(() => ({}));
+      throw new Error(sigErr?.error || "Failed to get upload signature");
     }
 
-    const data = await response.json();
-    console.log("Upload response:", data);
+    const { signature, timestamp, publicId, resourceType, apiKey, cloudName } =
+      await sigRes.json();
 
-    let finalUrl = data.url;
-    if (type === "pdf" && !finalUrl.toLowerCase().endsWith(".pdf")) {
-      finalUrl = `${finalUrl}.pdf`;
+    // ── Step 2: Upload directly from the browser to Cloudinary ─────────────
+    // Cloudinary accepts up to 100 MB per upload — no Vercel limit applies.
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("api_key", apiKey);
+    formData.append("signature", signature);
+    formData.append("timestamp", String(timestamp));
+    formData.append("public_id", publicId);
+    formData.append("type", "upload");
+    formData.append("access_mode", "public");
+    formData.append("overwrite", "false");
+    formData.append("use_filename", "false");
+    formData.append("unique_filename", "false");
+    if (resourceType === "raw") {
+      formData.append("format", "pdf");
+      formData.append("flags", "attachment");
     }
 
-    if (type === "video") {
-      setVideoUrl(finalUrl);
+    const xhr = new XMLHttpRequest();
+
+    // Track real upload progress (browser → Cloudinary)
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        const progress = Math.round((event.loaded / event.total) * 100);
+        setUploadProgress(prev => ({ ...prev, [type]: progress }));
+      }
+    });
+
+    const uploadPromise = new Promise<any>((resolve, reject) => {
+      xhr.addEventListener("load", () => {
+        let data: any;
+        try {
+          data = JSON.parse(xhr.responseText);
+        } catch {
+          reject(new Error(`Upload failed (HTTP ${xhr.status})`));
+          return;
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(data);
+        } else {
+          reject(new Error(data?.error?.message || data?.error || "Cloudinary upload failed"));
+        }
+      });
+      xhr.addEventListener("error", () => reject(new Error("Network error — upload failed")));
+      xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
+    });
+
+    xhr.open("POST", uploadUrl);
+    xhr.send(formData);
+
+    const data = await uploadPromise;
+
+    let fileUrl: string = data.secure_url;
+
+    // Ensure PDFs use the /raw/ URL path
+    if (resourceType === "raw" && fileUrl.includes("/image/upload/")) {
+      fileUrl = fileUrl.replace("/image/upload/", "/raw/upload/");
     }
 
-    if (type === "pdf") {
-     setPdfUrl(data.url);
-    }
+    if (type === "video") setVideoUrl(fileUrl);
+    if (type === "pdf") setPdfUrl(fileUrl);
 
-    console.log(`${type} uploaded to:`, finalUrl);
     toast.success(`${type.toUpperCase()} uploaded successfully`);
   } catch (err: unknown) {
     console.error("Upload error:", err);
