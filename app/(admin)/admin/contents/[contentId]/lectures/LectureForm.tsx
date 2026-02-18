@@ -77,12 +77,45 @@ export default function LectureForm({ contentId, lecture, onSuccess }: LectureFo
       setUploading(prev => ({ ...prev, [type]: true }));
       setUploadProgress(prev => ({ ...prev, [type]: 0 }));
 
+      // ── Step 1: Get a signed upload signature from our API ──────────────────
+      // This is a tiny JSON request — well within Vercel's limits.
+      const sigRes = await fetch("/api/cloudinary-signature", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, fileType: file.type }),
+      });
+
+      if (!sigRes.ok) {
+        const sigErr = await sigRes.json().catch(() => ({}));
+        throw new Error(sigErr?.error || "Failed to get upload signature");
+      }
+
+      const { signature, timestamp, publicId, resourceType, apiKey, cloudName } =
+        await sigRes.json();
+
+      // ── Step 2: Upload directly from the browser to Cloudinary ─────────────
+      // Cloudinary accepts up to 100 MB per upload — no Vercel limit applies.
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
+
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("api_key", apiKey);
+      formData.append("signature", signature);
+      formData.append("timestamp", String(timestamp));
+      formData.append("public_id", publicId);
+      formData.append("type", "upload");
+      formData.append("access_mode", "public");
+      formData.append("overwrite", "false");
+      formData.append("use_filename", "false");
+      formData.append("unique_filename", "false");
+      if (resourceType === "raw") {
+        formData.append("format", "pdf");
+        formData.append("flags", "attachment");
+      }
 
       const xhr = new XMLHttpRequest();
-      
-      // Track upload progress
+
+      // Track real upload progress (browser → Cloudinary)
       xhr.upload.addEventListener("progress", (event) => {
         if (event.lengthComputable) {
           const progress = Math.round((event.loaded / event.total) * 100);
@@ -90,41 +123,44 @@ export default function LectureForm({ contentId, lecture, onSuccess }: LectureFo
         }
       });
 
-      const uploadPromise = new Promise((resolve, reject) => {
+      const uploadPromise = new Promise<any>((resolve, reject) => {
         xhr.addEventListener("load", () => {
-          // Safely parse JSON — server may return plain text on errors (e.g. "Request Entity Too Large")
           let data: any;
           try {
             data = JSON.parse(xhr.responseText);
           } catch {
-            // Response wasn't JSON (e.g. Next.js body size limit error)
-            reject(new Error(xhr.statusText || `Upload failed (HTTP ${xhr.status})`));
+            reject(new Error(`Upload failed (HTTP ${xhr.status})`));
             return;
           }
-
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(data);
           } else {
-            reject(new Error(data?.error || xhr.statusText || "Upload failed"));
+            reject(new Error(data?.error?.message || data?.error || "Cloudinary upload failed"));
           }
         });
-        
         xhr.addEventListener("error", () => reject(new Error("Network error — upload failed")));
         xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
       });
 
-      xhr.open("POST", "/api/upload");
+      xhr.open("POST", uploadUrl);
       xhr.send(formData);
 
-      const data: any = await uploadPromise;
-      
-      if (type === "video") setVideoUrl(data.url);
-      if (type === "pdf") setPdfUrl(data.url);
+      const data = await uploadPromise;
+
+      let fileUrl: string = data.secure_url;
+
+      // Ensure PDFs use the /raw/ URL path
+      if (resourceType === "raw" && fileUrl.includes("/image/upload/")) {
+        fileUrl = fileUrl.replace("/image/upload/", "/raw/upload/");
+      }
+
+      if (type === "video") setVideoUrl(fileUrl);
+      if (type === "pdf") setPdfUrl(fileUrl);
 
       toast.success(`${type.toUpperCase()} uploaded successfully`);
     } catch (err) {
       console.error(err);
-      toast.error(`Failed to upload ${type}`);
+      toast.error(err instanceof Error ? err.message : `Failed to upload ${type}`);
     } finally {
       setUploading(prev => ({ ...prev, [type]: false }));
     }
