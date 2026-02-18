@@ -40,20 +40,17 @@ export async function POST(req: Request) {
 
         const timestamp = Math.round(Date.now() / 1000);
 
-        // Parameters that MUST match what the browser sends to Cloudinary
+        // Only include params that Cloudinary actually signs.
+        // Cloudinary signs: public_id, timestamp, format (and a few others).
+        // Do NOT include: type, access_mode, overwrite, use_filename, unique_filename, flags
+        // — those are sent in the upload form but are NOT part of the signature string.
         const paramsToSign: Record<string, string | number> = {
             public_id: publicId,
             timestamp,
-            type: 'upload',
-            access_mode: 'public',
-            overwrite: 'false',
-            use_filename: 'false',
-            unique_filename: 'false',
         };
 
         if (resourceType === 'raw') {
             paramsToSign.format = 'pdf';
-            paramsToSign.flags = 'attachment';
         }
 
         const signature = cloudinary.utils.api_sign_request(
@@ -68,8 +65,6 @@ export async function POST(req: Request) {
             resourceType,
             apiKey: process.env.CLOUDINARY_API_KEY,
             cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-            // Extra params the browser must include in the upload form
-            extraParams: paramsToSign,
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to generate signature';
