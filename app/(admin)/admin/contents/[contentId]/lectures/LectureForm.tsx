@@ -92,15 +92,24 @@ export default function LectureForm({ contentId, lecture, onSuccess }: LectureFo
 
       const uploadPromise = new Promise((resolve, reject) => {
         xhr.addEventListener("load", () => {
+          // Safely parse JSON — server may return plain text on errors (e.g. "Request Entity Too Large")
+          let data: any;
+          try {
+            data = JSON.parse(xhr.responseText);
+          } catch {
+            // Response wasn't JSON (e.g. Next.js body size limit error)
+            reject(new Error(xhr.statusText || `Upload failed (HTTP ${xhr.status})`));
+            return;
+          }
+
           if (xhr.status >= 200 && xhr.status < 300) {
-            const data = JSON.parse(xhr.responseText);
             resolve(data);
           } else {
-            reject(new Error("Upload failed"));
+            reject(new Error(data?.error || xhr.statusText || "Upload failed"));
           }
         });
         
-        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+        xhr.addEventListener("error", () => reject(new Error("Network error — upload failed")));
         xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
       });
 

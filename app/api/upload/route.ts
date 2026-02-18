@@ -1,11 +1,8 @@
 // app/api/upload/route.ts
 import { NextResponse } from 'next/server'
-export const config = {
-  api: {
-    bodyParser: false, // Disable Next.js default body parser for large files
-    sizeLimit: '20mb', // Increase limit to 20MB
-  },
-};
+
+// App Router way to increase body size limit (Pages Router `config` export does NOT work here)
+export const maxRequestBodySize = '20mb';
 import { cloudinary } from '@/lib/cloudinary'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -23,8 +20,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    const originalFileName = file.name;
+    // Enforce 20MB limit for PDFs
+    const MAX_PDF_SIZE = 20 * 1024 * 1024; // 20MB
     const fileType = file.type;
+    const originalFileName = file.name;
+    if (
+      (fileType === 'application/pdf' || originalFileName.toLowerCase().endsWith('.pdf')) &&
+      file.size > MAX_PDF_SIZE
+    ) {
+      return NextResponse.json(
+        { error: `PDF file size exceeds the 20MB limit. Your file is ${(file.size / 1024 / 1024).toFixed(1)}MB.` },
+        { status: 413 }
+      );
+    }
+
     
     // Determine resource type
     let resourceType: any = 'auto';
