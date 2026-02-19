@@ -106,7 +106,7 @@ export default function About() {
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8 text-slate-200">
       <div className="max-w-4xl mx-auto text-center">
-        <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-500 via-cyan-400 to-blue-500 bg-clip-text text-transparent mb-6">
+        <h1 className="text-4xl sm:text-6xl font-extrabold mb-6 bg-gradient-to-r from-purple-400 to-primary bg-clip-text text-transparent">
           Bridging Science & Education Through Passionate Mentorship
         </h1>
         <p className="text-lg text-slate-800 dark:text-slate-300 max-w-3xl mx-auto mb-12">
@@ -120,7 +120,7 @@ export default function About() {
 
         <div className="flex justify-center mb-12">
           <Tilt
-            className="w-48 h-48 sm:w-64 sm:h-64 md:w-72 md:h-72 border-4 border-cyan-400 rounded-full overflow-hidden shadow-xl"
+            className="w-56 h-56 sm:w-72 sm:h-72 md:w-80 md:h-80 border-4  rounded-full overflow-hidden shadow-sm transition-all duration-500 hover:shadow-[0_0_50px_8px_rgba(168,85,247,0.55)] hover:border-primary/70"
             tiltMaxAngleX={20}
             tiltMaxAngleY={20}
             perspective={1000}
@@ -131,8 +131,8 @@ export default function About() {
             <Image
               src="https://res.cloudinary.com/dqe1wy2nc/image/upload/v1758919081/admin-uploads/about-277c5b7e.webp"
               alt="Profile Picture"
-              width={300}
-              height={300}
+              width={450}
+              height={450}
               className="object-cover w-full h-full"
               priority
             />

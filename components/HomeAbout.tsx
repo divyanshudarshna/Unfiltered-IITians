@@ -110,12 +110,14 @@ const highlights = [
 
 export default function HowICanHelp() {
   return (
-    <section className="p-6 sm:px-10 lg:px-20">
-      <div className="max-w-6xl mx-auto text-center">
+    <section className="relative py-20 px-4 sm:px-10 lg:px-20">
+      {/* Grid background — same as BackgroundWrapper / Testimonials */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(100,100,100,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(100,100,100,0.05)_1px,transparent_1px)] bg-[size:40px_40px] dark:bg-[linear-gradient(to_right,rgba(200,200,200,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(200,200,200,0.06)_1px,transparent_1px)] pointer-events-none" />
+      <div className="relative z-10 max-w-6xl mx-auto text-center">
         {/* Title */}
-        <h2 className="text-4xl sm:text-6xl font-extrabold bg-gradient-to-r from-purple-600 via-cyan-400 to-blue-500 bg-clip-text text-transparent mb-3">
-          How I Can Help You Succeed
-        </h2>
+           <h2 className="text-4xl sm:text-6xl font-extrabold mb-3 bg-gradient-to-r from-purple-400 to-primary bg-clip-text text-transparent">
+             How I Can Help You Succeed
+           </h2>
         <p className="text-lg sm:text-lg text-gray-600 dark:text-gray-400 mb-12">
           Divyanshu Darshna | PhD Scholar, IIT Roorkee – Biotechnology
           Department
@@ -124,7 +126,7 @@ export default function HowICanHelp() {
         {/* Profile Image */}
         <div className="flex justify-center mb-12">
           <Tilt
-            className="w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full overflow-hidden transition-transform duration-500 hover:scale-105"
+            className="w-56 h-56 sm:w-72 sm:h-72 md:w-80 md:h-80 border-4 rounded-full overflow-hidden shadow-sm transition-all duration-500 hover:shadow-[0_0_50px_8px_rgba(168,85,247,0.55)] hover:border-primary/70"
             tiltMaxAngleX={25}
             tiltMaxAngleY={25}
             perspective={900}
@@ -133,16 +135,16 @@ export default function HowICanHelp() {
             <Image
               src="https://res.cloudinary.com/dqe1wy2nc/image/upload/v1758919081/admin-uploads/about-277c5b7e.webp"
               alt="Divyanshu Darshna"
-              width={400}
-              height={400}
-              className="object-cover w-full h-full rounded-full border-4 border-cyan-400"
+              width={450}
+              height={450}
+              className="object-cover w-full h-full rounded-full"
               priority
             />
           </Tilt>
         </div>
 
      {/* Highlights Grid */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
   {highlights.map((item, index) => (
     <Link
       key={index}
@@ -151,10 +153,10 @@ export default function HowICanHelp() {
       className="group"
     >
       <Card
-        className={`relative h-full transition-all duration-500 ${item.border} ${item.bg} backdrop-blur-sm 
-          hover:scale-[1.02] hover:shadow-xl hover:border-transparent 
-          before:absolute before:inset-0 before:rounded-2xl before:border-2 before:border-transparent 
-          hover:before:border-violet-500 hover:before:shadow-[0_0_25px_5px_rgba(139,92,246,0.5)] before:transition-all before:duration-700`}
+        className={
+          `relative bg-muted/50 border border-transparent rounded-xl w-full mx-auto text-left group transition-all duration-500 h-full p-6 flex flex-col ` +
+          `hover:shadow-[0_0_12px_rgba(59,130,246,0.7)] hover:border-primary `
+        }
       >
         <CardHeader className="flex flex-col items-center justify-center text-center relative z-10">
           {/* Icon Centered + Bigger */}
@@ -165,20 +167,19 @@ export default function HowICanHelp() {
           </div>
 
           {/* Title Below Icon */}
-          <CardTitle className="mt-4 text-2xl font-semibold font-heading text-slate-800 dark:text-slate-200">
+          <CardTitle className="mt-4 text-2xl font-semibold font-heading text-black dark:text-white dark:group-hover:text-primary-foreground transition-colors duration-500">
             {item.title}
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="relative z-10 text-left flex flex-col items-left">
-          <div className="text-slate-700 dark:text-slate-300 font-body text-base sm:text-lg leading-relaxed space-y-3">
+        <CardContent className="relative z-10 text-left flex flex-col flex-1">
+          <div className="text-base leading-relaxed space-y-3 text-muted-foreground dark:group-hover:text-primary-foreground transition-colors duration-500 flex-1">
             {item.content}
           </div>
           {item.link && (
-            <div className="mt-5 ">
+            <div className="mt-5">
               <div
-                className="inline-flex min-w-[140px] justify-center items-center px-5 py-2 rounded-2xl border border-purple-400 text-sm font-medium text-violet-700 dark:text-violet-500 
-      group-hover:text-violet-900 dark:group-hover:text-violet-400 transition-colors p-4"
+                className="inline-flex min-w-[140px] justify-center items-center px-5 py-2 rounded-2xl border border-purple-400 text-sm font-medium text-violet-700 dark:text-violet-500 group-hover:text-violet-900 dark:group-hover:text-violet-400 transition-colors p-4"
               >
                 {item.link.text}
                 <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
