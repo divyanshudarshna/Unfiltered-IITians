@@ -124,10 +124,12 @@ export default function HowICanHelp() {
         {/* Profile Image */}
         <div className="flex justify-center mb-12">
           <Tilt
-            className="w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full overflow-hidden transition-transform duration-500 hover:scale-105"
-            tiltMaxAngleX={25}
-            tiltMaxAngleY={25}
-            perspective={900}
+            className="w-56 h-56 sm:w-72 sm:h-72 md:w-80 md:h-80 border-4 rounded-full overflow-hidden shadow-sm transition-all duration-500 hover:shadow-[0_0_50px_8px_rgba(168,85,247,0.55)] hover:border-primary/70"
+            tiltMaxAngleX={20}
+            tiltMaxAngleY={20}
+            perspective={1000}
+            scale={1.05}
+            transitionSpeed={1000}
             gyroscope={true}
           >
             <Image
@@ -135,7 +137,7 @@ export default function HowICanHelp() {
               alt="Divyanshu Darshna"
               width={400}
               height={400}
-              className="object-cover w-full h-full rounded-full border-4 border-purple-600/40"
+              className="object-cover w-full h-full"
               priority
             />
           </Tilt>
