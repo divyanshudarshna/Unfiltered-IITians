@@ -437,7 +437,7 @@ export default function AdminContactUsPage() {
       cell: ({ row }) => {
         const contact = row.original;
         return (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -514,10 +514,10 @@ export default function AdminContactUsPage() {
     );
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-3 sm:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Contact Messages</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Contact Messages</h1>
           <div className="text-sm text-muted-foreground mt-1">
             {table.getFilteredRowModel().rows.length} messages
           </div>
@@ -534,12 +534,12 @@ export default function AdminContactUsPage() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between mb-4 gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-4 gap-3 sm:gap-4">
         <Input
           placeholder="Search contacts..."
           value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
-          className="max-w-md"
+          className="w-full sm:max-w-md"
         />
         <Button
           variant="outline"
@@ -619,7 +619,7 @@ export default function AdminContactUsPage() {
 
       {/* View Modal */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="max-w-2xl rounded-2xl shadow-xl border">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl border">
           <DialogHeader className="space-y-1 pb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-full">

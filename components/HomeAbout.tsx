@@ -110,10 +110,8 @@ const highlights = [
 
 export default function HowICanHelp() {
   return (
-    <section className="relative py-20 px-4 sm:px-10 lg:px-20">
-      {/* Grid background — same as BackgroundWrapper / Testimonials */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(100,100,100,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(100,100,100,0.05)_1px,transparent_1px)] bg-[size:40px_40px] dark:bg-[linear-gradient(to_right,rgba(200,200,200,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(200,200,200,0.06)_1px,transparent_1px)] pointer-events-none" />
-      <div className="relative z-10 max-w-6xl mx-auto text-center">
+    <section className="p-6 sm:px-10 lg:px-20">
+      <div className="max-w-6xl mx-auto text-center">
         {/* Title */}
            <h2 className="text-4xl sm:text-6xl font-extrabold mb-3 bg-gradient-to-r from-purple-400 to-primary bg-clip-text text-transparent">
              How I Can Help You Succeed
@@ -126,7 +124,7 @@ export default function HowICanHelp() {
         {/* Profile Image */}
         <div className="flex justify-center mb-12">
           <Tilt
-            className="w-56 h-56 sm:w-72 sm:h-72 md:w-80 md:h-80 border-4 rounded-full overflow-hidden shadow-sm transition-all duration-500 hover:shadow-[0_0_50px_8px_rgba(168,85,247,0.55)] hover:border-primary/70"
+            className="w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full overflow-hidden transition-transform duration-500 hover:scale-105"
             tiltMaxAngleX={25}
             tiltMaxAngleY={25}
             perspective={900}
@@ -135,9 +133,9 @@ export default function HowICanHelp() {
             <Image
               src="https://res.cloudinary.com/dqe1wy2nc/image/upload/v1758919081/admin-uploads/about-277c5b7e.webp"
               alt="Divyanshu Darshna"
-              width={450}
-              height={450}
-              className="object-cover w-full h-full rounded-full"
+              width={400}
+              height={400}
+              className="object-cover w-full h-full rounded-full border-4 border-purple-600/40"
               priority
             />
           </Tilt>
@@ -154,10 +152,12 @@ export default function HowICanHelp() {
     >
       <Card
         className={
-          `relative bg-muted/50 border border-transparent rounded-xl w-full mx-auto text-left group transition-all duration-500 h-full p-6 flex flex-col ` +
-          `hover:shadow-[0_0_12px_rgba(59,130,246,0.7)] hover:border-primary `
+          `relative bg-muted/40 border border-transparent rounded-xl w-full mx-auto text-left group transition-all duration-500 min-h-[260px] h-full p-6 backdrop-blur-md ` +
+          `hover:shadow-[0_0_12px_rgba(59,130,246,0.5)] hover:border-primary `
         }
       >
+        {/* Faded background layer for glass effect */}
+        <div className="absolute inset-0 rounded-xl bg-muted/40 opacity-50 pointer-events-none z-0" />
         <CardHeader className="flex flex-col items-center justify-center text-center relative z-10">
           {/* Icon Centered + Bigger */}
           <div
@@ -172,8 +172,8 @@ export default function HowICanHelp() {
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="relative z-10 text-left flex flex-col flex-1">
-          <div className="text-base leading-relaxed space-y-3 text-muted-foreground dark:group-hover:text-primary-foreground transition-colors duration-500 flex-1">
+        <CardContent className="relative z-10 text-left flex flex-col items-left">
+          <div className="text-base sm:text-lg leading-relaxed space-y-3 text-muted-foreground dark:text-primary-foreground dark:group-hover:text-primary-foreground transition-colors duration-500">
             {item.content}
           </div>
           {item.link && (
