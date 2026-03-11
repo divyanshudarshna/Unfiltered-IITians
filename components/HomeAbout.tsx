@@ -133,7 +133,7 @@ export default function HowICanHelp() {
             gyroscope={true}
           >
             <Image
-              src="https://res.cloudinary.com/dqe1wy2nc/image/upload/v1758919081/admin-uploads/about-277c5b7e.webp"
+              src="https://res.cloudinary.com/dqe1wy2nc/image/upload/v1773267095/admin-uploads/whatsapp-image-2026-03-12-at-01-18-08-26a9497e.jpg"
               alt="Divyanshu Darshna"
               width={400}
               height={400}
