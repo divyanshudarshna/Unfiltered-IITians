@@ -126,7 +126,7 @@ const Navbar = () => {
             </SignedOut>
 
             <button 
-              className="p-2 rounded-md hover:bg-accent transition-colors relative z-50"
+              className="p-2 rounded-md hover:bg-accent transition-colors relative z-50 text-slate-800 dark:text-white"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Toggle menu"
             >
@@ -142,7 +142,7 @@ const Navbar = () => {
           menuOpen ? "max-h-[calc(100vh-4rem)] opacity-100 visible" : "max-h-0 opacity-0 invisible"
         }`}
       >
-        <div className="p-4 sm:p-6 space-y-4 mobile-menu">
+        <div className="p-4 sm:p-6 space-y-4 mobile-menu pb-10">
           <SignedIn>
             <div className="space-y-3 pb-4 border-b border-gray-200 dark:border-gray-800">
               <p className="font-semibold text-lg px-2 text-gray-900 dark:text-white">Hello, {user?.firstName || "User"}!</p>
