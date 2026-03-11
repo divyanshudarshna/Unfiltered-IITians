@@ -99,7 +99,7 @@ export default function MaterialCard({ material }: { readonly material: Material
     : `/resources/${material.id}`;
 
   return (
-    <Card className="group hover:shadow-xl hover:scale-[1.02] transition-all duration-300 rounded-2xl border border-primary/10 bg-card/50 backdrop-blur-sm overflow-hidden">
+    <Card className="group hover:shadow-xl hover:scale-[1.02] transition-all duration-300 rounded-2xl border border-slate-200 dark:border-primary/10 bg-white dark:bg-card/50 backdrop-blur-sm overflow-hidden">
       <CardContent className="p-0">
         {/* Media Preview with Overlay */}
         <div className="relative aspect-video overflow-hidden">
@@ -147,13 +147,13 @@ export default function MaterialCard({ material }: { readonly material: Material
             <h3 className="text-lg font-bold line-clamp-2 group-hover:text-primary transition-colors duration-300">
               {material.title}
             </h3>
-            <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+            <p className="text-sm text-slate-600 dark:text-muted-foreground line-clamp-3 leading-relaxed">
               {stripHtml(material.content, 120)}
             </p>
           </div>
 
           {/* Metadata */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-muted-foreground">
             {material.createdAt && (
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
@@ -198,14 +198,14 @@ export default function MaterialCard({ material }: { readonly material: Material
                 href={String(material.pdfUrl)}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors duration-200 group/download"
+                className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-muted-foreground hover:text-primary transition-colors duration-200 group/download"
                 download
               >
                 <FileDown className="h-4 w-4 transition-transform group-hover/download:translate-y-0.5" />
                 <span>Download PDF</span>
               </a>
             ) : (
-              <span className="text-sm text-muted-foreground">No PDF available</span>
+              <span className="text-sm text-slate-500 dark:text-muted-foreground">No PDF available</span>
             )}
 
             {/* Open button */}

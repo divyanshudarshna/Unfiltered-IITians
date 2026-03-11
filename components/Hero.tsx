@@ -26,8 +26,8 @@ const stats = [
     glow: "shadow-emerald-400/50",
   },
   {
-    number: "100,000+",
-    label: "YouTube Views",
+    number: "7,000+",
+    label: "Subscribers",
     icon: FaYoutube,
     href: "/youtube",
     color: "text-red-500",
@@ -81,8 +81,8 @@ export default function Hero() {
     animate={mounted ? { opacity: 1 } : {}}
     transition={{ duration: 1, delay: 1.0 }}
   >
-    As an <span className="font-semibold text-slate-900 dark:text-slate-100">IIT Bombay alumnus</span>,{" "}
-    <span className="font-semibold text-slate-900 dark:text-slate-100">IIT Roorkee researcher</span>, and{" "}
+    As an <span className="font-semibold text-slate-900 dark:text-slate-100"><span className="text-[#ffb971]">IIT Bombay</span> alumnus</span>,{" "}
+    <span className="font-semibold text-slate-900 dark:text-slate-100"><span className="text-[#ffb971]">IIT Roorkee</span> researcher</span>, and{" "}
     <span className="font-semibold text-slate-900 dark:text-slate-100">academic mentor</span>, 
     I bridge the gap between complex scientific concepts and student success with{" "}
     <span className="font-semibold text-slate-900 dark:text-slate-100">proven strategies</span> and{" "}
@@ -108,7 +108,7 @@ export default function Hero() {
 
         {/* Stats */}
         <motion.div
-          className="grid grid-cols-2 md:grid-cols-4 gap-8 w-full max-w-5xl"
+          className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full max-w-5xl"
           initial={{ opacity: 0 }}
           animate={mounted ? { opacity: 1 } : {}}
           transition={{ duration: 0.8, delay: 1.8 }}
@@ -118,26 +118,27 @@ export default function Hero() {
             return (
               <motion.div
                 key={index}
+                className="h-full"
                 initial={{ y: 30, opacity: 0 }}
                 animate={mounted ? { y: 0, opacity: 1 } : {}}
                 transition={{ duration: 0.6 }}
                 whileHover={{ y: -8, transition: { duration: 0.3 } }}
               >
-                <Link href={stat.href} prefetch={true}>
-                  <Card className="relative bg-slate-100 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-300 dark:border-slate-700/30 rounded-2xl overflow-hidden group transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-purple-500/20">
-                    <CardContent className="p-8 text-center relative z-10">
+                <Link href={stat.href} prefetch={true} className="block h-full">
+                  <Card className="relative h-64 bg-blue-50 dark:bg-slate-900/40 backdrop-blur-xl border border-blue-200 dark:border-slate-700/30 rounded-2xl overflow-hidden group transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-purple-500/20">
+                    <CardContent className="flex flex-col items-center justify-center h-full p-8 text-center relative z-10">
                       {/* Icon */}
                       <motion.div
-                        className={`inline-flex items-center justify-center w-16 h-16 bg-slate-200 dark:bg-slate-800/60 rounded-2xl mb-4 shadow-md group-hover:scale-110 transition-all duration-300`}
+                        className={`inline-flex items-center justify-center w-16 h-16 bg-white dark:bg-slate-800/60 rounded-2xl mb-4 shadow-md group-hover:scale-110 transition-all duration-300`}
                       >
                         <IconComponent
-                          className={`w-8 h-8 text-slate-700 dark:text-white group-hover:${stat.color} group-hover:drop-shadow-[0_0_12px] ${stat.glow}`}
+                          className={`w-8 h-8 text-slate-800 dark:text-slate-400 group-hover:${stat.color} group-hover:drop-shadow-[0_0_12px] transition-colors duration-300`}
                         />
                       </motion.div>
 
                       {/* Number */}
                       <motion.div
-                        className={`text-3xl md:text-4xl font-bold mb-2 ${stat.color}`}
+                        className={`text-3xl font-bold mb-2 ${stat.color}`}
                         initial={{ scale: 0.9, opacity: 0.5 }}
                         animate={mounted ? { scale: 1, opacity: 1 } : {}}
                         transition={{ duration: 0.5, delay: 2.2 + index * 0.2 }}
@@ -146,7 +147,7 @@ export default function Hero() {
                       </motion.div>
 
                       {/* Label */}
-                      <div className="text-base text-slate-700 dark:text-slate-300 font-medium">
+                      <div className="text-base text-slate-700 dark:text-slate-300 font-medium leading-tight">
                         {stat.label}
                       </div>
                     </CardContent>

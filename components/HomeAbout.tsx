@@ -12,7 +12,7 @@ export const dynamic = "force-static";
 
 const highlights = [
   {
-    icon: <BookOpenCheck className="w-6 h-6" />,
+    icon: <BookOpenCheck className="w-12 h-12" />,
     title: "About Me",
     content: (
       <>
@@ -35,7 +35,7 @@ const highlights = [
     iconColor: "text-blue-600 dark:text-blue-400",
   },
   {
-    icon: <GraduationCap className="w-6 h-6" />,
+    icon: <GraduationCap className="w-12 h-12" />,
     title: "Student Success Stories",
     content: (
       <div className="space-y-3">
@@ -61,7 +61,7 @@ const highlights = [
     iconColor: "text-green-600 dark:text-green-400",
   },
   {
-    icon: <BookOpenCheck className="w-6 h-6" />,
+    icon: <BookOpenCheck className="w-12 h-12" />,
     title: "Comprehensive Courses",
     content: (
       <>
@@ -84,7 +84,7 @@ const highlights = [
     iconColor: "text-purple-600 dark:text-purple-400",
   },
   {
-    icon: <FaYoutube className="w-6 h-6" />,
+    icon: <FaYoutube className="w-12 h-12" />,
     title: "Free Learning Resources",
     content: (
       <>
@@ -113,7 +113,7 @@ export default function HowICanHelp() {
     <section className="p-6 sm:px-10 lg:px-20">
       <div className="max-w-6xl mx-auto text-center">
         {/* Title */}
-           <h2 className="text-4xl sm:text-6xl font-extrabold mb-3 bg-gradient-to-r from-purple-400 to-primary bg-clip-text text-transparent">
+           <h2 className="text-4xl sm:text-6xl font-extrabold mb-3 bg-gradient-to-r from-purple-700 to-purple-500 dark:from-purple-400 dark:to-primary bg-clip-text text-transparent">
              How I Can Help You Succeed
            </h2>
         <p className="text-lg sm:text-lg text-gray-600 dark:text-gray-400 mb-12">
@@ -163,9 +163,9 @@ export default function HowICanHelp() {
         <CardHeader className="flex flex-col items-center justify-center text-center relative z-10">
           {/* Icon Centered + Bigger */}
           <div
-            className={`w-20 h-20 rounded-full ${item.iconBg} ${item.iconColor} flex items-center justify-center`}
+            className={`w-24 h-24 rounded-full ${item.iconBg} ${item.iconColor} flex items-center justify-center`}
           >
-            <div className="text-8xl">{item.icon}</div>
+            {item.icon}
           </div>
 
           {/* Title Below Icon */}
@@ -175,7 +175,7 @@ export default function HowICanHelp() {
         </CardHeader>
 
         <CardContent className="relative z-10 text-left flex flex-col items-left">
-          <div className="text-base sm:text-lg leading-relaxed space-y-3 text-muted-foreground dark:text-primary-foreground dark:group-hover:text-primary-foreground transition-colors duration-500">
+          <div className="text-base sm:text-lg leading-relaxed space-y-3 text-slate-900 dark:text-muted-foreground dark:group-hover:text-primary-foreground transition-colors duration-500">
             {item.content}
           </div>
           {item.link && (

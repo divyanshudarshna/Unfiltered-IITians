@@ -30,14 +30,14 @@ export default function CategorySection({ category }: { readonly category: Categ
         <div className="flex items-center gap-3 mt-4 ">
           <div className="w-2 h-8 bg-gradient-to-b from-purple-400 to-purple-400/70 rounded-full"></div>
           <div>
-            <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-cyan-400/80">
+            <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-600 to-cyan-500 dark:from-cyan-400 dark:to-cyan-400/80">
               {category.name}
             </h3>
             {/* optional category description could go here */}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-sm text-muted-foreground bg-primary/10 px-3 py-1 rounded-full">
+          <div className="text-sm text-slate-600 dark:text-muted-foreground bg-slate-100 dark:bg-primary/10 px-3 py-1 rounded-full">
             {category.materials.length} {category.materials.length === 1 ? 'item' : 'items'}
           </div>
           <div className="p-1 rounded-full bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-white">

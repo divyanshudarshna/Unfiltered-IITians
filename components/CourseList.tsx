@@ -276,13 +276,13 @@ export default function CourseList({
 
       {/* Search */}
       {showSearch && (
-        <div className="mb-8 flex flex-col sm:flex-row gap-4 items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-lg">
+        <div className="mb-8 flex flex-col sm:flex-row gap-4 items-center justify-between p-4 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border border-blue-200 dark:border-transparent">
           <div className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 dark:text-muted-foreground h-4 w-4" />
             <input
               type="text"
               placeholder="Filter courses..."
-              className="pl-10 pr-4 py-2 w-full rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="pl-10 pr-4 py-2 w-full rounded-md border border-blue-300 dark:border-input bg-white dark:bg-background text-slate-900 dark:text-inherit placeholder:text-slate-500 dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

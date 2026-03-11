@@ -121,7 +121,7 @@ export default function Testimonials({
                     </div>
                   </CardContent>
 
-                  <div className="text-sm text-muted-foreground mb-4 dark:group-hover:text-primary-foreground transition-colors duration-500 leading-relaxed">
+                  <div className="text-sm text-slate-900 dark:text-muted-foreground mb-4 dark:group-hover:text-primary-foreground transition-colors duration-500 leading-relaxed">
                     {t.content}
                   </div>
 

@@ -109,16 +109,16 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
     <section className="space-y-8 max-w-6xl mx-auto px-4 py-8">
       {/* Centered Header */}
       <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-primary animate-pulse">
+        <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-primary ">
           Free Materials
         </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-lg text-slate-600 dark:text-muted-foreground max-w-2xl mx-auto">
           Browse our collection of free study materials, carefully categorized and easily searchable.
         </p>
       </div>
 
       {/* Search and Filter Section */}
-      <div className="bg-card rounded-2xl p-6 shadow-lg border border-primary/10 transition-all duration-300 hover:shadow-primary/10 hover:shadow-xl">
+      <div className="bg-white dark:bg-card rounded-2xl p-6 shadow-lg border border-slate-200 dark:border-primary/10 transition-all duration-300 hover:shadow-primary/10 hover:shadow-xl">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="relative w-full md:w-auto flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -129,7 +129,7 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
                 setQuery(e.target.value);
                 setPage(1);
               }}
-              className="pl-10 w-full bg-background/50 border-primary/20 focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
+              className="pl-10 w-full bg-white dark:bg-background/50 border-slate-300 dark:border-primary/20 focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors text-slate-900 dark:text-inherit placeholder:text-slate-500"
             />
           </div>
 
@@ -137,10 +137,10 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
             <Select 
               onValueChange={(v) => { setSelectedCategory(v as string | "all"); setPage(1); }}
             >
-              <SelectTrigger className="w-full md:w-44 bg-background/50 border-primary/20 focus:border-primary/50 focus:ring-1 focus:ring-primary/30">
+              <SelectTrigger className="w-full md:w-44 bg-white dark:bg-background/50 border-slate-300 dark:border-primary/20 focus:border-primary/50 focus:ring-1 focus:ring-primary/30 text-slate-900 dark:text-inherit">
                 <SelectValue>{selectedCategory === "all" ? "All Subjects" : initialCategories.find(c => c.id === selectedCategory)?.name}</SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white dark:bg-card border-slate-200 dark:border-primary/20 text-slate-900 dark:text-inherit">
                 <SelectItem value="all" >All Subjects</SelectItem>
                 {initialCategories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
               </SelectContent>
@@ -149,12 +149,12 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
             <Select 
               onValueChange={(v: string) => { setSortBy(v as "newest" | "oldest" | "titleAsc" | "titleDesc"); setPage(1); }}
             >
-              <SelectTrigger className="w-full md:w-44 bg-background/50 border-primary/20 focus:border-primary/50 focus:ring-1 focus:ring-primary/30">
+              <SelectTrigger className="w-full md:w-44 bg-white dark:bg-background/50 border-slate-300 dark:border-primary/20 focus:border-primary/50 focus:ring-1 focus:ring-primary/30 text-slate-900 dark:text-inherit">
                 <SelectValue>
                   {sortBy === "newest" ? "Newest" : sortBy === "oldest" ? "Oldest" : sortBy === "titleAsc" ? "Title A→Z" : "Title Z→A"}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white dark:bg-card border-slate-200 dark:border-primary/20 text-slate-900 dark:text-inherit">
                 <SelectItem value="newest">Newest</SelectItem>
                 <SelectItem value="oldest">Oldest</SelectItem>
                 <SelectItem value="titleAsc">Title A→Z</SelectItem>
@@ -165,7 +165,7 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
             <Button 
               variant="outline" 
               onClick={resetFilters} 
-              className="flex items-center gap-2 bg-background/50 border-primary/20 hover:bg-primary/10 hover:text-primary transition-colors"
+              className="flex items-center gap-2 bg-white dark:bg-background/50 border-slate-300 dark:border-primary/20 text-slate-700 dark:text-inherit hover:bg-primary/10 hover:text-primary transition-colors"
             >
               <RefreshCw className="h-4 w-4" /> Reset
             </Button>
@@ -195,7 +195,7 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
       </div>
 
       {/* Results info */}
-      <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground bg-card/30 rounded-xl p-4 border border-primary/10">
+      <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-slate-600 dark:text-muted-foreground bg-white dark:bg-card/30 rounded-xl p-4 border border-slate-200 dark:border-primary/10">
         <div className="font-medium">{total} materials found</div>
         <div className="text-primary font-semibold">Page {page} of {pages}</div>
       </div>
@@ -203,7 +203,7 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
       {/* Category Sections (grouped by category for the current page) */}
       <div className="space-y-8">
         {grouped.length === 0 ? (
-          <div className="text-center py-20 text-muted-foreground bg-card/50 rounded-2xl p-8 border border-dashed border-primary/20">
+          <div className="text-center py-20 text-slate-500 dark:text-muted-foreground bg-white dark:bg-card/50 rounded-2xl p-8 border border-dashed border-slate-300 dark:border-primary/20">
             <div className="text-2xl mb-2">No materials found</div>
             <p>Try adjusting your search or filters to find what you&apos;re looking for.</p>
           </div>
@@ -216,8 +216,8 @@ export default function MaterialsClient({ initialCategories }: { initialCategori
 
       {/* Pagination controls */}
       {pages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-card/50 rounded-2xl p-6 border border-primary/10">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-card/50 rounded-2xl p-6 border border-slate-200 dark:border-primary/10">
+            <div className="text-sm text-slate-600 dark:text-muted-foreground">
             Showing {Math.min(total, page * pageSize)} of {total} materials
           </div>
           <div className="flex gap-2">

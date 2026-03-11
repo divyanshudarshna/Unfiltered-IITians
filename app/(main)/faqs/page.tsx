@@ -23,17 +23,17 @@ export default function FAQPage() {
   // Badge color styles per category
   const categoryColors: Record<string, string> = {
     "getting started":
-      "text-emerald-700 bg-slate-700 border-emerald-500 dark:text-amber-400 dark:border-amber-200/20",
+      "text-emerald-700 bg-emerald-50 border-emerald-400 dark:text-amber-400 dark:bg-slate-700 dark:border-amber-200/20",
     courses:
-      "text-violet-700 bg-slate-700 border-violet-500 dark:text-pink-400 dark:border-pink-200/20",
+      "text-violet-700 bg-violet-50 border-violet-400 dark:text-pink-400 dark:bg-slate-700 dark:border-pink-200/20",
     mocks:
-      "text-cyan-700 bg-slate-700 border-cyan-500 dark:text-cyan-400 dark:border-cyan-200/20",
+      "text-cyan-700 bg-cyan-50 border-cyan-400 dark:text-cyan-400 dark:bg-slate-700 dark:border-cyan-200/20",
     sessions:
-      "text-orange-700 bg-slate-700 border-orange-500 dark:text-orange-400 dark:border-orange-200/20",
+      "text-orange-700 bg-orange-50 border-orange-400 dark:text-orange-400 dark:bg-slate-700 dark:border-orange-200/20",
     materials:
-      "text-pink-700 bg-slate-700 border-pink-500 dark:text-pink-400 dark:border-pink-200/20",
+      "text-pink-700 bg-pink-50 border-pink-400 dark:text-pink-400 dark:bg-slate-700 dark:border-pink-200/20",
     general:
-      "text-light-300 bg-slate-700 border-light-400 dark:text-light-200 dark:border-light-300/30",
+      "text-slate-700 bg-slate-100 border-slate-400 dark:text-gray-200 dark:bg-slate-700 dark:border-transparent",
   };
 
   useEffect(() => {
@@ -108,12 +108,12 @@ export default function FAQPage() {
   );
 
   return (
-    <div className="min-h-screen bg-dark-900 text-light-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-transparent text-slate-900 dark:text-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="flex flex-col items-center gap-6 xl:flex-row xl:items-center xl:justify-between mb-10">
           <div className="flex flex-col items-center gap-4 xl:items-start">
-            <span className="inline-flex items-center border-cyan-400 border justify-center rounded-full bg-dark-500 px-3 py-1 text-slate-800 dark:text-gray-300 text-sm font-medium">
+            <span className="inline-flex items-center border-cyan-400 border justify-center rounded-full bg-cyan-50 dark:bg-transparent px-3 py-1 text-cyan-700 dark:text-gray-300 text-sm font-medium">
               Find Answers to Common Queries
             </span>
             <h3 className="text-4xl lg:text-5xl font-bold text-center text-slate-900 dark:text-gray-100 xl:text-left">
@@ -135,8 +135,8 @@ export default function FAQPage() {
               onClick={() => setSelectedCategory(cat)}
               className={`px-4 py-1 rounded-full border font-medium capitalize ${
                 selectedCategory === cat
-                  ? " text-slate-900 dark:text-gray-300 border-purple-500"
-                  : "bg-dark-700 text-black dark:text-gray-300 border-light-400"
+                  ? "bg-purple-100 text-purple-800 dark:bg-transparent dark:text-gray-300 border-purple-500"
+                  : "bg-slate-100 text-slate-700 border-slate-300 dark:bg-transparent dark:text-gray-300 dark:border-slate-600"
               }`}
             >
               {cat}
@@ -148,7 +148,7 @@ export default function FAQPage() {
               placeholder="Search FAQs..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-dark-700 text-light-100 border-purple-700"
+              className="bg-white dark:bg-transparent text-slate-900 dark:text-gray-100 border-purple-400 dark:border-purple-700 placeholder:text-slate-500"
             />
           </div>
         </div>
@@ -158,7 +158,7 @@ export default function FAQPage() {
           {filteredFaqs.map((section, sectionIndex) => (
             <li key={sectionIndex} className="flex flex-col gap-6">
               {/* Category Badge */}
-              <div className="flex items-center justify-center w-fit rounded-full bg-dark-700 px-3 py-1">
+              <div className="flex items-center justify-center w-fit rounded-full bg-slate-100 dark:bg-transparent px-3 py-1">
                 <p
                   className={`text-sm font-medium capitalize border rounded-full p-2 ${
                     categoryColors[section.category.toLowerCase()] ||
@@ -178,13 +178,13 @@ export default function FAQPage() {
                   return (
                     <div
                       key={index}
-                      className="rounded-lg dark:bg-slate-900 bg-gray-800 overflow-hidden"
+                      className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-transparent shadow-sm dark:shadow-none overflow-hidden"
                     >
                       <button
                         type="button"
                         onClick={() => toggleItem(itemIndex)}
                         className={`flex w-full justify-between items-center gap-5 p-6 ${
-                          isActive ? "text-cyan-400" : "text-light-100"
+                          isActive ? "text-cyan-600 dark:text-cyan-400" : "text-slate-800 dark:text-gray-100"
                         }`}
                         aria-expanded={isActive}
                       >
@@ -199,8 +199,8 @@ export default function FAQPage() {
                           xmlns="http://www.w3.org/2000/svg"
                           className={`flex-shrink-0 transition-transform duration-300 ${
                             isActive
-                              ? "rotate-180 text-primary-400"
-                              : "text-light-300"
+                              ? "rotate-180 text-cyan-600 dark:text-primary-400"
+                              : "text-slate-400 dark:text-gray-400"
                           }`}
                         >
                           <path
@@ -218,7 +218,7 @@ export default function FAQPage() {
                         }`}
                       >
                         <div className="px-6 pb-6">
-                          <p className="text-light-300 leading-relaxed">
+                          <p className="text-slate-600 dark:text-gray-300 leading-relaxed">
                             {item.answer}
                           </p>
                         </div>

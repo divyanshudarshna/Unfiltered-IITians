@@ -115,10 +115,10 @@ export default function SuccessStoriesList({ stories }: Props) {
 
       {/* Dialog */}
       <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
-        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden flex flex-col p-0 shadow-2xl">
+        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col p-0 shadow-2xl">
           {selected && (
             <>
-              <DialogHeader className="relative bg-gradient-to-r from-blue-900/80 to-indigo-800/70 px-6 py-4 flex items-left justify-between">
+              <DialogHeader className="relative bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/80 dark:to-indigo-800/70 px-6 py-4 flex items-left justify-between">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16 ring-2 ring-blue-500/40">
                     <AvatarImage src={selected.image || ""} />
@@ -127,10 +127,10 @@ export default function SuccessStoriesList({ stories }: Props) {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <DialogTitle className="text-2xl font-semibold text-white">
+                    <DialogTitle className="text-2xl font-semibold text-slate-900 dark:text-white">
                       {selected.name}
                     </DialogTitle>
-                    <p className="text-blue-200">{selected.role}</p>
+                    <p className="text-blue-700 dark:text-blue-200">{selected.role}</p>
                     <div className="flex items-center gap-1 mt-1">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
@@ -138,11 +138,11 @@ export default function SuccessStoriesList({ stories }: Props) {
                           className={`h-4 w-4 ${
                             i < Math.round(selected.rating)
                               ? "fill-yellow-400 text-yellow-400"
-                              : "text-blue-300/50"
+                              : "text-slate-400 dark:text-blue-300/50"
                           }`}
                         />
                       ))}
-                      <span className="text-blue-100 text-sm ml-2">
+                      <span className="text-slate-700 dark:text-blue-100 text-sm ml-2">
                         {selected.rating.toFixed(1)}/5
                       </span>
                     </div>
@@ -154,12 +154,12 @@ export default function SuccessStoriesList({ stories }: Props) {
               <div className="flex-1 overflow-hidden flex flex-col">
                 <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar">
                   <div
-                    className="prose prose-invert max-w-none text-gray-300 leading-relaxed"
+                    className="prose prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-gray-300 leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: selected.content }}
                   />
                 </div>
 
-                <div className="px-6 py-4 border-t border-slate-800 bg-slate-900/60">
+                <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
                   <div className="flex justify-end">
                     <Button
                       onClick={() => setSelected(null)}
