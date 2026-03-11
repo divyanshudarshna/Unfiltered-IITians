@@ -154,8 +154,8 @@ export default function HowICanHelp() {
     >
       <Card
         className={
-          `relative bg-muted/40 border border-transparent rounded-xl w-full mx-auto text-left group transition-all duration-500 min-h-[260px] h-full p-6 backdrop-blur-md ` +
-          `hover:shadow-[0_0_12px_rgba(59,130,246,0.5)] hover:border-primary `
+          `relative bg-white dark:bg-muted/40 border border-gray-200/80 dark:border-transparent rounded-xl w-full mx-auto text-left group transition-all duration-500 min-h-[260px] h-full p-6 backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.13),0_1px_6px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.05)] dark:shadow-none ` +
+          `hover:shadow-[0_0_12px_rgba(59,130,246,0.5)] hover:border-blue-400 dark:hover:shadow-[0_0_12px_rgba(59,130,246,0.5)] dark:hover:border-primary `
         }
       >
         {/* Faded background layer for glass effect */}

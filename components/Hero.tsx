@@ -125,7 +125,7 @@ export default function Hero() {
                 whileHover={{ y: -8, transition: { duration: 0.3 } }}
               >
                 <Link href={stat.href} prefetch={true} className="block h-full">
-                  <Card className="relative h-64 bg-blue-50 dark:bg-slate-900/40 backdrop-blur-xl border border-blue-200 dark:border-slate-700/30 rounded-2xl overflow-hidden group transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-purple-500/20">
+                  <Card className="relative h-64 bg-white dark:bg-slate-900/40 backdrop-blur-xl border border-gray-200/70 dark:border-slate-700/30 rounded-2xl overflow-hidden group transition-all duration-300 cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.13),0_1px_6px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.05)] dark:shadow-none hover:shadow-[0_8px_32px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.07)] dark:hover:shadow-xl dark:hover:shadow-purple-500/20">
                     <CardContent className="flex flex-col items-center justify-center h-full p-8 text-center relative z-10">
                       {/* Icon */}
                       <motion.div

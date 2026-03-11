@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Card,
   CardHeader,
   CardTitle,
   CardContent,
-  CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Accordion,
   AccordionContent,
@@ -29,9 +27,7 @@ import {
   Users,
   Target,
 } from "lucide-react";
-import Link from "next/link";
-import { RouteMatcher } from "next/dist/server/route-matchers/route-matcher";
-import { useRouter } from "next/navigation";
+
 interface CourseDetail {
   id: string;
   title: string;
@@ -81,10 +77,10 @@ export default function CourseDetailsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-96 bg-gradient-to-br from-gray-900 to-black">
+      <div className="flex justify-center items-center min-h-96 bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:to-black">
         <div className="text-center">
           <Loader2 className="animate-spin w-12 h-12 text-purple-500 mx-auto mb-4" />
-          <span className="text-gray-300 text-lg">
+          <span className="text-gray-600 dark:text-gray-300 text-lg">
             Loading course details...
           </span>
         </div>
@@ -94,11 +90,11 @@ export default function CourseDetailsPage() {
 
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-96 bg-gradient-to-br from-gray-900 to-black">
-        <div className="text-center p-6 bg-red-900/20 border border-red-500/30 rounded-lg max-w-md">
-          <p className="text-red-400 text-lg">{error}</p>
+      <div className="flex justify-center items-center min-h-96 bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:to-black">
+        <div className="text-center p-6 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-500/30 rounded-lg max-w-md">
+          <p className="text-red-600 dark:text-red-400 text-lg">{error}</p>
           <Button
-            onClick={() => window.location.reload()}
+            onClick={() => globalThis.location.reload()}
             className="mt-4 bg-red-600 hover:bg-red-700"
           >
             Try Again
@@ -110,9 +106,9 @@ export default function CourseDetailsPage() {
 
   if (!course) {
     return (
-      <div className="flex justify-center items-center min-h-96 bg-gradient-to-br from-gray-900 to-black">
+      <div className="flex justify-center items-center min-h-96 bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:to-black">
         <div className="text-center">
-          <p className="text-gray-400 text-lg">Course not found.</p>
+          <p className="text-gray-500 dark:text-gray-400 text-lg">Course not found.</p>
         </div>
       </div>
     );
@@ -199,15 +195,19 @@ export default function CourseDetailsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
+    <div className="min-h-screen bg-gradient-to-br from-white to-gray-100 dark:from-gray-900 dark:to-black text-gray-900 dark:text-white">
       {/* Background Grid Pattern */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none dark:hidden"
         style={{
-          backgroundImage: `
-            linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)
-          `,
+          backgroundImage: `linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)`,
+          backgroundSize: "30px 30px",
+        }}
+      />
+      <div
+        className="absolute inset-0 pointer-events-none hidden dark:block"
+        style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
           backgroundSize: "30px 30px",
         }}
       />
@@ -215,11 +215,11 @@ export default function CourseDetailsPage() {
       {/* Title Card */}
       <section className="relative py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="bg-gray-900/70 backdrop-blur-xl border border-white/10 rounded-2xl p-8 lg:p-12 shadow-2xl shadow-purple-500/10">
-            <h1 className="text-4xl lg:text-5xl font-bold text-center mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+          <div className="bg-white/80 dark:bg-gray-900/70 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl p-8 lg:p-12 shadow-xl shadow-gray-200 dark:shadow-2xl dark:shadow-purple-500/10">
+            <h1 className="text-4xl lg:text-5xl font-bold text-center mb-6 bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
               {course.title}
             </h1>
-            <p className="text-gray-300 text-lg lg:text-xl text-center max-w-4xl mx-auto leading-relaxed">
+            <p className="text-gray-600 dark:text-gray-300 text-lg lg:text-xl text-center max-w-4xl mx-auto leading-relaxed">
               {course.description ||
                 "Targeted preparation focusing on exam pattern and high-yield topics."}
             </p>
@@ -230,24 +230,24 @@ export default function CourseDetailsPage() {
       {/* Main Content */}
       <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         {/* Course Detail Card */}
-        <Card className="bg-gradient-to-br from-purple-900/20 to-purple-600/10 border-2 border-purple-500/30 backdrop-blur-lg shadow-2xl shadow-purple-500/20 mb-12">
+        <Card className="dark:bg-gradient-to-br dark:from-primary/30 dark:to-purple-700/10 border-2 border-purple-200 dark:border-purple-500/30 backdrop-blur-lg shadow-xl shadow-purple-100/80 dark:shadow-2xl dark:shadow-purple-500/20 mb-12">
           <CardHeader className="text-center">
-            <CardTitle className="text-3xl lg:text-4xl bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+            <CardTitle className="text-3xl lg:text-4xl bg-gradient-to-r from-gray-900 to-purple-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
               {course.title} Preparation
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <p className="text-gray-300 text-lg text-center max-w-4xl mx-auto leading-relaxed">
+            <p className="text-gray-600 dark:text-gray-300 text-lg text-center max-w-4xl mx-auto leading-relaxed">
               This comprehensive course is designed to help you master all
               concepts required for the exam. With structured lessons, practice
               problems, and expert guidance, you'll be fully prepared to excel.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-              {courseHighlights.map((highlight, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-purple-400 flex-shrink-0" />
-                  <span className="text-gray-200">{highlight}</span>
+              {courseHighlights.map((highlight) => (
+                <div key={highlight} className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                  <span className="text-gray-700 dark:text-gray-200">{highlight}</span>
                 </div>
               ))}
             </div>
@@ -259,7 +259,7 @@ export default function CourseDetailsPage() {
                     ₹{course.price}
                   </span>
                 )}
-                <span className="bg-gradient-to-r from-green-400 to-green-300 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-green-600 to-green-500 dark:from-green-400 dark:to-green-300 bg-clip-text text-transparent">
                   ₹{course.actualPrice}
                 </span>
               </div>
@@ -275,7 +275,7 @@ export default function CourseDetailsPage() {
   <Button
     onClick={() => router.push("/mocks")}
     variant="outline"
-    className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200 text-lg px-10 py-4 rounded-full backdrop-blur-md"
+    className="border-purple-500/50 text-purple-700 dark:text-purple-300 hover:bg-purple-100/50 dark:hover:bg-purple-500/10 hover:text-purple-800 dark:hover:text-purple-200 text-lg px-10 py-4 rounded-full backdrop-blur-md"
   >
     Try Free Mock Test <FileTextIcon className="ml-3 w-5 h-5" />
   </Button>
@@ -295,10 +295,10 @@ export default function CourseDetailsPage() {
           </div>
 
           {course.details.length === 0 ? (
-            <Card className="bg-gray-900/50 backdrop-blur-lg border border-white/10 text-center py-12">
+            <Card className="bg-white dark:bg-gray-900/50 backdrop-blur-lg border border-gray-200 dark:border-white/10 text-center py-12">
               <CardContent>
-                <FileText className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-400 text-lg">
+                <FileText className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                <p className="text-gray-500 dark:text-gray-400 text-lg">
                   No syllabus details added yet.
                 </p>
               </CardContent>
@@ -309,16 +309,16 @@ export default function CourseDetailsPage() {
                 <AccordionItem
                   key={detail.id}
                   value={`item-${index}`}
-                  className="bg-gray-900/50 backdrop-blur-lg border border-white/10 rounded-xl overflow-hidden"
+                  className="bg-white dark:bg-gray-900/50 backdrop-blur-lg border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden"
                 >
-                  <AccordionTrigger className="hover:bg-purple-500/10 px-6 py-4 text-lg font-semibold hover:no-underline">
+                  <AccordionTrigger className="hover:bg-purple-100/60 dark:hover:bg-purple-500/10 px-6 py-4 text-lg font-semibold hover:no-underline text-gray-900 dark:text-white">
                     {detail.title}
                   </AccordionTrigger>
                   <AccordionContent className="px-6 pb-4 my-4">
                     <div
-                      className="text-gray-300 leading-relaxed prose prose-invert max-w-none"
+                      className="text-gray-700 dark:text-gray-300 leading-relaxed prose dark:prose-invert max-w-none"
                       dangerouslySetInnerHTML={{
-                        __html: detail.description.replace(/\n/g, "<br/>"),
+                        __html: detail.description.replaceAll("\n", "<br/>"),
                       }}
                     />
                   </AccordionContent>
@@ -338,19 +338,19 @@ export default function CourseDetailsPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courseFeatures.map((feature, index) => (
+            {courseFeatures.map((feature) => (
               <Card
-                key={index}
-                className="bg-gray-900/50 backdrop-blur-lg border border-white/10 hover:border-purple-500/30 transition-all duration-300 hover:translate-y-[-4px] hover:shadow-2xl hover:shadow-purple-500/10 group"
+                key={feature.title}
+                className="bg-white dark:bg-gray-900/50 backdrop-blur-lg border border-gray-200 dark:border-white/10 hover:border-purple-400 dark:hover:border-purple-500/30 transition-all duration-300 hover:translate-y-[-4px] hover:shadow-2xl hover:shadow-purple-100 dark:hover:shadow-purple-500/10 group"
               >
                 <CardContent className="p-6 text-center">
                   <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-500/20 transition-colors">
-                    <feature.icon className="w-8 h-8 text-purple-400" />
+                    <feature.icon className="w-8 h-8 text-purple-600 dark:text-purple-400" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-3">
+                  <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">
                     {feature.title}
                   </h3>
-                  <p className="text-gray-400 leading-relaxed">
+                  <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
                     {feature.description}
                   </p>
                 </CardContent>
@@ -360,12 +360,12 @@ export default function CourseDetailsPage() {
         </section>
 
         {/* Final CTA Section */}
-        <Card className="bg-gradient-to-br from-purple-900/20 to-purple-600/10 border border-purple-500/20 backdrop-blur-lg text-center py-12 mb-16">
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-600/10 border border-purple-200 dark:border-purple-500/20 backdrop-blur-lg text-center py-12 mb-16">
           <CardContent>
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-gray-900 to-purple-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
               Start Your Preparation Today
             </h2>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto mb-8">
+            <p className="text-gray-600 dark:text-gray-300 text-lg max-w-2xl mx-auto mb-8">
               Join our comprehensive course and get the expert guidance you need
               to ace your exam.
             </p>
@@ -390,17 +390,17 @@ export default function CourseDetailsPage() {
           </div>
 
           <Accordion type="single" collapsible className="space-y-4">
-            {faqItems.map((faq, index) => (
+            {faqItems.map((faq) => (
               <AccordionItem
-                key={index}
-                value={`faq-${index}`}
-                className="bg-gray-900/50 backdrop-blur-lg border border-white/10 rounded-xl overflow-hidden"
+                key={faq.question}
+                value={faq.question}
+                className="bg-white dark:bg-gray-900/50 backdrop-blur-lg border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden"
               >
-                <AccordionTrigger className="hover:bg-purple-500/10  px-6 py-4 text-lg font-semibold text-left hover:no-underline">
+                <AccordionTrigger className="hover:bg-purple-100/60 dark:hover:bg-purple-500/10 px-6 py-4 text-lg font-semibold text-left hover:no-underline text-gray-900 dark:text-white">
                   {faq.question}
                 </AccordionTrigger>
                 <AccordionContent className="px-6 pb-4 my-4">
-                  <p className="text-gray-300 leading-relaxed">{faq.answer}</p>
+                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{faq.answer}</p>
                 </AccordionContent>
               </AccordionItem>
             ))}
