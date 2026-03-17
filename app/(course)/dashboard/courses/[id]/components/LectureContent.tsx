@@ -9,7 +9,6 @@ import {
   BookOpen,
   FileText,
   Download,
-  Eye,
   CheckCircle,
   ArrowLeft,
   ArrowRight,
@@ -20,9 +19,10 @@ import {
   Bookmark,
   Lightbulb,
   Sparkles,
-  FlaskConical,
-  ClipboardCheck,
-  Expand,
+  GraduationCap,
+  PenLine,
+  BrainCircuit,
+  Target,
   Maximize2,
 } from "lucide-react";
 import VideoContent from "./VideoContent";
@@ -241,8 +241,8 @@ const handleMarkComplete = () => {
         </div>
       </div>
 
-      {/* Summary */}
-      {lecture.summary && (
+      {/* Summary — only render if there is actual text content (not just empty HTML tags) */}
+      {lecture.summary && lecture.summary.replace(/<[^>]*>/g, "").trim().length > 0 && (
         <Card className="overflow-hidden border-none shadow-lg relative group rounded-xl md:rounded-2xl bg-card/80 backdrop-blur-md">
           <div className="absolute inset-0 rounded-xl md:rounded-2xl border border-indigo-500/10 group-hover:border-indigo-400/40 transition-all duration-500 pointer-events-none" />
           <CardContent className="p-0 relative z-10">
@@ -357,7 +357,7 @@ const handleMarkComplete = () => {
             {/* Tips List */}
             <ul className="grid grid-cols-1 gap-3 md:gap-4 text-sm">
               {lecture.studyTips.map((tip, i) => {
-                const icons = [BookOpen, FlaskConical, ClipboardCheck, Clock];
+                const icons = [GraduationCap, BrainCircuit, PenLine, Target, BookOpen];
                 const Icon = icons[i % icons.length];
                 return (
                   <li
