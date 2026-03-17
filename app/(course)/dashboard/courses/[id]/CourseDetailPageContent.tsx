@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, BookOpen, PlayCircle, Bell, Loader2 } from "lucide-react";
@@ -51,15 +51,22 @@ export default function CourseDetailPageContent() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // courseId as a stable string ref so callbacks don't depend on the `course` object
+  const courseIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    courseIdRef.current = course?.id;
+  }, [course?.id]);
+
   /** Fetch notifications from both announcements & feedback replies */
   const fetchNotifications = useCallback(async () => {
-    if (!course) return;
+    const courseId = courseIdRef.current;
+    if (!courseId) return;
     try {
       const token = await getToken();
       if (!token) return;
 
       const [annRes, fbRes] = await Promise.all([
-        fetch(`/api/announcements?courseId=${course.id}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/announcements?courseId=${courseId}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`/api/feedback/reply`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
@@ -73,7 +80,7 @@ export default function CourseDetailPageContent() {
             message: a.message,
             createdAt: a.createdAt,
             read: a.read ?? false,
-            type: "announcement",
+            type: "announcement" as const,
             announcementId: a.id,
           }))
         : [];
@@ -85,28 +92,49 @@ export default function CourseDetailPageContent() {
           message: r.message,
           createdAt: r.createdAt,
           read: r.recipient?.read ?? false,
-          type: "feedback",
+          type: "feedback" as const,
           replyId: r.id,
         }))
       ) ?? [];
 
-      const merged = [...announcements, ...feedbackReplies].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const merged = [...announcements, ...feedbackReplies].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
 
       setNotifications(merged);
       setUnreadCount(merged.filter((n) => !n.read).length);
     } catch (err) {
       console.error("Error fetching notifications:", err);
     }
-  }, [course, getToken]);
+  // getToken is stable from Clerk; courseIdRef is a ref so safe to omit
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getToken]);
 
-  /** Auto-mark all notifications as read when announcements modal opens */
+  // Keep a ref to the latest notifications so markAllAsRead can read them
+  // without needing notifications in its dependency array (which would cause
+  // the modal-open effect to re-fire on every optimistic state update).
+  const notificationsRef = useRef<Notification[]>([]);
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
+
+  /** Mark every unread notification as read in the DB, then re-fetch to sync
+   *  the true server state into local state.  Using a post-mark re-fetch (rather
+   *  than a purely optimistic update) ensures the badge never gets "stuck" due
+   *  to a race between the PATCH and a concurrent GET. */
   const markAllAsRead = useCallback(async () => {
-    if (!course || notifications.length === 0) return;
+    const courseId = courseIdRef.current;
+    if (!courseId) return;
+
+    const unread = notificationsRef.current.filter((n) => !n.read);
+    if (!unread.length) return;
+
     const token = await getToken();
     if (!token) return;
 
-    const unread = notifications.filter((n) => !n.read);
-    if (!unread.length) return;
+    // Optimistic update immediately so the UI responds without waiting
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
 
     try {
       await Promise.all(
@@ -128,32 +156,26 @@ export default function CourseDetailPageContent() {
         })
       );
 
-      // Update local state & badge
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      setUnreadCount(0);
+      // Re-fetch from the server after all PATCHes are committed so local
+      // state reflects the true DB state (handles any edge-case failures too).
+      await fetchNotifications();
     } catch (err) {
       console.error("Error marking notifications as read:", err);
+      // On error, re-fetch to restore accurate state
+      await fetchNotifications();
     }
-  }, [course, notifications, getToken]);
+  // fetchNotifications and getToken are both stable; courseIdRef/notificationsRef are refs
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getToken, fetchNotifications]);
 
-  // Fetch notifications when course loads
+  // Fetch notifications once when the course loads
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    if (course?.id) fetchNotifications();
+  // Only re-run when the course ID actually changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [course?.id]);
 
-  // Refresh notifications when lecture changes
-  useEffect(() => {
-    fetchNotifications();
-  }, [selectedLecture?.id, fetchNotifications]);
-
-  // Refresh notifications when quiz is completed
-  useEffect(() => {
-    if (!showQuiz) {
-      fetchNotifications();
-    }
-  }, [showQuiz, fetchNotifications]);
-
-  // Mark as read automatically when modal opens
+  // Mark all as read the moment the announcements modal opens
   useEffect(() => {
     if (showAnnouncements) {
       markAllAsRead();

@@ -23,8 +23,8 @@ interface AnnouncementsProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   notifications: Notification[];
-  courseId?: string; // Add optional courseId prop
-  setNotifications?: (notifications: Notification[]) => void; // Add optional setter
+  courseId?: string;
+  setNotifications?: (notifications: Notification[]) => void;
 }
 
 export function Announcements({
@@ -34,12 +34,17 @@ export function Announcements({
   courseId,
   setNotifications,
 }: AnnouncementsProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // ScrollArea does not forward refs, so we attach the ref to an inner div
+  // that wraps the content and use it to reset the scroll position on open.
+  const innerRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom on new notifications
+  // Scroll to top every time the modal is opened so the user always sees
+  // the newest (topmost) notification first.
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [notifications]);
+    if (open && innerRef.current) {
+      innerRef.current.scrollTop = 0;
+    }
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -61,10 +66,9 @@ export function Announcements({
           </div>
         </DialogHeader>
 
-        <ScrollArea
-          className="h-[28rem] px-4 py-2 bg-gray-50/50 dark:bg-slate-950/30"
-          ref={scrollRef}
-        >
+        <ScrollArea className="h-[28rem] bg-gray-50/50 dark:bg-slate-950/30">
+          {/* Inner div receives the ref for programmatic scroll control */}
+          <div ref={innerRef} className="px-4 py-2 overflow-auto">
           <div className="flex flex-col space-y-4 py-2">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-center">
@@ -136,6 +140,7 @@ export function Announcements({
                 </div>
               ))
             )}
+          </div>
           </div>
         </ScrollArea>
       </DialogContent>
