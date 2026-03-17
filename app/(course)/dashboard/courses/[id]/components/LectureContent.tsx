@@ -39,6 +39,7 @@ interface Lecture {
   order: number;
   duration?: number;
   completed?: boolean;
+  studyTips?: string[];
 }
 
 interface LectureContentProps {
@@ -343,50 +344,35 @@ const handleMarkComplete = () => {
       )}
 
       {/* Study Tips */}
-      <Card className="relative shadow-lg border-none rounded-xl md:rounded-2xl overflow-hidden bg-card/70 backdrop-blur-md">
-        <CardContent className="relative p-4 md:p-6 space-y-4 md:space-y-5">
-          {/* Header */}
-          <div className="flex items-center gap-3">
-            <Lightbulb className="h-6 w-6 md:h-7 md:w-7 text-indigo-500 drop-shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
-            <h2 className="text-base md:text-lg lg:text-xl font-semibold tracking-tight text-foreground">
-              Study Tips
-            </h2>
-          </div>
-          {/* Tips List */}
-          <ul className="grid grid-cols-1 gap-3 md:gap-4 text-sm">
-            {[
-              {
-                id: "biotechnology-concepts",
-                icon: BookOpen,
-                text: "Summarize biotechnology concepts in your own words after each lecture.",
-              },
-              {
-                id: "molecular-pathways",
-                icon: FlaskConical,
-                text: "Practice with diagrams and flowcharts to remember molecular pathways.",
-              },
-              {
-                id: "practice-questions",
-                icon: ClipboardCheck,
-                text: "Solve past competitive exam questions regularly to test recall and timing.",
-              },
-              {
-                id: "study-blocks",
-                icon: Clock,
-                text: "Break study sessions into focused 45-minute blocks with short reviews.",
-              },
-            ].map((tip) => (
-              <li
-                key={tip.id}
-                className="p-3 md:p-4 rounded-lg border border-border bg-background/50 shadow-sm flex gap-3 hover:border-indigo-400/40 hover:shadow-indigo-500/20 hover:scale-[1.02] transition"
-              >
-                <tip.icon className="h-4 w-4 md:h-5 md:w-5 text-indigo-500 shrink-0 mt-0.5" />
-                <span className="text-muted-foreground text-xs md:text-sm">{tip.text}</span>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+      {lecture.studyTips && lecture.studyTips.length > 0 && (
+        <Card className="relative shadow-lg border-none rounded-xl md:rounded-2xl overflow-hidden bg-card/70 backdrop-blur-md">
+          <CardContent className="relative p-4 md:p-6 space-y-4 md:space-y-5">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <Lightbulb className="h-6 w-6 md:h-7 md:w-7 text-indigo-500 drop-shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+              <h2 className="text-base md:text-lg lg:text-xl font-semibold tracking-tight text-foreground">
+                Study Tips
+              </h2>
+            </div>
+            {/* Tips List */}
+            <ul className="grid grid-cols-1 gap-3 md:gap-4 text-sm">
+              {lecture.studyTips.map((tip, i) => {
+                const icons = [BookOpen, FlaskConical, ClipboardCheck, Clock];
+                const Icon = icons[i % icons.length];
+                return (
+                  <li
+                    key={i}
+                    className="p-3 md:p-4 rounded-lg border border-border bg-background/50 shadow-sm flex gap-3 hover:border-indigo-400/40 hover:shadow-indigo-500/20 hover:scale-[1.02] transition"
+                  >
+                    <Icon className="h-4 w-4 md:h-5 md:w-5 text-indigo-500 shrink-0 mt-0.5" />
+                    <span className="text-muted-foreground text-xs md:text-sm">{tip}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Completion Footer */}
       <div className="flex flex-col gap-3 md:gap-4 p-4 md:p-5 rounded-xl border bg-card/70 backdrop-blur shadow-sm">

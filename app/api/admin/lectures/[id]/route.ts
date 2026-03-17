@@ -26,7 +26,7 @@ export async function GET(req: Request, { params }: Params) {
 // ✏️ Update lecture
 export async function PUT(req: Request, { params }: Params) {
   try {
-    const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order } = await req.json();
+    const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order, studyTips } = await req.json();
 
     // Get the current lecture to check if order is changing
     const currentLecture = await prisma.lecture.findUnique({
@@ -86,7 +86,8 @@ export async function PUT(req: Request, { params }: Params) {
         youtubeEmbedUrl, 
         pdfUrl, 
         summary, 
-        order: finalOrder 
+        order: finalOrder,
+        studyTips: (studyTips ?? []) as any,
       },
     });
 

@@ -1,6 +1,6 @@
 // app/api/courses/[id]/contents/route.ts
 import { NextResponse } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 interface Params {
@@ -15,10 +15,32 @@ export async function GET(req: Request, { params }: Params) {
     }
 
     // Map Clerk user → DB user
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { clerkUserId },
       select: { id: true, role: true }
     });
+
+    // Auto-sync: webhook may have been missed (common in local dev)
+    if (!user) {
+      console.warn(`[contents] No DB user for clerkUserId ${clerkUserId} — attempting auto-sync`)
+      const clerkUser = await currentUser()
+      if (clerkUser) {
+        const email = clerkUser.emailAddresses[0]?.emailAddress ?? ''
+        const name = `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim() || null
+        const role = (clerkUser.publicMetadata?.role as 'ADMIN' | 'INSTRUCTOR' | 'STUDENT') || 'STUDENT'
+        await prisma.user.upsert({
+          where: { clerkUserId },
+          create: { clerkUserId, email, name, profileImageUrl: clerkUser.imageUrl, role },
+          update: { email, name, profileImageUrl: clerkUser.imageUrl },
+        })
+        console.log(`[contents] Auto-synced user ${email}`)
+        user = await prisma.user.findUnique({
+          where: { clerkUserId },
+          select: { id: true, role: true }
+        })
+      }
+    }
+
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -126,6 +148,7 @@ export async function GET(req: Request, { params }: Params) {
           youtubeEmbedUrl: l.youtubeEmbedUrl ?? "",
           pdfUrl: l.pdfUrl ?? "",
           order: l.order,
+          studyTips: ((l as any).studyTips as string[] | null) ?? [],
         })),
         hasQuiz: !!c.quiz,
         quizId: c.quiz?.id ?? null,

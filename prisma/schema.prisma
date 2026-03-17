@@ -227,6 +227,7 @@ model Lecture {
   pdfUrl          String?
   summary         String?
   order           Int
+  studyTips       Json?     // Array of tip strings
   contentId       String    @db.ObjectId
 
   content         Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)

@@ -645,6 +645,11 @@ export default function LectureTable({
 
       {/* Table */}
       <Card className="border shadow-sm overflow-hidden">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -667,54 +672,49 @@ export default function LectureTable({
                 </TableRow>
               ))}
             </TableHeader>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
+            <SortableContext
+              items={localLectures.map((l) => l.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <SortableContext
-                items={localLectures.map((l) => l.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <TableBody>
-                  {table.getRowModel().rows.length ? (
-                    table.getRowModel().rows.map((row) => (
-                      <SortableRow key={row.original.id} lecture={row.original}>
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell 
-                            key={cell.id} 
-                            className="text-center py-4 group-hover:bg-muted/10 transition-colors"
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
-                          </TableCell>
-                        ))}
-                      </SortableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="text-center py-12 text-muted-foreground"
-                      >
-                        <div className="flex flex-col items-center space-y-4">
-                          <Video className="h-16 w-16 opacity-30" />
-                          <div>
-                            <p className="font-medium">No lectures found</p>
-                            <p className="text-sm mt-1">
-                              {globalFilter ? 'Try adjusting your search query' : 'Create your first lecture to get started'}
-                            </p>
-                          </div>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-              </SortableContext>
-            </DndContext>
+              <TableBody>
+                {table.getRowModel().rows.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <SortableRow key={row.original.id} lecture={row.original}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell 
+                          key={cell.id} 
+                          className="text-center py-4 group-hover:bg-muted/10 transition-colors"
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </SortableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="text-center py-12 text-muted-foreground"
+                    >
+                      <div className="flex flex-col items-center space-y-4">
+                        <Video className="h-16 w-16 opacity-30" />
+                        <div>
+                          <p className="font-medium">No lectures found</p>
+                          <p className="text-sm mt-1">
+                            {globalFilter ? 'Try adjusting your search query' : 'Create your first lecture to get started'}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </SortableContext>
           </Table>
+        </DndContext>
       </Card>
 
       {/* Pagination */}

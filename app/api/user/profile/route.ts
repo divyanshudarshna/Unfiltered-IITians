@@ -1,6 +1,20 @@
 // app/api/user/profile/route.ts
 import { NextResponse } from 'next/server'
+import { currentUser } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+
+const PROFILE_INCLUDE = {
+  mockAttempts: {
+    include: {
+      mockTest: true,
+    },
+  },
+  enrollments: {
+    include: {
+      course: true,
+    },
+  },
+} as const
 
 export async function GET(req: Request) {
   try {
@@ -11,21 +25,33 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Missing user ID' }, { status: 400 })
     }
 
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { clerkUserId },
-      include: {
-        mockAttempts: {
-          include: {
-            mockTest: true,
-          },
-        },
-        enrollments: {
-          include: {
-            course: true,
-          },
-        },
-      },
+      include: PROFILE_INCLUDE,
     })
+
+    // Auto-sync: webhook may have been missed (common in local dev)
+    if (!user) {
+      console.warn(`[profile] No DB user for clerkUserId ${clerkUserId} — attempting auto-sync`)
+      const clerkUser = await currentUser()
+      if (clerkUser && clerkUser.id === clerkUserId) {
+        const email = clerkUser.emailAddresses[0]?.emailAddress ?? ''
+        const name = `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim() || null
+        const role = (clerkUser.publicMetadata?.role as 'ADMIN' | 'INSTRUCTOR' | 'STUDENT') || 'STUDENT'
+
+        await prisma.user.upsert({
+          where: { clerkUserId },
+          create: { clerkUserId, email, name, profileImageUrl: clerkUser.imageUrl, role },
+          update: { email, name, profileImageUrl: clerkUser.imageUrl },
+        })
+        console.log(`[profile] Auto-synced user ${email}`)
+
+        user = await prisma.user.findUnique({
+          where: { clerkUserId },
+          include: PROFILE_INCLUDE,
+        })
+      }
+    }
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })

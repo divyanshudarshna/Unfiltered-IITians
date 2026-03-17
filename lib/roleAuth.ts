@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server"
+import { auth, currentUser } from "@clerk/nextjs/server"
 import prisma from "@/lib/prisma"
 import { INSTRUCTOR_ALLOWED_API_PREFIXES, INSTRUCTOR_FORBIDDEN, ROLE } from "./roleConfig"
 import { NextResponse } from "next/server"
@@ -36,11 +36,24 @@ export async function getDbUserFromClerk() {
       return null
     }
     const dbUser = await prisma.user.findUnique({ where: { clerkUserId: userId } })
-    if (!dbUser) {
-      console.warn(`[roleAuth] No DB user found for Clerk userId: ${userId}`)
-      return null
-    }
-    return dbUser
+    if (dbUser) return dbUser
+
+    // No DB record found — webhook likely missed. Auto-upsert from Clerk profile.
+    console.warn(`[roleAuth] No DB user for Clerk userId: ${userId} — auto-syncing from Clerk`)
+    const clerkUser = await currentUser()
+    if (!clerkUser) return null
+
+    const email = clerkUser.emailAddresses[0]?.emailAddress ?? ""
+    const name = `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || null
+    const role = (clerkUser.publicMetadata?.role as 'ADMIN' | 'INSTRUCTOR' | 'STUDENT') || 'STUDENT'
+
+    const upserted = await prisma.user.upsert({
+      where: { clerkUserId: userId },
+      create: { clerkUserId: userId, email, name, profileImageUrl: clerkUser.imageUrl, role },
+      update: { email, name, profileImageUrl: clerkUser.imageUrl },
+    })
+    console.log(`[roleAuth] Auto-synced user ${email} with role ${upserted.role}`)
+    return upserted
   } catch (error) {
     console.error('[roleAuth] Error in getDbUserFromClerk:', error)
     return null

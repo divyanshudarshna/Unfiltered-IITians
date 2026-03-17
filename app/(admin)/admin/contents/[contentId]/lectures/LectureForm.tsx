@@ -14,7 +14,8 @@ import {
   Video, 
   Loader2, 
   Save,
-  X
+  X,
+  Plus,
 } from "lucide-react";
 
 // Text editor imports
@@ -41,6 +42,10 @@ export default function LectureForm({ contentId, lecture, onSuccess }: LectureFo
   const [videoUrl, setVideoUrl] = useState(lecture?.videoUrl || "");
   const [pdfUrl, setPdfUrl] = useState(lecture?.pdfUrl || "");
   const [order, setOrder] = useState(lecture?.order || 0);
+  const [studyTips, setStudyTips] = useState<string[]>(
+    Array.isArray(lecture?.studyTips) ? lecture.studyTips : []
+  );
+  const [newTip, setNewTip] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{video: number, pdf: number}>({
     video: 0,
@@ -169,6 +174,17 @@ export default function LectureForm({ contentId, lecture, onSuccess }: LectureFo
     toast.info(`${type.toUpperCase()} removed`);
   };
 
+  const addTip = () => {
+    const trimmed = newTip.trim();
+    if (!trimmed) return;
+    setStudyTips(prev => [...prev, trimmed]);
+    setNewTip("");
+  };
+
+  const removeTip = (index: number) => {
+    setStudyTips(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) {
       toast.error("Please enter a title for the lecture");
@@ -183,7 +199,8 @@ export default function LectureForm({ contentId, lecture, onSuccess }: LectureFo
         videoUrl,
         pdfUrl,
         summary: editor?.getHTML() || "",
-        order: order
+        order: order,
+        studyTips,
       };
 
       const url = lecture
@@ -407,30 +424,73 @@ export default function LectureForm({ contentId, lecture, onSuccess }: LectureFo
                 </p>
               )}
             </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Save button */}
-        <Button 
-          onClick={handleSubmit} 
-          disabled={saving || !title.trim()}
-          className="w-full"
-          size="lg"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              {lecture ? "Update Lecture" : "Create Lecture"}
-            </>
-          )}
-        </Button>
+          </CardContent>
+        </Card>
       </div>
 
+      {/* Study Tips */}
+      <div>
+        <Label className="mb-2 block">Study Tips</Label>
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            {studyTips.length > 0 && (
+              <ul className="space-y-2">
+                {studyTips.map((tip, i) => (
+                  <li key={i} className="flex items-start justify-between gap-2 bg-muted rounded-md px-3 py-2">
+                    <span className="text-sm flex-1">{tip}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 shrink-0"
+                      onClick={() => removeTip(i)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <Input
+                value={newTip}
+                onChange={(e) => setNewTip(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTip(); } }}
+                placeholder="Add a study tip..."
+                className="text-sm"
+              />
+              <Button type="button" variant="outline" size="sm" onClick={addTip} disabled={!newTip.trim()}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {studyTips.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No study tips added. Students won&apos;t see this section.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Save button */}
+      <Button
+        onClick={handleSubmit}
+        disabled={saving || !title.trim()}
+        className="w-full"
+        size="lg"
+      >
+        {saving ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Saving...
+          </>
+        ) : (
+          <>
+            <Save className="mr-2 h-4 w-4" />
+            {lecture ? "Update Lecture" : "Create Lecture"}
+          </>
+        )}
+      </Button>
+    </div>
   );
 }

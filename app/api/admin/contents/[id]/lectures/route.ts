@@ -9,7 +9,7 @@ interface Params {
 export async function POST(req: Request, { params }: Params) {
   try {
     const { id: contentId } = await params;
-    const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order } = await req.json();
+    const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order, studyTips } = await req.json();
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -61,6 +61,7 @@ export async function POST(req: Request, { params }: Params) {
         summary,
         order: finalOrder,
         contentId,
+        studyTips: (studyTips ?? []) as any,
       },
     });
 

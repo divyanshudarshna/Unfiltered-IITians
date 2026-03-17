@@ -20,7 +20,8 @@ import {
   Upload,
   FileUp,
   VideoIcon,
-
+  Plus,
+  Lightbulb,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -70,6 +71,8 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
   const [pdfUrl, setPdfUrl] = useState<string>("");
   const [order, setOrder] = useState<number | null>(null);
   const [maxOrder, setMaxOrder] = useState<number>(0);
+  const [studyTips, setStudyTips] = useState<string[]>([]);
+  const [newTip, setNewTip] = useState<string>("");
   const [saving, setSaving] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(action === "edit");
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
@@ -144,6 +147,7 @@ const [showPdfPreview, setShowPdfPreview] = useState(false);
           setYoutubeEmbedUrl(data.youtubeEmbedUrl || "");
           setPdfUrl(data.pdfUrl || "");
           setOrder(data.order);
+          setStudyTips(Array.isArray(data.studyTips) ? data.studyTips : []);
           if (editor && data.summary) {
             editor.commands.setContent(data.summary);
           }
@@ -278,6 +282,17 @@ console.log("PDF Preview URL:", pdfPreviewUrl);
     toast.info(`${type.toUpperCase()} removed`);
   };
 
+  const addTip = () => {
+    const trimmed = newTip.trim();
+    if (!trimmed) return;
+    setStudyTips(prev => [...prev, trimmed]);
+    setNewTip("");
+  };
+
+  const removeTip = (index: number) => {
+    setStudyTips(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) {
       toast.error("Please enter a title for the lecture");
@@ -293,7 +308,8 @@ console.log("PDF Preview URL:", pdfPreviewUrl);
         youtubeEmbedUrl,
         pdfUrl,
         summary: editor?.getHTML() || "",
-        order: order ?? undefined // Only send order if explicitly set
+        order: order ?? undefined,
+        studyTips,
       };
 
       const url = action === "edit" && lectureId
@@ -656,6 +672,63 @@ console.log("PDF Preview URL:", pdfPreviewUrl);
         </div>
       </CardContent>
     </Card>
+
+        {/* Study Tips */}
+        <Card className="border-border/40 bg-card/50 backdrop-blur-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Lightbulb className="h-5 w-5 text-yellow-500" />
+              Study Tips
+            </CardTitle>
+            <CardDescription>
+              Add tips that will appear on the student&apos;s lecture page. Leave empty to hide this section.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {studyTips.length > 0 && (
+              <ul className="space-y-2">
+                {studyTips.map((tip, i) => (
+                  <li key={i} className="flex items-start justify-between gap-2 bg-muted/40 border border-border/30 rounded-lg px-3 py-2">
+                    <span className="text-sm flex-1">{tip}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeTip(i)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <Input
+                value={newTip}
+                onChange={(e) => setNewTip(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTip(); } }}
+                placeholder="Type a study tip and press Enter or click +"
+                className="border-border/50 focus-visible:ring-primary"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addTip}
+                disabled={!newTip.trim()}
+                className="shrink-0"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {studyTips.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No tips added yet. Students won&apos;t see a Study Tips section for this lecture.
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Save button */}
         <Button 

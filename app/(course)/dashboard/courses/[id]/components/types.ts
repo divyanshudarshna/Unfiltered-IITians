@@ -8,6 +8,7 @@ export interface Lecture {
   order: number;
   duration?: number;
   completed?: boolean;
+  studyTips?: string[];
 }
 
 export interface Content {
