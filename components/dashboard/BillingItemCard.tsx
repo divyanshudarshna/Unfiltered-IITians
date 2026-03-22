@@ -284,7 +284,7 @@ export function BillingItemCard({ item }: BillingItemCardProps) {
       doc.setTextColor(107, 114, 128);
       doc.setFont("helvetica", "normal");
       doc.text("Thank you for your purchase!", pageWidth / 2, footerY + 7, { align: "center" });
-      doc.text("For support, contact: support@unfilteredIITians.com | Visit: www.unfilteredIITians.com", pageWidth / 2, footerY + 12, { align: "center" });
+      doc.text("For support, contact: support@divyanshudarshna.com | Visit: www.divyanshudarshna.com", pageWidth / 2, footerY + 12, { align: "center" });
       
       doc.setFontSize(7);
       doc.setTextColor(156, 163, 175);
