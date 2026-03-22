@@ -82,7 +82,7 @@ export default function DashboardClient({
             username={safeUser.firstName}
           />
 
-          <QuickActions />
+          <QuickActions username={safeUser.firstName} />
           <UpcomingSessions />
         </div>
 

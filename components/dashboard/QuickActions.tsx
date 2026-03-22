@@ -3,17 +3,20 @@ import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import Link from "next/link";
 
-const actions = [
-  { label: "My Courses", icon: "📘", href: "/dashboard/courses" },
-  { label: "Book Session", icon: "👨‍🏫", href: "/guidance" },
-  { label: "Resources", icon: "📂", href: "/resources" },
-  { label: "Mocks", icon: "🏆", href: "/mocks" },
-  { label: "Courses", icon: "🎓", href: "/courses" },
-  { label: "Faqs", icon: "❓", href: "/faqs" },
-];
+interface QuickActionsProps {
+  username?: string;
+}
 
+export function QuickActions({ username }: QuickActionsProps = {}) {
+  const actions = [
+    { label: "My Courses", icon: "📘", href: "/dashboard/courses" },
+    { label: "Book Session", icon: "👨‍🏫", href: "/guidance" },
+    { label: "Resources", icon: "📂", href: "/resources" },
+    { label: "Mocks", icon: "🏆", href: "/mocks" },
+    { label: "Courses", icon: "🎓", href: "/courses" },
+    { label: "Billings", icon: "💳", href: username ? `/${username}/dashboard/billings` : "/dashboard/billings" },
+  ];
 
-export function QuickActions() {
   return (
     <Card className="shadow-md">
       <CardHeader>
