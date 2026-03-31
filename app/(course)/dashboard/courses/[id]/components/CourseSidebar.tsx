@@ -37,8 +37,19 @@ import {
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { CertificateButton } from "@/components/certificate";
+import { CertificateData } from "@/types/certificate";
 
-// Types...
+// Types
+interface CourseSidebarProps {
+  course: any;
+  selectedLecture: any;
+  setSelectedLecture: (lecture: any) => void;
+  activeContent: string | null;
+  setActiveContent: (contentId: string) => void;
+  onStartQuiz: (contentId: string) => void;
+  isLoadingLecture: boolean;
+}
 
 export default function CourseSidebar({
   course,
@@ -48,9 +59,10 @@ export default function CourseSidebar({
   setActiveContent,
   onStartQuiz,
   isLoadingLecture,
-}: CourseSidebarProps & { isLoadingLecture: boolean }) {
+}: CourseSidebarProps) {
   const [user, setUser] = useState<any>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [existingCertificate, setExistingCertificate] = useState<CertificateData | null>(null);
 
   useEffect(() => {
     async function fetchUser() {
@@ -64,6 +76,38 @@ export default function CourseSidebar({
     }
     fetchUser();
   }, []);
+
+  // Fetch existing certificate if course is SKILLS type
+  useEffect(() => {
+    async function fetchCertificate() {
+      if (!course?.id || course?.courseType !== "SKILLS") return;
+      
+      try {
+        const res = await fetch(`/api/certificates/check?courseId=${course.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.certificate) {
+            setExistingCertificate({
+              id: data.certificate.id,
+              certificateId: data.certificate.certificateId,
+              studentName: data.certificate.studentName,
+              courseName: data.certificate.courseName,
+              courseType: course.courseType,
+              completionDate: data.certificate.completionDate,
+              issuedAt: data.certificate.issuedAt,
+              durationMonths: course.durationMonths || 1,
+              instructorName: "Divyanshu Darshna",
+              instructorDesignation: "Founder & Instructor",
+              companyName: "Unfiltered IITians",
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch certificate", err);
+      }
+    }
+    fetchCertificate();
+  }, [course?.id, course?.courseType, course?.durationMonths]);
 
   if (!course) return null;
 
@@ -373,6 +417,20 @@ export default function CourseSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      {/* Certificate Section - Only for SKILLS courses */}
+      {course.courseType === "SKILLS" && (
+        <div className="px-3 py-3 border-t">
+          <CertificateButton
+            courseId={course.id}
+            courseName={course.title}
+            courseType={course.courseType}
+            progress={progress}
+            durationMonths={course.durationMonths || 1}
+            existingCertificate={existingCertificate}
+          />
+        </div>
+      )}
 
       {/* FOOTER */}
       <SidebarFooter className="p-4 border-t bg-muted/40">

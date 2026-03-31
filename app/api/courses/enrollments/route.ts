@@ -81,6 +81,8 @@ export async function GET() {
         price: enroll.course.price,
         actualPrice: enroll.course.actualPrice,
         status: enroll.course.status,
+        courseType: enroll.course.courseType,
+        durationMonths: enroll.course.durationMonths,
         enrolledAt: enroll.enrolledAt,
         progress,
         totalContents: total,

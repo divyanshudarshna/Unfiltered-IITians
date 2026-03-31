@@ -31,6 +31,7 @@ import {
   Target,
   Calendar,
   BarChart3,
+  TrophyIcon,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,8 @@ type EnrollmentItem = {
   price: number;
   actualPrice: number;
   status: string;
+  courseType?: "COMPETITIVE" | "SKILLS" | "WORKSHOP";
+  durationMonths?: number;
   enrolledAt: string;
   progress: number; // original backend field (kept)
   totalContents: number;
@@ -407,6 +410,17 @@ export default function MyCoursesPage() {
                     </CardHeader>
 
                     <CardContent className="pb-3 my-3">
+                      {/* Certificate Badge - Show for completed SKILLS courses */}
+                      {course.courseType === "SKILLS" && course.progressFromLessons >= 100 && (
+                        <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                          <TrophyIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                            Certificate Available
+                          </span>
+                          <Award className="h-3.5 w-3.5 ml-auto text-amber-600 dark:text-amber-400" />
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between mb-2 text-xs text-slate-500 dark:text-slate-400">
                         <div className="flex items-center">
                           <Clock className="h-3.5 w-3.5 mr-1" />
@@ -587,6 +601,17 @@ export default function MyCoursesPage() {
                         <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-4">
                           {course.description || "No description available."}
                         </p>
+
+                        {/* Certificate Badge - Show for completed SKILLS courses */}
+                        {course.courseType === "SKILLS" && course.progressFromLessons >= 100 && (
+                          <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                            <TrophyIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                            <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                              Certificate Available
+                            </span>
+                            <Award className="h-3.5 w-3.5 ml-auto text-amber-600 dark:text-amber-400" />
+                          </div>
+                        )}
 
                         <div className="flex items-center justify-between mb-2 text-xs text-slate-500 dark:text-slate-400">
                           <div className="flex items-center">

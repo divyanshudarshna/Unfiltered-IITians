@@ -133,6 +133,8 @@ export async function GET(req: Request, { params }: Params) {
       id: course.id,
       title: course.title,
       description: course.description,
+      courseType: course.courseType,
+      durationMonths: course.durationMonths,
       isAdmin,
       enrollmentExpiresAt: enrollment?.expiresAt || null,
       subscriptionExpiresAt: subscription?.expiresAt || null,

@@ -6,6 +6,7 @@ export type EmailTemplate =
   | 'mock_purchase'
   | 'guidance_session'
   | 'subscription'
+  | 'certificate'
   | 'custom';
 
 export interface EmailData {

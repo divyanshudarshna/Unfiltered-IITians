@@ -23,6 +23,8 @@ interface Course {
   title: string;
   contents: CourseContent[];
   progress?: number;
+  courseType?: "COMPETITIVE" | "SKILLS" | "WORKSHOP";
+  durationMonths?: number;
   enrollmentExpiresAt?: Date | string | null;
   subscriptionExpiresAt?: Date | string | null;
 }

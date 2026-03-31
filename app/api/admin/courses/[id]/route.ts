@@ -51,11 +51,13 @@ export async function PUT(req: Request, { params }: Params) {
       actualPrice, 
       durationMonths, 
       status, 
+      courseType, // Course type for certificate eligibility
       order,
       inclusions // ✅ NEW: Handle inclusions in updates
     } = body;
 
     console.log("📋 Extracted inclusions:", inclusions);
+    console.log("📜 Course type:", courseType);
 
     // Validate required fields
     if (!title || title.trim().length === 0) {
@@ -78,6 +80,10 @@ export async function PUT(req: Request, { params }: Params) {
       console.warn(`Invalid status "${status}" provided, defaulting to DRAFT`);
     }
 
+    // ✅ Validate courseType - ensure it's a valid CourseType enum value
+    const validCourseTypes = ['COMPETITIVE', 'SKILLS', 'WORKSHOP'];
+    const validCourseType = courseType && validCourseTypes.includes(courseType) ? courseType : undefined;
+
     // Validate course exists first
     const existingCourse = await prisma.course.findUnique({
       where: { id: params.id }
@@ -99,7 +105,8 @@ export async function PUT(req: Request, { params }: Params) {
         price: Number(price), 
         actualPrice: actualPrice ? Number(actualPrice) : null, 
         durationMonths: Number(durationMonths), 
-        status: status && validStatuses.includes(status) ? status : 'DRAFT', 
+        status: status && validStatuses.includes(status) ? status : 'DRAFT',
+        courseType: validCourseType,
         order: order ? Number(order) : null 
       });
       
@@ -112,6 +119,7 @@ export async function PUT(req: Request, { params }: Params) {
           actualPrice: actualPrice ? Number(actualPrice) : null, 
           durationMonths: Number(durationMonths), 
           status: status && validStatuses.includes(status) ? status : 'DRAFT', // ✅ Use validated status
+          ...(validCourseType && { courseType: validCourseType }), // ✅ Only update if provided
           order: order ? Number(order) : undefined 
         },
       });

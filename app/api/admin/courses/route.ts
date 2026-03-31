@@ -15,6 +15,7 @@ export async function POST(req: Request) {
       actualPrice, 
       durationMonths, 
       status, 
+      courseType, // Course type for certificate eligibility
       order,
       inclusions // ✅ NEW: Array of inclusions { type, id }
     } = body;
@@ -22,6 +23,10 @@ export async function POST(req: Request) {
     if (!title || !price || !durationMonths) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    // Validate courseType
+    const validCourseTypes = ['COMPETITIVE', 'SKILLS', 'WORKSHOP'];
+    const validatedCourseType = courseType && validCourseTypes.includes(courseType) ? courseType : 'COMPETITIVE';
 
     // If order not provided, set to next available order
     let courseOrder = order;
@@ -44,6 +49,7 @@ export async function POST(req: Request) {
           actualPrice,
           durationMonths,
           status: status || "DRAFT",
+          courseType: validatedCourseType,
           order: courseOrder,
         },
       });

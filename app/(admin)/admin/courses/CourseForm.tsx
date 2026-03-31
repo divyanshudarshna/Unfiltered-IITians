@@ -40,6 +40,7 @@ interface Course {
   actualPrice?: number | null;
   durationMonths: number;
   status: PublishStatus;
+  courseType?: CourseType;
   order?: number;
   inclusions?: {
     id: string;
@@ -57,6 +58,12 @@ enum PublishStatus {
   DRAFT = "DRAFT",
   PUBLISHED = "PUBLISHED",
   ARCHIVED = "ARCHIVED",
+}
+
+enum CourseType {
+  COMPETITIVE = "COMPETITIVE",
+  SKILLS = "SKILLS",
+  WORKSHOP = "WORKSHOP",
 }
 
 // ✅ Interface for inclusion options
@@ -86,6 +93,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
     actualPrice: "",
     durationMonths: "",
     status: PublishStatus.DRAFT,
+    courseType: CourseType.COMPETITIVE,
     order: "",
   });
 
@@ -139,6 +147,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
         actualPrice: course.actualPrice?.toString() || "",
         durationMonths: course.durationMonths?.toString() || "",
         status: course.status || PublishStatus.DRAFT,
+        courseType: course.courseType || CourseType.COMPETITIVE,
         order: course.order?.toString() || "",
       });
 
@@ -168,6 +177,12 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
     const validStatuses = [PublishStatus.DRAFT, PublishStatus.PUBLISHED, PublishStatus.ARCHIVED];
     const statusValue = validStatuses.includes(value as PublishStatus) ? value as PublishStatus : PublishStatus.DRAFT;
     setForm({ ...form, status: statusValue });
+  };
+
+  const handleCourseTypeChange = (value: string) => {
+    const validTypes = [CourseType.COMPETITIVE, CourseType.SKILLS, CourseType.WORKSHOP];
+    const typeValue = validTypes.includes(value as CourseType) ? value as CourseType : CourseType.COMPETITIVE;
+    setForm({ ...form, courseType: typeValue });
   };
 
   // ✅ Handle inclusion selection
@@ -213,6 +228,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
         actualPrice: form.actualPrice ? Number(form.actualPrice) : null,
         durationMonths: form.durationMonths ? Number(form.durationMonths) : 1,
         status: form.status || PublishStatus.DRAFT, // ✅ Ensure status is never empty
+        courseType: form.courseType || CourseType.COMPETITIVE, // ✅ Course type for certificate eligibility
         order: form.order ? Number(form.order) : null,
         inclusions: inclusions,
       };
@@ -220,6 +236,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
       console.log("📝 Form submission data:", sanitizedData);
       console.log("📋 Inclusions being sent:", inclusions);
       console.log("🏷️ Status value:", form.status, "->", sanitizedData.status);
+      console.log("📜 Course type:", form.courseType, "->", sanitizedData.courseType);
       
       const res = await fetch(url, {
         method,
@@ -407,10 +424,10 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                 <div className="p-1.5 rounded-md bg-purple-100 dark:bg-purple-900/40">
                   <Calendar className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 </div>
-                <h3 className="text-lg font-semibold">Duration, Order & Status</h3>
+                <h3 className="text-lg font-semibold">Duration, Type & Status</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 <div className="space-y-3">
                   <Label htmlFor="durationMonths" className="text-sm font-medium flex items-center gap-1">
                     <span>Duration (months)</span>
@@ -444,7 +461,45 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                     className="focus-visible:ring-primary h-11 border-gray-300 dark:border-gray-600 dark:bg-gray-800/50"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Lower numbers appear first (leave empty for auto-order)
+                    Lower numbers appear first
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="courseType" className="text-sm font-medium flex items-center gap-1">
+                    <Sparkles className="h-4 w-4" />
+                    <span>Course Type</span>
+                  </Label>
+                  <Select 
+                    value={form.courseType || CourseType.COMPETITIVE} 
+                    onValueChange={handleCourseTypeChange}
+                  >
+                    <SelectTrigger className="focus:ring-primary h-11 border-gray-300 dark:border-gray-600 dark:bg-gray-800/50">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                      <SelectItem value={CourseType.COMPETITIVE}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                          <span>Competitive</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value={CourseType.SKILLS}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                          <span>Skills</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value={CourseType.WORKSHOP}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                          <span>Workshop</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Skills courses offer certificates
                   </p>
                 </div>
 

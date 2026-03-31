@@ -26,6 +26,13 @@ enum PublishStatus {
   ARCHIVED
 }
 
+// Course type enum for certificate eligibility
+enum CourseType {
+  COMPETITIVE // Default - JEE/NEET preparation courses
+  SKILLS // Skill-based courses (eligible for certificate)
+  WORKSHOP // Workshop courses
+}
+
 enum ContactStatus {
   PENDING
   RESOLVED
@@ -33,127 +40,127 @@ enum ContactStatus {
 }
 
 enum ConversationType {
-  NEW_INQUIRY      // User starts a new conversation
-  ADMIN_REPLY      // Admin replies to user
-  USER_REPLY       // User replies to admin's response
+  NEW_INQUIRY // User starts a new conversation
+  ADMIN_REPLY // Admin replies to user
+  USER_REPLY // User replies to admin's response
 }
 
 // ================== USER ==================
 model User {
-  id               String         @id @default(auto()) @map("_id") @db.ObjectId
-  clerkUserId      String         @unique
-  email            String         @unique
-  name             String?
-  role             Role           @default(STUDENT)
-  password         String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  clerkUserId String   @unique
+  email       String   @unique
+  name        String?
+  role        Role     @default(STUDENT)
+  password    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Profile
-  profileImageUrl  String?
-  phoneNumber      String?
-  dob              DateTime?
-  fieldOfStudy     String?
+  profileImageUrl String?
+  phoneNumber     String?
+  dob             DateTime?
+  fieldOfStudy    String?
 
   // Subscription
-  isSubscribed     Boolean        @default(false)
-  subscriptionKey  String?
+  isSubscribed    Boolean @default(false)
+  subscriptionKey String?
 
   // Relations
-  mockAttempts     MockAttempt[]
-  enrollments      Enrollment[]
-  subscriptions    Subscription[]
-  courseProgress   CourseProgress[]
+  mockAttempts   MockAttempt[]
+  enrollments    Enrollment[]
+  subscriptions  Subscription[]
+  courseProgress CourseProgress[]
 
-   // Added relations for announcements & feedback
+  // Added relations for announcements & feedback
   announcementsReceived AnnouncementRecipient[]
   feedbacks             CourseFeedback[]
 
-
-  feedbackReplies    FeedbackReply[] // add this
+  feedbackReplies FeedbackReply[] // add this
 
   receivedFeedbackReplies FeedbackReplyRecipient[] // replies received by this student
   //need to add the relation for the sessions enrollments
-  sessionEnrollments SessionEnrollment[]
-  couponUsages       CouponUsage[]         // Track coupon usages by this user
-  generalCouponUsages GeneralCouponUsage[] @relation("GeneralCouponUsages") // Track general coupon usages
+  sessionEnrollments      SessionEnrollment[]
+  couponUsages            CouponUsage[] // Track coupon usages by this user
+  generalCouponUsages     GeneralCouponUsage[]     @relation("GeneralCouponUsages") // Track general coupon usages
+  certificates            Certificate[] // Certificates earned by this user
 }
 
 // ================== MOCKS ==================
 model MockTest {
-  id             String           @id @default(auto()) @map("_id") @db.ObjectId
-  title          String
-  description    String?
-  price          Int              @default(0)
-  actualPrice    Int?
-  duration       Int?
-  questions      Json
-  tags           String[]         @default([])
-  difficulty     DifficultyLevel  @default(EASY)
-  status         PublishStatus    @default(DRAFT)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  price       Int             @default(0)
+  actualPrice Int?
+  duration    Int?
+  questions   Json
+  tags        String[]        @default([])
+  difficulty  DifficultyLevel @default(EASY)
+  status      PublishStatus   @default(DRAFT)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
-  attempts       MockAttempt[]
-  subscriptions  Subscription[]
+  attempts      MockAttempt[]
+  subscriptions Subscription[]
 }
 
 model MockAttempt {
-  id             String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId         String    @db.ObjectId
-  mockTestId     String    @db.ObjectId
-  answers        Json      @default("[]")
-  score          Int?      @default(0)
-  correctCount   Int?      @default(0)
-  incorrectCount Int?      @default(0)
-  unansweredCount Int?     @default(0)
-  totalQuestions Int?      @default(0)
-  percentage     Int?      @default(0)
-  startedAt      DateTime  @default(now())
-  submittedAt    DateTime?
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @db.ObjectId
+  mockTestId      String    @db.ObjectId
+  answers         Json      @default("[]")
+  score           Int?      @default(0)
+  correctCount    Int?      @default(0)
+  incorrectCount  Int?      @default(0)
+  unansweredCount Int?      @default(0)
+  totalQuestions  Int?      @default(0)
+  percentage      Int?      @default(0)
+  startedAt       DateTime  @default(now())
+  submittedAt     DateTime?
 
-  user           User      @relation(fields: [userId], references: [id])
-  mockTest       MockTest  @relation(fields: [mockTestId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+  mockTest MockTest @relation(fields: [mockTestId], references: [id])
 }
 
 model Subscription {
-  id              String      @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String      @db.ObjectId
-  mockTestId      String?     @db.ObjectId
-  courseId        String?     @db.ObjectId
-  mockBundleId    String?     @db.ObjectId   // ✅ Bundle subscription support
-  razorpayOrderId String
-  razorpayPaymentId String?   // ✅ NEW: Store Razorpay payment ID
-  paid            Boolean     @default(false)
-  actualAmountPaid Int?       // ✅ NEW: Store actual amount paid (in paise)
-  originalPrice   Int?        // ✅ NEW: Store original price for reference
-  discountApplied Int?        // ✅ NEW: Store discount amount
-  couponCode      String?     // ✅ NEW: Store coupon code used
-  expiresAt       DateTime?   // Subscription expiry date
-  paidAt          DateTime?   // ✅ NEW: When payment was completed
-  createdAt       DateTime    @default(now())
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String    @db.ObjectId
+  mockTestId        String?   @db.ObjectId
+  courseId          String?   @db.ObjectId
+  mockBundleId      String?   @db.ObjectId // ✅ Bundle subscription support
+  razorpayOrderId   String
+  razorpayPaymentId String? // ✅ NEW: Store Razorpay payment ID
+  paid              Boolean   @default(false)
+  actualAmountPaid  Int? // ✅ NEW: Store actual amount paid (in paise)
+  originalPrice     Int? // ✅ NEW: Store original price for reference
+  discountApplied   Int? // ✅ NEW: Store discount amount
+  couponCode        String? // ✅ NEW: Store coupon code used
+  expiresAt         DateTime? // Subscription expiry date
+  paidAt            DateTime? // ✅ NEW: When payment was completed
+  createdAt         DateTime  @default(now())
 
   // Relations
-  user       User        @relation(fields: [userId], references: [id])
-  mockTest   MockTest?   @relation(fields: [mockTestId], references: [id])
-  course     Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  mockBundle MockBundle? @relation(fields: [mockBundleId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  mockTest    MockTest?    @relation(fields: [mockTestId], references: [id])
+  course      Course?      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  mockBundle  MockBundle?  @relation(fields: [mockBundleId], references: [id])
   couponUsage CouponUsage? // Track if this subscription used a coupon
 }
 
-
 // ================== COURSES ==================
 model Course {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
   title          String
   description    String?
   price          Int
   actualPrice    Int?
   durationMonths Int
-  order          Int          @default(0) // ✅ NEW: Order field for course display sequence
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  order          Int           @default(0) // ✅ NEW: Order field for course display sequence
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   status         PublishStatus @default(DRAFT)
+  courseType     CourseType    @default(COMPETITIVE) // Course type for certificate eligibility
 
   enrollments    Enrollment[]
   contents       Content[]
@@ -163,116 +170,117 @@ model Course {
   announcements  CourseAnnouncement[]
   feedbacks      CourseFeedback[]
   details        CourseDetail[]
-  
+  certificates   Certificate[]
+
   // ✅ NEW: Course inclusions for bundling
-  inclusions     CourseInclusion[]
+  inclusions CourseInclusion[]
 }
 
 model Enrollment {
-  id         String     @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String     @db.ObjectId
-  courseId   String     @db.ObjectId
-  enrolledAt DateTime   @default(now())
-  expiresAt  DateTime?  // Course access expiry date
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String    @db.ObjectId
+  courseId   String    @db.ObjectId
+  enrolledAt DateTime  @default(now())
+  expiresAt  DateTime? // Course access expiry date
 
-  user       User       @relation(fields: [userId], references: [id])
-  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 }
 
 model Coupon {
-  id          String        @id @default(auto()) @map("_id") @db.ObjectId
-  code        String        @unique
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  code        String   @unique
   discountPct Int
   validTill   DateTime
-  courseId    String        @db.ObjectId
-  usageCount  Int           @default(0) // Track total usage count
-  isPublic    Boolean       @default(false) // Whether coupon is visible on frontend
+  courseId    String   @db.ObjectId
+  usageCount  Int      @default(0) // Track total usage count
+  isPublic    Boolean  @default(false) // Whether coupon is visible on frontend
 
-  course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  usages      CouponUsage[] // Relation to individual usages
+  course Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  usages CouponUsage[] // Relation to individual usages
 }
 
 // New model to track individual coupon usages
 model CouponUsage {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  couponId        String   @db.ObjectId
-  userId          String   @db.ObjectId
-  subscriptionId  String   @unique @db.ObjectId // Make unique for one-to-one relation
-  discountAmount  Float    // Amount discounted in this usage
-  usedAt          DateTime @default(now())
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  couponId       String   @db.ObjectId
+  userId         String   @db.ObjectId
+  subscriptionId String   @unique @db.ObjectId // Make unique for one-to-one relation
+  discountAmount Float // Amount discounted in this usage
+  usedAt         DateTime @default(now())
 
-  coupon         Coupon       @relation(fields: [couponId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  coupon       Coupon       @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }
 
 model Content {
-  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
   order       Int
-  courseId    String     @db.ObjectId
+  courseId    String  @db.ObjectId
 
-  course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lectures    Lecture[]
-  quiz        Quiz?      @relation("ContentQuiz")
+  course         Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lectures       Lecture[]
+  quiz           Quiz?            @relation("ContentQuiz")
   courseProgress CourseProgress[]
 }
 
 model Lecture {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
   title           String
-  videoUrl        String?   // Cloudinary video URL
-  youtubeEmbedUrl String?   // YouTube embed URL (optional)
+  videoUrl        String? // Cloudinary video URL
+  youtubeEmbedUrl String? // YouTube embed URL (optional)
   pdfUrl          String?
   summary         String?
   order           Int
-  studyTips       Json?     // Array of tip strings
-  contentId       String    @db.ObjectId
+  studyTips       Json? // Array of tip strings
+  contentId       String  @db.ObjectId
 
-  content         Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
 }
 
 model Quiz {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  contentId   String    @unique @db.ObjectId
-  questions   Json
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  contentId String @unique @db.ObjectId
+  questions Json
 
-  content     Content   @relation("ContentQuiz", fields: [contentId], references: [id], onDelete: Cascade)
+  content Content @relation("ContentQuiz", fields: [contentId], references: [id], onDelete: Cascade)
 }
 
 // ================== COURSE PROGRESS ==================
 model CourseProgress {
-  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId              String   @db.ObjectId
-  courseId            String   @db.ObjectId
-  contentId           String   @db.ObjectId
-  completed           Boolean  @default(false)
-  progress            Int      @default(0)
-  quizScore           Int?
-  totalQuizQuestions  Int?
-  attemptedQuestions  Json?
-  lastAccessed        DateTime @default(now())
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @default(now())
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String   @db.ObjectId
+  courseId           String   @db.ObjectId
+  contentId          String   @db.ObjectId
+  completed          Boolean  @default(false)
+  progress           Int      @default(0)
+  quizScore          Int?
+  totalQuizQuestions Int?
+  attemptedQuestions Json?
+  lastAccessed       DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @default(now())
 
-  user                User     @relation(fields: [userId], references: [id])
-  course              Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  content             Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId, contentId])
 }
 
 // ================== TESTIMONIALS & CONTACT ==================
 model Testimonial {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  role        String
-  content     String
-  image       String?
-  rating      Float     @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  role      String
+  content   String
+  image     String?
+  rating    Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model StudentSuccessStory {
@@ -280,35 +288,35 @@ model StudentSuccessStory {
   name      String
   role      String
   content   String
-  image     String?   // Cloudinary image URL
-  rating    Float     @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  image     String? // Cloudinary image URL
+  rating    Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ContactUs {
-  id               String              @id @default(auto()) @map("_id") @db.ObjectId
-  name             String
-  email            String
-  subject          String
-  message          String
-  status           ContactStatus       @default(PENDING)
-  
+  id      String        @id @default(auto()) @map("_id") @db.ObjectId
+  name    String
+  email   String
+  subject String
+  message String
+  status  ContactStatus @default(PENDING)
+
   // Thread management
-  threadId         String?             // Groups related messages together
-  parentId         String?             @db.ObjectId  // Reference to parent message
-  conversationType ConversationType    @default(NEW_INQUIRY)
-  
+  threadId         String? // Groups related messages together
+  parentId         String?          @db.ObjectId // Reference to parent message
+  conversationType ConversationType @default(NEW_INQUIRY)
+
   // Rate limiting
-  dailyMessageCount Int                @default(0)
+  dailyMessageCount Int       @default(0)
   lastMessageDate   DateTime?
-  
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Self-referential relation for threading
-  parent           ContactUs?          @relation("ContactThread", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  replies          ContactUs[]         @relation("ContactThread")
+  parent  ContactUs?  @relation("ContactThread", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies ContactUs[] @relation("ContactThread")
 }
 
 // ================== FAQ ==================
@@ -316,42 +324,41 @@ model FAQ {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   question  String
   answer    String
-  category  String?   // free text
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  visible   Boolean   @default(true)
+  category  String? // free text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  visible   Boolean  @default(true)
 }
 
 // ================== ANNOUNCEMENTS ==================
 model CourseAnnouncement {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  courseId    String    @db.ObjectId
-  title       String
-  message     String
-  sendEmail   Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  courseId  String   @db.ObjectId
+  title     String
+  message   String
+  sendEmail Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
 
-  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  recipients  AnnouncementRecipient[]
+  course     Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  recipients AnnouncementRecipient[]
 
   @@index([courseId, createdAt(sort: Desc)])
 }
 
 model AnnouncementRecipient {
-  id             String             @id @default(auto()) @map("_id") @db.ObjectId
-  announcementId String             @db.ObjectId
-  userId         String             @db.ObjectId
-  read           Boolean            @default(false)
-  deliveredEmail Boolean            @default(false)
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  announcementId String    @db.ObjectId
+  userId         String    @db.ObjectId
+  read           Boolean   @default(false)
+  deliveredEmail Boolean   @default(false)
   readAt         DateTime?
 
-  announcement   CourseAnnouncement @relation(fields: [announcementId], references: [id])
-  user           User               @relation(fields: [userId], references: [id])
+  announcement CourseAnnouncement @relation(fields: [announcementId], references: [id])
+  user         User               @relation(fields: [userId], references: [id])
 
   @@unique([announcementId, userId], name: "announcementId_userId")
 }
-
 
 // ================== FEEDBACK ==================
 enum FeedbackStatus {
@@ -361,71 +368,68 @@ enum FeedbackStatus {
 }
 
 model CourseFeedback {
-  id         String        @id @default(auto()) @map("_id") @db.ObjectId
-  courseId   String        @db.ObjectId
-  userId     String        @db.ObjectId
-  content    String
-  status     FeedbackStatus @default(PENDING)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @default(now())
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  courseId  String         @db.ObjectId
+  userId    String         @db.ObjectId
+  content   String
+  status    FeedbackStatus @default(PENDING)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @default(now())
 
-  course     Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user       User          @relation(fields: [userId], references: [id])
-  replies    FeedbackReply[] // Relation to admin replies
+  course  Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id])
+  replies FeedbackReply[] // Relation to admin replies
 }
 
 model FeedbackReply {
-  id          String                   @id @default(auto()) @map("_id") @db.ObjectId
-  feedbackId  String                   @db.ObjectId
-  adminId     String                   @db.ObjectId
-  message     String
-  createdAt   DateTime                 @default(now())
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  feedbackId String   @db.ObjectId
+  adminId    String   @db.ObjectId
+  message    String
+  createdAt  DateTime @default(now())
 
-  feedback    CourseFeedback           @relation(fields: [feedbackId], references: [id])
-  admin       User                     @relation(fields: [adminId], references: [id])
-  
-  recipients  FeedbackReplyRecipient[] // back-relation to track who received/read this reply
+  feedback CourseFeedback @relation(fields: [feedbackId], references: [id])
+  admin    User           @relation(fields: [adminId], references: [id])
+
+  recipients FeedbackReplyRecipient[] // back-relation to track who received/read this reply
 }
 
-
 model FeedbackReplyRecipient {
-  id        String        @id @default(auto()) @map("_id") @db.ObjectId
-  replyId   String        @db.ObjectId
-  userId    String        @db.ObjectId
-  read      Boolean       @default(false)
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  replyId   String    @db.ObjectId
+  userId    String    @db.ObjectId
+  read      Boolean   @default(false)
   readAt    DateTime?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @default(now()) @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
 
-  reply     FeedbackReply @relation(fields: [replyId], references: [id])
-  user      User          @relation(fields: [userId], references: [id])
+  reply FeedbackReply @relation(fields: [replyId], references: [id])
+  user  User          @relation(fields: [userId], references: [id])
 
   @@unique([replyId, userId], name: "replyId_userId")
 }
 
-
 // prisma/schema.prisma
 
 model YoutubeCategory {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String   @unique
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  name      String         @unique
   desc      String?
   videos    YoutubeVideo[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 }
 
 model YoutubeVideo {
   id          String          @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
-  link        String          // YouTube iframe embed link
+  link        String // YouTube iframe embed link
   categoryId  String          @db.ObjectId
   category    YoutubeCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 }
-
 
 model MaterialCategory {
   id        String     @id @default(auto()) @map("_id") @db.ObjectId
@@ -437,40 +441,37 @@ model MaterialCategory {
 }
 
 model Material {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  title      String
-  slug       String?  @unique
-  content    String?  // HTML content from text editor
-  pdfUrl     String?  // URL to uploaded PDF (optional)
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  slug        String?          @unique
+  content     String? // HTML content from text editor
+  pdfUrl      String? // URL to uploaded PDF (optional)
   youtubeLink String? // optional youtube (embed or watch)
-  tags       String[] // array of tags (can be empty)
-  order      Int?     // ordering within a category
-  published  Boolean  @default(true)
-  subjectId  String   @db.ObjectId
-  subject    MaterialCategory @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  tags        String[] // array of tags (can be empty)
+  order       Int? // ordering within a category
+  published   Boolean          @default(true)
+  subjectId   String           @db.ObjectId
+  subject     MaterialCategory @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
-
-
 
 model MockBundle {
   id              String        @id @default(auto()) @map("_id") @db.ObjectId
   title           String
   description     String?
-  mockIds         String[]      // ✅ Still stores mockTest IDs inside bundle
+  mockIds         String[] // ✅ Still stores mockTest IDs inside bundle
   basePrice       Int
   discountedPrice Int?
   status          PublishStatus @default(DRAFT)
-  order          Int           @default(0) // ✅ NEW: Order field for bundle display sequence
+  order           Int           @default(0) // ✅ NEW: Order field for bundle display sequence
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @default(now()) @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   // ✅ New relation to subscriptions
-  subscriptions   Subscription[]
+  subscriptions Subscription[]
 }
-
 
 // Add these enums to your existing enums section
 enum SessionType {
@@ -493,47 +494,47 @@ enum PaymentStatus {
 
 // Add these models to your existing schema
 model Session {
-  id                  String         @id @default(auto()) @map("_id") @db.ObjectId
-  title               String
-  description         String?
-  content             String?        // HTML content from text editor
-  tags                String[]
-  status              SessionStatus  @default(DRAFT)
-  price               Float          @default(0)
-  discountedPrice     Float?
-  maxEnrollment       Int?           // null means unlimited
-  type                SessionType
-  duration            Int            // in minutes
-  expiryDate          DateTime?
-  order               Int            @default(0) // ✅ NEW: Order field for session display sequence
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String?
+  content         String? // HTML content from text editor
+  tags            String[]
+  status          SessionStatus @default(DRAFT)
+  price           Float         @default(0)
+  discountedPrice Float?
+  maxEnrollment   Int? // null means unlimited
+  type            SessionType
+  duration        Int // in minutes
+  expiryDate      DateTime?
+  order           Int           @default(0) // ✅ NEW: Order field for session display sequence
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   // Relations
-  enrollments         SessionEnrollment[]
+  enrollments SessionEnrollment[]
 
   @@index([status])
   @@index([expiryDate])
 }
 
 model SessionEnrollment {
-  id                  String         @id @default(auto()) @map("_id") @db.ObjectId
-  sessionId           String         @db.ObjectId
-  userId              String         @db.ObjectId
-  studentName         String         // Auto-filled from user table
-  studentEmail        String         // Auto-filled from user table
-  studentPhone        String         // Manually entered by user
-  razorpayOrderId     String?
-  razorpayPaymentId   String?
-  paymentStatus       PaymentStatus  @default(PENDING)
-  amountPaid          Float?         // Actual amount paid by user (discounted or original)
-  couponCode          String?        // Coupon code used for this enrollment
-  enrolledAt          DateTime       @default(now())
-  completedAt         DateTime?
+  id                String        @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId         String        @db.ObjectId
+  userId            String        @db.ObjectId
+  studentName       String // Auto-filled from user table
+  studentEmail      String // Auto-filled from user table
+  studentPhone      String // Manually entered by user
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  paymentStatus     PaymentStatus @default(PENDING)
+  amountPaid        Float? // Actual amount paid by user (discounted or original)
+  couponCode        String? // Coupon code used for this enrollment
+  enrolledAt        DateTime      @default(now())
+  completedAt       DateTime?
 
   // Relations
-  session             Session        @relation(fields: [sessionId], references: [id])
-  user                User           @relation(fields: [userId], references: [id])
+  session Session @relation(fields: [sessionId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
 
   @@unique([sessionId, userId])
   @@index([userId])
@@ -543,28 +544,28 @@ model SessionEnrollment {
 }
 
 model CourseDetail {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String
 
-  courseId    String   @db.ObjectId
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String @db.ObjectId
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SettingsUpload {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  title       String   // Human readable title to recognize the file
-  url         String   // Cloudinary URL
-  fileType    String   // auto-detected: image, video, pdf, etc.
-  purpose     String   // Usage purpose: logo, banner, course-material, etc.
-  fileName    String   // Original file name
-  publicId    String   // Cloudinary public ID for deletion
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  title    String // Human readable title to recognize the file
+  url      String // Cloudinary URL
+  fileType String // auto-detected: image, video, pdf, etc.
+  purpose  String // Usage purpose: logo, banner, course-material, etc.
+  fileName String // Original file name
+  publicId String // Cloudinary public ID for deletion
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("settings_uploads")
 }
@@ -601,68 +602,68 @@ enum InclusionType {
 }
 
 model GeneralCoupon {
-  id              String           @id @default(auto()) @map("_id") @db.ObjectId
-  code            String           @unique
-  name            String?          // Optional display name for the coupon
-  description     String?          // Optional description
-  
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  code        String  @unique
+  name        String? // Optional display name for the coupon
+  description String? // Optional description
+
   // Discount Configuration
-  discountType    DiscountType     @default(PERCENTAGE)
-  discountValue   Float            // Percentage (0-100) or fixed amount
-  maxDiscountAmt  Float?           // Maximum discount amount (for percentage coupons)
-  minOrderValue   Float?           // Minimum order value to apply coupon
-  
+  discountType   DiscountType @default(PERCENTAGE)
+  discountValue  Float // Percentage (0-100) or fixed amount
+  maxDiscountAmt Float? // Maximum discount amount (for percentage coupons)
+  minOrderValue  Float? // Minimum order value to apply coupon
+
   // Usage Configuration
-  usageLimit      Int?             // Total usage limit (null = unlimited)
-  usageCount      Int              @default(0) // Current usage count
-  userLimit       Int?             // Per-user usage limit (null = unlimited)
-  
+  usageLimit Int? // Total usage limit (null = unlimited)
+  usageCount Int  @default(0) // Current usage count
+  userLimit  Int? // Per-user usage limit (null = unlimited)
+
   // Product Configuration
-  productType     ProductType      // Type of product this coupon applies to
-  productIds      String[]         // Array of specific product IDs (empty = all products of type)
-  
+  productType ProductType // Type of product this coupon applies to
+  productIds  String[] // Array of specific product IDs (empty = all products of type)
+
   // Validity
-  validFrom       DateTime         @default(now())
-  validTill       DateTime
-  isActive        Boolean          @default(true)
-  
+  validFrom DateTime @default(now())
+  validTill DateTime
+  isActive  Boolean  @default(true)
+
   // Metadata
-  createdBy       String?          @db.ObjectId // Admin who created this coupon
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
+  createdBy String?  @db.ObjectId // Admin who created this coupon
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  usages          GeneralCouponUsage[]
-  
+  usages GeneralCouponUsage[]
+
   @@index([productType])
   @@index([validTill])
   @@index([isActive])
 }
 
 model GeneralCouponUsage {
-  id              String         @id @default(auto()) @map("_id") @db.ObjectId
-  couponId        String         @db.ObjectId
-  userId          String         @db.ObjectId
-  
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  couponId String @db.ObjectId
+  userId   String @db.ObjectId
+
   // Order Details
-  orderId         String?        // Reference to order/subscription/purchase
-  productType     ProductType    // Type of product purchased
-  productId       String?        // ID of specific product purchased
-  
+  orderId     String? // Reference to order/subscription/purchase
+  productType ProductType // Type of product purchased
+  productId   String? // ID of specific product purchased
+
   // Discount Applied
-  originalAmount  Float          // Original price before discount
-  discountAmount  Float          // Amount discounted
-  finalAmount     Float          // Final amount paid
-  
+  originalAmount Float // Original price before discount
+  discountAmount Float // Amount discounted
+  finalAmount    Float // Final amount paid
+
   // Usage Details
-  usedAt          DateTime       @default(now())
-  ipAddress       String?        // For fraud detection
-  userAgent       String?        // For fraud detection
-  
+  usedAt    DateTime @default(now())
+  ipAddress String? // For fraud detection
+  userAgent String? // For fraud detection
+
   // Relations
-  coupon          GeneralCoupon  @relation(fields: [couponId], references: [id], onDelete: Cascade)
-  user            User           @relation("GeneralCouponUsages", fields: [userId], references: [id], onDelete: Cascade)
-  
+  coupon GeneralCoupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user   User          @relation("GeneralCouponUsages", fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([couponId])
   @@index([userId])
   @@index([usedAt])
@@ -672,17 +673,17 @@ model GeneralCouponUsage {
 // ================== COURSE INCLUSIONS ==================
 // ✅ NEW: Model to handle course bundling with mocks, mock bundles, and sessions
 model CourseInclusion {
-  id              String        @id @default(auto()) @map("_id") @db.ObjectId
-  courseId        String        @db.ObjectId
-  inclusionType   InclusionType // MOCK_TEST, MOCK_BUNDLE, or SESSION
-  inclusionId     String        @db.ObjectId // ID of the included item (mock, bundle, or session)
-  
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  courseId      String        @db.ObjectId
+  inclusionType InclusionType // MOCK_TEST, MOCK_BUNDLE, or SESSION
+  inclusionId   String        @db.ObjectId // ID of the included item (mock, bundle, or session)
+
   // Optional metadata
-  addedAt         DateTime      @default(now())
-  
+  addedAt DateTime @default(now())
+
   // Relations
-  course          Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
   // Ensure no duplicate inclusions for the same course
   @@unique([courseId, inclusionType, inclusionId])
   @@index([courseId])
@@ -691,17 +692,37 @@ model CourseInclusion {
 
 // ================== EMAIL LOGS ==================
 model EmailLog {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  subject         String
-  body            String   // HTML or plain text body
-  recipients      String[] // Array of email addresses
-  recipientCount  Int      // Number of recipients
-  sentBy          String?  // Admin user who sent the email
-  source          String?  // e.g., "newsletter", "course-enrollments", "users"
-  metadata        Json?    // Additional data like template used, filters applied, etc.
-  sentAt          DateTime @default(now())
-  
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  subject        String
+  body           String // HTML or plain text body
+  recipients     String[] // Array of email addresses
+  recipientCount Int // Number of recipients
+  sentBy         String? // Admin user who sent the email
+  source         String? // e.g., "newsletter", "course-enrollments", "users"
+  metadata       Json? // Additional data like template used, filters applied, etc.
+  sentAt         DateTime @default(now())
+
   @@index([sentAt])
   @@index([source])
   @@index([sentBy])
+}
+
+// ================== CERTIFICATES ==================
+model Certificate {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String    @db.ObjectId
+  courseId       String    @db.ObjectId
+  certificateId  String    @unique // Unique certificate number for verification
+  studentName    String // Student name at time of issue
+  courseName     String // Course name at time of issue
+  completionDate DateTime  @default(now())
+  issuedAt       DateTime  @default(now())
+  emailSentAt    DateTime? // When certificate email was sent
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
 }
