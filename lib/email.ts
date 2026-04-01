@@ -1,22 +1,36 @@
 import nodemailer from 'nodemailer';
 import prisma from './prisma';
 
+let cachedTransporter: nodemailer.Transporter | null = null;
+
 // Email configuration
 const createTransporter = () => {
+  if (cachedTransporter) {
+    return cachedTransporter;
+  }
+
   // Use generic SMTP settings. Hostinger example: smtp.hostinger.com, port 587 (TLS)
   const host = process.env.EMAIL_HOST || 'smtp.hostinger.com';
   const port = process.env.EMAIL_PORT ? Number.parseInt(process.env.EMAIL_PORT, 10) : 587;
   const secure = process.env.EMAIL_SECURE === undefined ? false : (process.env.EMAIL_SECURE === 'true'); // true for 465, false for 587
 
-  return nodemailer.createTransport({
+  cachedTransporter = nodemailer.createTransport({
     host,
     port,
     secure,
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD,
     },
   });
+
+  return cachedTransporter;
 };
 
 // Email template types
@@ -364,6 +378,9 @@ const getEmailTemplate = (template: EmailTemplate, data: EmailData): { subject: 
       };
 
     case 'certificate':
+      // Build public certificate URL using the certificate ID
+      const certificateUrl = data.additionalInfo ? `${baseUrl}/certificate/${data.additionalInfo}` : `${baseUrl}/dashboard/courses`;
+      
       return {
         subject: `🎓 Congratulations! Your Certificate for ${data.courseName || 'Course'} is Ready!`,
         html: `
@@ -383,11 +400,15 @@ const getEmailTemplate = (template: EmailTemplate, data: EmailData): { subject: 
               .certificate-box p { color: #666; margin: 5px 0; }
               .certificate-id { font-family: monospace; background: #f0f0f0; padding: 8px 16px; border-radius: 6px; display: inline-block; margin-top: 15px; font-size: 14px; color: #555; }
               .button { display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; border-radius: 8px; margin: 10px 5px; font-weight: bold; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }
+              .button-download { background: linear-gradient(135deg, #f59e0b, #d97706); }
               .button-secondary { background: linear-gradient(135deg, #11998e, #38ef7d); color: white; }
               .highlights { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
               .highlights h3 { color: #667eea; margin: 0 0 15px 0; }
               .highlights ul { margin: 0; padding-left: 20px; }
               .highlights li { margin: 8px 0; color: #555; }
+              .download-section { text-align: center; margin: 25px 0; padding: 25px; background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 12px; border: 2px dashed #f59e0b; }
+              .download-section h3 { color: #92400e; margin: 0 0 10px 0; }
+              .download-section p { margin: 0 0 15px 0; color: #78350f; }
               .share-section { text-align: center; margin: 25px 0; padding: 20px; background: #f5f5f5; border-radius: 8px; }
               .share-section p { margin: 0 0 10px 0; color: #666; }
               .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
@@ -410,6 +431,12 @@ const getEmailTemplate = (template: EmailTemplate, data: EmailData): { subject: 
                   ${data.additionalInfo ? `<div class="certificate-id">Certificate ID: ${data.additionalInfo}</div>` : ''}
                 </div>
                 
+                <div class="download-section">
+                  <h3>📥 Download Your Certificate</h3>
+                  <p>Click the button below to view and download your certificate as PDF</p>
+                  <a href="${certificateUrl}" class="button button-download" style="color: white;">View & Download Certificate</a>
+                </div>
+                
                 <div class="highlights">
                   <h3>🌟 What This Means</h3>
                   <ul>
@@ -421,13 +448,13 @@ const getEmailTemplate = (template: EmailTemplate, data: EmailData): { subject: 
                 </div>
                 
                 <center>
-                  <a href="${baseUrl}/dashboard/courses" class="button">View & Download Certificate</a>
                   <a href="${dashboardUrl}" class="button button-secondary">Go to Dashboard</a>
                 </center>
                 
                 <div class="share-section">
                   <p>🎉 <strong>Proud of your achievement?</strong></p>
-                  <p>Share it on LinkedIn, Twitter, or with your friends and family!</p>
+                  <p>Share your certificate link with friends and family!</p>
+                  <p style="font-size: 12px; color: #888; word-break: break-all;">${certificateUrl}</p>
                 </div>
                 
                 <p style="text-align: center;">Keep learning, keep growing. We're proud to be part of your journey!</p>
@@ -590,12 +617,12 @@ export async function sendEmail({
 // Verify email configuration
 export async function verifyEmailConfig() {
   try {
-  console.log('🔧 Verifying email configuration...');
-  console.log('EMAIL_HOST:', process.env.EMAIL_HOST ? '✅ Set' : '❌ Not set (using smtp.hostinger.com)');
-  console.log('EMAIL_PORT:', process.env.EMAIL_PORT ? `✅ ${process.env.EMAIL_PORT}` : '❌ Not set (using 587)');
-  console.log('EMAIL_SECURE:', process.env.EMAIL_SECURE === undefined ? '❌ Not set (using false)' : `✅ ${process.env.EMAIL_SECURE}`);
-  console.log('EMAIL_USER:', process.env.EMAIL_USER ? '✅ Set' : '❌ Not set');
-  console.log('EMAIL_FROM:', process.env.EMAIL_FROM ? '✅ Set' : '❌ Not set');
+  
+  
+  
+  
+  
+  
 
     const transporter = createTransporter();
     await transporter.verify();

@@ -117,13 +117,7 @@ export default function MockAttemptPage() {
         }
       });
 
-      console.log("Attempt Submit Debug:", {
-        attemptId,
-        answersCount: Object.keys(formattedAnswers).length,
-        totalQuestions: mock.questions.length,
-        sampleAnswers: Object.entries(formattedAnswers).slice(0, 2),
-        formattedAnswers
-      });
+      
 
       const res = await fetch(`/api/mock/${id}/submit`, {
         method: "POST",

@@ -34,15 +34,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ valid: false, error: "Invalid coupon code" }, { status: 404 });
     }
 
-    console.log("🎫 Found coupon:", {
-      code: coupon.code,
-      isActive: coupon.isActive,
-      productType: coupon.productType,
-      validFrom: coupon.validFrom,
-      validTill: coupon.validTill,
-      discountType: coupon.discountType,
-      discountValue: coupon.discountValue
-    });
+    
 
     // Skip date validation for now, just check active status and product type
     if (!coupon.isActive) {

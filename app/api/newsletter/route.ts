@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
         customHtml,
       });
 
-      console.log('✅ Newsletter welcome email sent to:', email);
+      
     } catch (emailError) {
       console.error('❌ Failed to send newsletter welcome email:', emailError);
       // Don't fail the subscription if email fails

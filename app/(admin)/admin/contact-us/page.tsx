@@ -160,15 +160,6 @@ export default function AdminContactUsPage() {
 
       // Send email if requested
       if (sendEmail && emailMessage && emailSubject) {
-        console.log('📧 Sending email with payload:', {
-          to: selected.email,
-          subject: emailSubject,
-          userName: selected.name,
-          status: selectedStatus,
-          contactId: selected.id,
-          threadId: selected.threadId,
-        });
-
         const emailRes = await fetch("/api/contact-us/send-email", {
           method: "POST",
           headers: {
@@ -186,12 +177,11 @@ export default function AdminContactUsPage() {
         });
 
         const emailResult = await emailRes.json();
-        console.log('📬 Email API response:', emailResult);
 
         if (emailRes.ok) {
           toast.success("Status updated and email sent successfully");
         } else {
-          console.error("❌ Failed to send email:", emailResult);
+          console.error("Failed to send email:", emailResult);
           toast.error(`Status updated but email sending failed: ${emailResult.error || 'Unknown error'}`);
         }
       } else {

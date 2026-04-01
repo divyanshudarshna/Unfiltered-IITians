@@ -68,7 +68,7 @@ export async function DELETE(
       }
     });
 
-    console.log(`✅ Cleared ${result.count} mock attempt(s) for user ${user.name || user.email}`);
+    
 
     return NextResponse.json({
       success: true,

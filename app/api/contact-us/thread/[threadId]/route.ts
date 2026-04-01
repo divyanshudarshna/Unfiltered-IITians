@@ -19,7 +19,7 @@ export async function GET(
       );
     }
 
-    console.log('📖 Fetching thread:', threadId);
+    
 
     // Fetch all messages in the thread
     const messages = await prisma.contactUs.findMany({
@@ -41,7 +41,7 @@ export async function GET(
     // Get the original inquiry (first message in thread)
     const originalInquiry = messages.find(m => m.conversationType === 'NEW_INQUIRY') || messages[0];
 
-    console.log('✅ Found thread with', messages.length, 'messages');
+    
 
     return NextResponse.json({
       success: true,

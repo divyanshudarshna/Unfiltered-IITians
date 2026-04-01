@@ -44,7 +44,7 @@ export async function GET(req: Request) {
           create: { clerkUserId, email, name, profileImageUrl: clerkUser.imageUrl, role },
           update: { email, name, profileImageUrl: clerkUser.imageUrl },
         })
-        console.log(`[profile] Auto-synced user ${email}`)
+        
 
         user = await prisma.user.findUnique({
           where: { clerkUserId },

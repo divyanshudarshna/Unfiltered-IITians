@@ -86,15 +86,16 @@ interface InclusionData {
 }
 
 export default function CourseForm({ onSuccess, course }: CourseFormProps) {
+  // For edit mode, use existing course values; for add mode, use defaults
   const [form, setForm] = useState({
-    title: "",
-    description: "",
-    price: "",
-    actualPrice: "",
-    durationMonths: "",
-    status: PublishStatus.DRAFT,
-    courseType: CourseType.COMPETITIVE,
-    order: "",
+    title: course?.title || "",
+    description: course?.description || "",
+    price: course?.price?.toString() || "",
+    actualPrice: course?.actualPrice?.toString() || "",
+    durationMonths: course?.durationMonths?.toString() || "",
+    status: course?.status || PublishStatus.DRAFT,
+    courseType: course?.courseType || CourseType.COMPETITIVE,
+    order: course?.order?.toString() || "",
   });
 
   // ✅ State for inclusions
@@ -232,33 +233,23 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
         order: form.order ? Number(form.order) : null,
         inclusions: inclusions,
       };
-
-      console.log("📝 Form submission data:", sanitizedData);
-      console.log("📋 Inclusions being sent:", inclusions);
-      console.log("🏷️ Status value:", form.status, "->", sanitizedData.status);
-      console.log("📜 Course type:", form.courseType, "->", sanitizedData.courseType);
       
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(sanitizedData),
       });
-
-      console.log("📡 Response status:", res.status);
       
       if (!res.ok) {
         const errorData = await res.json();
-        console.error("❌ Server error:", errorData);
+        console.error("Failed to save course", { status: res.status });
         throw new Error(errorData.details || errorData.error || "Failed to save course");
       }
-
-      const responseData = await res.json();
-      console.log("✅ Success response:", responseData);
 
       toast.success(course ? "Course updated successfully!" : "Course created successfully!");
       onSuccess();
     } catch (err: any) {
-      console.error("❌ Form submission error:", err);
+      console.error("Form submission error:", err);
       toast.error(`Error saving course: ${err.message}`);
     } finally {
       setLoading(false);
@@ -471,7 +462,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                     <span>Course Type</span>
                   </Label>
                   <Select 
-                    value={form.courseType || CourseType.COMPETITIVE} 
+                    value={form.courseType} 
                     onValueChange={handleCourseTypeChange}
                   >
                     <SelectTrigger className="focus:ring-primary h-11 border-gray-300 dark:border-gray-600 dark:bg-gray-800/50">

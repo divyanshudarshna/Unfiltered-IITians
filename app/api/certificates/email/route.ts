@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { currentUser } from "@clerk/nextjs/server";
 import { sendEmail } from "@/lib/email";
-import { generateCertificatePDF } from "@/lib/pdf-generator";
 
 export async function POST(req: Request) {
   try {
@@ -52,16 +51,15 @@ export async function POST(req: Request) {
       );
     }
 
-    // Generate PDF
-    const pdfBuffer = await generateCertificatePDF({
-      studentName: certificate.studentName,
-      courseName: certificate.courseName,
-      completionDate: certificate.issuedAt,
-      certificateId: certificate.certificateId,
-      durationMonths: certificate.course.durationMonths || undefined,
-    });
+    if (courseId && certificate.courseId !== courseId) {
+      return NextResponse.json(
+        { error: "Certificate does not belong to the selected course" },
+        { status: 400 }
+      );
+    }
 
-    // Send certificate email with PDF attachment
+    // Send a lightweight certificate email (no PDF attachment).
+    // This avoids heavy server-side PDF generation latency and improves reliability.
     const emailResult = await sendEmail({
       to: dbUser.email,
       template: "certificate",
@@ -70,13 +68,6 @@ export async function POST(req: Request) {
         courseName: certificate.courseName,
         additionalInfo: certificate.certificateId,
       },
-      attachments: [
-        {
-          filename: `Certificate-${certificate.courseName.replace(/\s+/g, '-')}.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf',
-        },
-      ],
     });
 
     if (!emailResult.success) {
@@ -91,7 +82,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Certificate email sent successfully with PDF attachment",
+      message: "Certificate email sent successfully",
     });
   } catch (error: any) {
     console.error("Certificate email error:", error);

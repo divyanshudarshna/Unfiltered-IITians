@@ -84,6 +84,10 @@ model User {
   couponUsages            CouponUsage[] // Track coupon usages by this user
   generalCouponUsages     GeneralCouponUsage[]     @relation("GeneralCouponUsages") // Track general coupon usages
   certificates            Certificate[] // Certificates earned by this user
+
+  // ✅ PERFORMANCE: Indexes for frequently queried fields
+  @@index([role, createdAt])
+  @@index([isSubscribed])
 }
 
 // ================== MOCKS ==================
@@ -103,6 +107,11 @@ model MockTest {
 
   attempts      MockAttempt[]
   subscriptions Subscription[]
+
+  // ✅ PERFORMANCE: Indexes for mock test queries
+  @@index([status])
+  @@index([status, createdAt])
+  @@index([difficulty])
 }
 
 model MockAttempt {
@@ -121,6 +130,11 @@ model MockAttempt {
 
   user     User     @relation(fields: [userId], references: [id])
   mockTest MockTest @relation(fields: [mockTestId], references: [id])
+
+  // ✅ PERFORMANCE: Composite indexes for common queries
+  @@index([userId, mockTestId])
+  @@index([userId, submittedAt])
+  @@index([mockTestId, submittedAt])
 }
 
 model Subscription {
@@ -146,6 +160,15 @@ model Subscription {
   course      Course?      @relation(fields: [courseId], references: [id], onDelete: Cascade)
   mockBundle  MockBundle?  @relation(fields: [mockBundleId], references: [id])
   couponUsage CouponUsage? // Track if this subscription used a coupon
+
+  // ✅ PERFORMANCE: Indexes for subscription queries
+  @@index([userId, paid])
+  @@index([userId, expiresAt])
+  @@index([courseId, paid])
+  @@index([mockTestId, paid])
+  @@index([mockBundleId, paid])
+  @@index([expiresAt])
+  @@index([paidAt])
 }
 
 // ================== COURSES ==================
@@ -174,6 +197,12 @@ model Course {
 
   // ✅ NEW: Course inclusions for bundling
   inclusions CourseInclusion[]
+
+  // ✅ PERFORMANCE: Indexes for course queries (most critical!)
+  @@index([status])
+  @@index([status, createdAt])
+  @@index([status, order])
+  @@index([courseType])
 }
 
 model Enrollment {
@@ -185,6 +214,11 @@ model Enrollment {
 
   user   User   @relation(fields: [userId], references: [id])
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // ✅ PERFORMANCE: Composite indexes for enrollment checks (CRITICAL!)
+  @@index([userId, courseId])
+  @@index([userId, expiresAt])
+  @@index([courseId, enrolledAt])
 }
 
 model Coupon {
@@ -198,6 +232,11 @@ model Coupon {
 
   course Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
   usages CouponUsage[] // Relation to individual usages
+
+  // ✅ PERFORMANCE: Indexes for coupon validation
+  @@index([courseId])
+  @@index([validTill])
+  @@index([isPublic])
 }
 
 // New model to track individual coupon usages
@@ -212,6 +251,10 @@ model CouponUsage {
   coupon       Coupon       @relation(fields: [couponId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  // ✅ PERFORMANCE: Indexes for usage tracking
+  @@index([userId, couponId])
+  @@index([usedAt])
 }
 
 model Content {
@@ -225,6 +268,9 @@ model Content {
   lectures       Lecture[]
   quiz           Quiz?            @relation("ContentQuiz")
   courseProgress CourseProgress[]
+
+  // ✅ PERFORMANCE: Indexes for content ordering
+  @@index([courseId, order])
 }
 
 model Lecture {
@@ -239,6 +285,9 @@ model Lecture {
   contentId       String  @db.ObjectId
 
   content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  // ✅ PERFORMANCE: Index for lecture ordering
+  @@index([contentId, order])
 }
 
 model Quiz {
@@ -269,6 +318,11 @@ model CourseProgress {
   content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId, contentId])
+  // ✅ PERFORMANCE: Indexes for progress tracking (CRITICAL!)
+  @@index([userId, courseId])
+  @@index([userId, courseId, completed])
+  @@index([contentId])
+  @@index([completed])
 }
 
 // ================== TESTIMONIALS & CONTACT ==================
@@ -471,6 +525,10 @@ model MockBundle {
 
   // ✅ New relation to subscriptions
   subscriptions Subscription[]
+
+  // ✅ PERFORMANCE: Indexes for bundle queries
+  @@index([status])
+  @@index([status, order])
 }
 
 // Add these enums to your existing enums section

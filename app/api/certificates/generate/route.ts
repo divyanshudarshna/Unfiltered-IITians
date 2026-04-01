@@ -83,8 +83,8 @@ export async function POST(req: Request) {
       },
     });
 
-    console.log(`[Certificate] Found ${courseProgress.length} progress records for user ${dbUser.id}, course ${courseId}`);
-    console.log(`[Certificate] Progress records:`, JSON.stringify(courseProgress, null, 2));
+    
+    
 
     // Create a map of contentId -> progress for quick lookup
     const progressMap = new Map<string, { completed: boolean; quizScore: number | null }>();
@@ -99,12 +99,12 @@ export async function POST(req: Request) {
     let totalItems = 0;
     let completedItems = 0;
 
-    console.log(`[Certificate] Course has ${course.contents.length} content modules`);
+    
 
     for (const content of course.contents) {
       const contentProgress = progressMap.get(content.id);
       
-      console.log(`[Certificate] Content "${content.title}" (${content.id}): ${content.lectures.length} lectures, hasQuiz: ${!!content.quiz}, progress: ${JSON.stringify(contentProgress)}`);
+      
       
       // Count lectures
       for (const lecture of content.lectures) {
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
 
     const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
     
-    console.log(`[Certificate] Progress calculation: ${completedItems}/${totalItems} = ${progressPercentage}%`);
+    
 
     // Check if course is 100% completed
     if (progressPercentage < 100) {

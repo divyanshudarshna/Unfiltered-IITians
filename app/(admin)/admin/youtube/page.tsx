@@ -10,7 +10,6 @@ export default function YoutubeAdminPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleRefresh = () => {
-    console.log("Manual refresh triggered");
     setRefreshTrigger(prev => prev + 1);
   };
 

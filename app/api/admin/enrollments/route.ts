@@ -58,7 +58,8 @@ export async function GET(req: NextRequest) {
       orderBy = { expiresAt: sortOrder };
     }
 
-    // Fetch enrollments with user and course details
+    // ✅ OPTIMIZED: Fetch all data in minimal queries instead of N+1
+    // Uses new composite indexes for fast lookups
     const enrollments = await prisma.enrollment.findMany({
       where,
       include: {
@@ -76,7 +77,10 @@ export async function GET(req: NextRequest) {
             id: true,
             title: true,
             price: true,
-            durationMonths: true
+            durationMonths: true,
+            _count: {
+              select: { contents: true } // ✅ Get content count in main query
+            }
           }
         }
       },
@@ -85,66 +89,91 @@ export async function GET(req: NextRequest) {
       take: limit
     });
 
-    // Fetch subscription data for each enrollment to get actual amount paid
-    const enrollmentsWithAmount = await Promise.all(
-      enrollments.map(async (enrollment) => {
-        const subscription = await prisma.subscription.findFirst({
-          where: {
-            userId: enrollment.userId,
-            courseId: enrollment.courseId,
-            paid: true
-          },
-          select: {
-            actualAmountPaid: true,
-            couponCode: true
-          },
-          orderBy: {
-            paidAt: 'desc'
-          }
-        });
+    // ✅ OPTIMIZATION: Batch fetch all subscriptions in one query
+    const userCourseIds = enrollments.map(e => ({ 
+      userId: e.userId, 
+      courseId: e.courseId 
+    }));
+    
+    const subscriptions = await prisma.subscription.findMany({
+      where: {
+        OR: userCourseIds.map(({ userId, courseId }) => ({
+          userId,
+          courseId,
+          paid: true
+        }))
+      },
+      select: {
+        userId: true,
+        courseId: true,
+        actualAmountPaid: true,
+        couponCode: true,
+        paidAt: true
+      },
+      orderBy: { paidAt: 'desc' }
+    });
 
-        // Get total contents in the course
-        const totalContents = await prisma.content.count({
-          where: { courseId: enrollment.courseId }
-        });
+    // ✅ OPTIMIZATION: Batch fetch all progress data in one query
+    const progressData = await prisma.courseProgress.findMany({
+      where: {
+        OR: userCourseIds.map(({ userId, courseId }) => ({
+          userId,
+          courseId
+        }))
+      },
+      select: {
+        userId: true,
+        courseId: true,
+        completed: true,
+        quizScore: true,
+        totalQuizQuestions: true
+      }
+    });
 
-        // Get course progress data
-        const courseProgressData = await prisma.courseProgress.findMany({
-          where: {
-            userId: enrollment.userId,
-            courseId: enrollment.courseId
-          },
-          select: {
-            completed: true,
-            quizScore: true,
-            totalQuizQuestions: true
-          }
-        });
-
-        // Calculate progress percentage
-        const completedContents = courseProgressData.filter(cp => cp.completed).length;
-        const courseProgress = totalContents > 0 
-          ? Math.round((completedContents / totalContents) * 100) 
-          : 0;
-
-        // Calculate average quiz score
-        const quizScores = courseProgressData
-          .filter(cp => cp.quizScore !== null && cp.totalQuizQuestions !== null && cp.totalQuizQuestions > 0)
-          .map(cp => (cp.quizScore! / cp.totalQuizQuestions!) * 100);
-        
-        const avgQuizScore = quizScores.length > 0
-          ? Math.round(quizScores.reduce((sum, score) => sum + score, 0) / quizScores.length)
-          : null;
-
-        return {
-          ...enrollment,
-          actualAmountPaid: subscription?.actualAmountPaid || null,
-          couponCode: subscription?.couponCode || null,
-          courseProgress,
-          avgQuizScore
-        };
-      })
+    // ✅ Create lookup maps for O(1) access
+    const subscriptionMap = new Map(
+      subscriptions.map(s => [`${s.userId}-${s.courseId}`, s])
     );
+    
+    const progressMap = new Map<string, typeof progressData>();
+    progressData.forEach(p => {
+      const key = `${p.userId}-${p.courseId}`;
+      if (!progressMap.has(key)) {
+        progressMap.set(key, []);
+      }
+      progressMap.get(key)!.push(p);
+    });
+
+    // ✅ PERFORMANCE: Map data using lookups instead of individual queries
+    const enrollmentsWithAmount = enrollments.map((enrollment) => {
+      const key = `${enrollment.userId}-${enrollment.courseId}`;
+      const subscription = subscriptionMap.get(key);
+      const courseProgressData = progressMap.get(key) || [];
+      const totalContents = enrollment.course._count.contents;
+
+      // Calculate progress percentage
+      const completedContents = courseProgressData.filter(cp => cp.completed).length;
+      const courseProgress = totalContents > 0 
+        ? Math.round((completedContents / totalContents) * 100) 
+        : 0;
+
+      // Calculate average quiz score
+      const quizScores = courseProgressData
+        .filter(cp => cp.quizScore !== null && cp.totalQuizQuestions !== null && cp.totalQuizQuestions > 0)
+        .map(cp => (cp.quizScore! / cp.totalQuizQuestions!) * 100);
+      
+      const avgQuizScore = quizScores.length > 0
+        ? Math.round(quizScores.reduce((sum, score) => sum + score, 0) / quizScores.length)
+        : null;
+
+      return {
+        ...enrollment,
+        actualAmountPaid: subscription?.actualAmountPaid || null,
+        couponCode: subscription?.couponCode || null,
+        courseProgress,
+        avgQuizScore
+      };
+    });
 
     return NextResponse.json({
       enrollments: enrollmentsWithAmount,

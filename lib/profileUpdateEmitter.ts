@@ -12,7 +12,7 @@ class ProfileUpdateEmitter {
   }
 
   emit() {
-    console.log('📡 Emitting profile update to', this.listeners.length, 'listeners');
+    
     this.listeners.forEach(listener => listener());
   }
 }

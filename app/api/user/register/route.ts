@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
       // If found by email with different clerkUserId, migrate to new Clerk ID
       if (existingUser && existingUser.clerkUserId !== clerkUserId) {
-        console.log(`🔄 Migrating user ${existingUser.email} from Clerk ID ${existingUser.clerkUserId} to ${clerkUserId}`);
+        
         existingUser = await prisma.user.update({
           where: { email: normalizedEmail },
           data: { clerkUserId },

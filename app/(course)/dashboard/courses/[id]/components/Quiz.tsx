@@ -229,7 +229,7 @@ const handleFinishQuiz = async () => {
       return;
     }
 
-    console.log("✅ Quiz progress saved successfully!");
+    
   } catch (error) {
     console.error("Error saving quiz progress:", error);
   }

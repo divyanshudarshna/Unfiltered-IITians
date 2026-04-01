@@ -7,7 +7,7 @@ import { ObjectId } from "mongodb";
 
 // Compute attempt metrics using stored database values
 function computeAttemptMetrics(attempt: any) {
-  console.log('Computing metrics for attempt:', attempt.id);
+  
   
   const { startedAt, submittedAt } = attempt;
   
@@ -19,14 +19,7 @@ function computeAttemptMetrics(attempt: any) {
   const storedScore = attempt.score || 0;
   const storedPercentage = attempt.percentage || 0;
   
-  console.log('Stored values:', {
-    correctCount: storedCorrectCount,
-    incorrectCount: storedIncorrectCount,
-    unansweredCount: storedUnansweredCount,
-    totalQuestions: storedTotalQuestions,
-    score: storedScore,
-    percentage: storedPercentage
-  });
+  
 
   // Calculate time taken
   let timeTaken = 0;

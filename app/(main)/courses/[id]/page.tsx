@@ -82,8 +82,8 @@ export default function CourseDetailPage() {
         const res = await fetch(`/api/courses/${params.id}`);
         if (!res.ok) throw new Error("Failed to fetch course");
         const data = await res.json();
-        console.log("📋 Course data received:", data); // Debug log
-        console.log("📦 Inclusions:", data.inclusions); // Debug log
+         // Debug log
+         // Debug log
         setCourse(data);
       } catch (err) {
         console.error(err);
@@ -205,7 +205,7 @@ export default function CourseDetailPage() {
       order_id: data.order.id,
       handler: async (response: any) => {
         try {
-          console.log("🔄 Starting payment verification...", { response });
+          
           
           const verifyRes = await fetch(`/api/courses/${course.id}/razorpay/verify`, {
             method: "POST",
@@ -216,10 +216,10 @@ export default function CourseDetailPage() {
             }),
           });
 
-          console.log("📡 Verification response status:", verifyRes.status);
+          
           
           const verifyData = await verifyRes.json();
-          console.log("📋 Verification data:", verifyData);
+          
           
           if (verifyRes.ok && verifyData.success) {
             toast.success("✅ Payment successful! You're now enrolled.");

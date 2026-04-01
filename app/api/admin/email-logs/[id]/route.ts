@@ -12,9 +12,9 @@ export async function DELETE(
     const { password } = body;
 
     // Log for debugging (remove in production)
-    console.log('Delete request for email log:', id);
-    console.log('Password provided:', password ? 'Yes' : 'No');
-    console.log('Expected password:', process.env.SECURITY_PASSWORD ? 'Set' : 'Not set');
+    
+    
+    
 
     // Verify security password
     if (!process.env.SECURITY_PASSWORD) {

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -27,16 +27,17 @@ import {
   Rocket,
   Search,
 } from "lucide-react";
+import { useCoursesQuery, useBatchStatusQuery } from "@/hooks/useCoursesQuery";
 
 interface Course {
   id: string;
   title: string;
   description?: string;
-  price: number;
+  price?: number;
   actualPrice?: number;
-  durationMonths: number;
+  durationMonths?: number;
   enrolledStudents?: number;
-  status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  status: string;
 }
 
 interface EnrollmentStatus {
@@ -84,132 +85,89 @@ export default function CourseList({
   countShow, // Optional limit on number of courses to display
   showViewAllButton = true, // Show "View All Courses" button by default
 }: CourseListProps) {
-  const [courses, setCourses] = useState<Course[]>(externalCourses || []);
-  const [filteredCourses, setFilteredCourses] = useState<Course[]>(
-    externalCourses || []
-  );
-  const [displayedCourses, setDisplayedCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(fetchCourses);
-  const [error, setError] = useState<string | null>(null);
-  const [enrollmentStatuses, setEnrollmentStatuses] = useState<
-    Record<string, EnrollmentStatus>
-  >({});
   const [searchQuery, setSearchQuery] = useState("");
   const { user, isLoaded: isUserLoaded } = useUser();
 
-  useEffect(() => {
-    if (externalCourses) {
-      setCourses(externalCourses);
-      setFilteredCourses(externalCourses);
-      setLoading(false);
-      return;
-    }
+  // Use React Query to fetch courses (or use external courses)
+  const {
+    data: fetchedCourses,
+    isLoading: isLoadingCourses,
+    error: coursesError,
+  } = useCoursesQuery();
 
-    if (!fetchCourses) return;
-
-    const fetchCoursesAndEnrollments = async () => {
-      try {
-        setLoading(true);
-        // Fetch courses
-        const response = await fetch("/api/courses");
-        if (!response.ok)
-          throw new Error(`Failed to fetch courses: ${response.status}`);
-        const data = await response.json();
-
-        const coursesWithEnrollmentCount = data.map((course: Course) => ({
-          ...course,
-          enrolledStudents:
-            course.enrolledStudents || Math.floor(Math.random() * 1000) + 100,
-        }));
-        setCourses(coursesWithEnrollmentCount);
-        setFilteredCourses(coursesWithEnrollmentCount);
-
-        // Fetch enrollment statuses for all courses in parallel if user is logged in
-        if (isUserLoaded && user) {
-          const statusesArray = await Promise.all(
-            coursesWithEnrollmentCount.map(async (course: Course) => {
-              try {
-                const response = await fetch(
-                  `/api/courses/${course.id}/enrollment-status`,
-                  {
-                    method: "GET",
-                    credentials: "include",
-                  }
-                );
-
-                const data = await response.json();
-
-                if (response.ok) {
-                  return { courseId: course.id, status: data };
-                } else {
-                  console.error(
-                    `API error for course ${course.id}:`,
-                    data.error || response.status
-                  );
-                  return {
-                    courseId: course.id,
-                    status: {
-                      isEnrolled: false,
-                      error: data.error || `Error: ${response.status}`,
-                    },
-                  };
-                }
-              } catch (err) {
-                console.error(`Network error for course ${course.id}:`, err);
-                return {
-                  courseId: course.id,
-                  status: { isEnrolled: false, error: "Network error" },
-                };
-              }
-            })
-          );
-
-          const statuses: Record<string, EnrollmentStatus> = {};
-          statusesArray.forEach(({ courseId, status }) => {
-            statuses[courseId] = status;
-          });
-
-          setEnrollmentStatuses(statuses);
-        } else if (isUserLoaded && !user) {
-          // User not logged in → default all courses to not enrolled
-          const statuses: Record<string, EnrollmentStatus> = {};
-          coursesWithEnrollmentCount.forEach((course: Course) => {
-            statuses[course.id] = { isEnrolled: false, canEnroll: true };
-          });
-          setEnrollmentStatuses(statuses);
-        }
-      } catch (err) {
-        console.error("Course fetch error:", err);
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Determine which courses to use
+  const courses = useMemo(() => {
+    if (externalCourses) return externalCourses;
+    if (!fetchCourses || !fetchedCourses) return [];
     
-    fetchCoursesAndEnrollments();
-  }, [externalCourses, fetchCourses, isUserLoaded, user]);
+    // Add random enrollment count for display purposes
+    return fetchedCourses.map((course) => ({
+      ...course,
+      enrolledStudents:
+        course.enrolledStudents || Math.floor(Math.random() * 1000) + 100,
+    }));
+  }, [externalCourses, fetchCourses, fetchedCourses]);
 
-  useEffect(() => {
-    if (searchQuery) {
-      const filtered = courses.filter(
-        (course) =>
-          course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          course.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredCourses(filtered);
-    } else {
-      setFilteredCourses(courses);
+  // Extract course IDs for batch status query
+  const courseIds = useMemo(() => courses.map((c) => c.id), [courses]);
+
+  // Use batch status query to fetch enrollment statuses (only if user is logged in)
+  const {
+    data: batchStatusData,
+    isLoading: isLoadingStatus,
+  } = useBatchStatusQuery(courseIds);
+
+  // Build enrollment statuses map
+  const enrollmentStatuses = useMemo(() => {
+    const statuses: Record<string, EnrollmentStatus> = {};
+    
+    if (!isUserLoaded || !user) {
+      // User not logged in - all courses not enrolled
+      courses.forEach((course) => {
+        statuses[course.id] = { isEnrolled: false, canEnroll: true };
+      });
+      return statuses;
     }
+
+    if (batchStatusData) {
+      // Convert batch status response to enrollment status format
+      Object.entries(batchStatusData).forEach(([courseId, status]) => {
+        statuses[courseId] = {
+          isEnrolled: status.isEnrolled,
+          canEnroll: !status.isEnrolled,
+        };
+      });
+    } else {
+      // Default to not enrolled while loading
+      courses.forEach((course) => {
+        statuses[course.id] = { isEnrolled: false, canEnroll: true };
+      });
+    }
+
+    return statuses;
+  }, [courses, batchStatusData, isUserLoaded, user]);
+
+  // Filter courses by search query
+  const filteredCourses = useMemo(() => {
+    if (!searchQuery) return courses;
+    
+    return courses.filter(
+      (course) =>
+        course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        course.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
   }, [searchQuery, courses]);
 
-  useEffect(() => {
-    // Apply countShow limit if provided
+  // Apply countShow limit
+  const displayedCourses = useMemo(() => {
     if (countShow && countShow > 0) {
-      setDisplayedCourses(filteredCourses.slice(0, countShow));
-    } else {
-      setDisplayedCourses(filteredCourses);
+      return filteredCourses.slice(0, countShow);
     }
+    return filteredCourses;
   }, [filteredCourses, countShow]);
+
+  const loading = externalCourses ? false : isLoadingCourses || isLoadingStatus;
+  const error = coursesError ? (coursesError as Error).message : null;
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -327,7 +285,7 @@ export default function CourseList({
             const isEnrolled = enrollmentStatus.isEnrolled;
 
             const { regular, discounted, discountPercent } = getPriceDetails(
-              course.price,
+              course.price || 0,
               course.actualPrice
               );
 
@@ -400,17 +358,19 @@ export default function CourseList({
                     </div>
 
                     {/* Metadata */}
-                    <div className="flex flex-wrap gap-3 mb-4">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4 mr-1 text-blue-500" />
-                        {course.durationMonths}{" "}
-                        {course.durationMonths === 1 ? "month" : "months"}
+                    {course.durationMonths && (
+                      <div className="flex flex-wrap gap-3 mb-4">
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Clock className="h-4 w-4 mr-1 text-blue-500" />
+                          {course.durationMonths}{" "}
+                          {course.durationMonths === 1 ? "month" : "months"}
+                        </div>
+                        {/* <div className="flex items-center text-sm text-muted-foreground">
+                          <BookOpen className="h-4 w-4 mr-1 text-blue-500" />
+                          {course.enrolledStudents}+ enrolled
+                        </div> */}
                       </div>
-                      {/* <div className="flex items-center text-sm text-muted-foreground">
-                        <BookOpen className="h-4 w-4 mr-1 text-blue-500" />
-                        {course.enrolledStudents}+ enrolled
-                      </div> */}
-                    </div>
+                    )}
 
                     {/* Features */}
                     <div className="grid grid-cols-2 gap-3 mt-4">

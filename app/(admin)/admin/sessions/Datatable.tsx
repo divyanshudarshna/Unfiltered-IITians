@@ -215,7 +215,6 @@ export default function SessionsDatatable({ sessions, onEdit, onDelete, loading,
                     size="sm"
                     onClick={() => {
                       // View enrollments - implement later
-                      console.log('View enrollments for:', session.id);
                     }}
                     className="h-8 gap-1"
                   >

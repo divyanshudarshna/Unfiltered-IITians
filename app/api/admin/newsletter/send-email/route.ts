@@ -119,7 +119,7 @@ export async function POST(req: Request) {
     const successCount = results.filter(r => r.success).length;
     const failedCount = results.filter(r => !r.success).length;
     
-    console.log(`✅ Sent ${successCount} emails successfully`);
+    
     if (failedCount > 0) {
       console.error(`❌ Failed to send ${failedCount} emails`);
     }

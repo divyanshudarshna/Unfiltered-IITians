@@ -51,7 +51,7 @@ export default function ReplyPage() {
   const [hasReplied, setHasReplied] = useState(false);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  console.log('📧 Reply page loaded with params:', { threadId, prefillEmail, prefillName });
+  
 
   useEffect(() => {
     if (!threadId) {

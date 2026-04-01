@@ -52,7 +52,7 @@ export async function GET(req: Request, { params }: Params) {
         });
       }
     } catch (clerkError) {
-      console.log('⚠️ Could not fetch Clerk user data, continuing with regular access check')
+      
     }
 
     // Check if user is enrolled in the course

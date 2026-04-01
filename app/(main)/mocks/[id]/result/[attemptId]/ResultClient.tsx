@@ -159,18 +159,7 @@ export default function ResultClient({
   }
 
   // Debug logging
-  console.log("ResultClient Debug:", {
-    attempt: attempt.id,
-    questionsCount: questions.length,
-    answersCount: Object.keys(answers).length,
-    storedStats: {
-      correctCount: attempt.correctCount,
-      incorrectCount: attempt.incorrectCount,
-      totalQuestions: attempt.totalQuestions,
-      percentage: attempt.percentage
-    },
-    sampleAnswers: Object.entries(answers).slice(0, 2)
-  });
+  
 
   // derive current question index from URL or use initialQuestion
   const qParam = parseInt(searchParams.get("q") ?? "1", 10);

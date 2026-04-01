@@ -164,7 +164,7 @@ export async function POST(req: Request) {
     const successCount = results.filter(r => r.success).length;
     const failedCount = results.filter(r => !r.success).length;
     
-    console.log(`✅ Sent ${successCount} emails successfully`);
+    
     if (failedCount > 0) {
       console.error(`❌ Failed to send ${failedCount} emails`);
     }
@@ -190,7 +190,7 @@ export async function POST(req: Request) {
             }
           }
         });
-        console.log('📧 Email batch logged to database');
+        
       } catch (logError) {
         console.error('Failed to log email batch to database:', logError);
         // Don't fail the request if logging fails

@@ -107,10 +107,8 @@ export async function PATCH(
       })
 
       if (!clerkResponse.ok) {
-        console.error('Failed to sync role with Clerk:', await clerkResponse.text())
+        console.error('Failed to sync role with Clerk metadata', { status: clerkResponse.status })
         // Don't fail the request, but log the error
-      } else {
-        console.log(`✅ Successfully synced role ${role} to Clerk for user ${updatedUser.email}`)
       }
     } catch (clerkError) {
       console.error('Error syncing with Clerk:', clerkError)
@@ -199,9 +197,7 @@ export async function PUT(req: Request, { params }: { params: { userId: string }
         })
 
         if (!clerkResponse.ok) {
-          console.error('Failed to sync role with Clerk:', await clerkResponse.text())
-        } else {
-          console.log(`✅ Successfully synced role ${updateData.role} to Clerk for user ${updatedUser.email}`)
+          console.error('Failed to sync role with Clerk metadata', { status: clerkResponse.status })
         }
       } catch (clerkError) {
         console.error('Error syncing with Clerk:', clerkError)

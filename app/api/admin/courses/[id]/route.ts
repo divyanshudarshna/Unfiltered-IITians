@@ -32,17 +32,13 @@ export async function GET(req: Request, { params }: Params) {
 
 // ================== UPDATE COURSE ==================
 export async function PUT(req: Request, { params }: Params) {
-  console.log("🔄 Admin course update started for ID:", params.id);
-  
   try {
     // Validate ObjectId format first
     if (!/^[0-9a-fA-F]{24}$/.test(params.id)) {
-      console.error("❌ Invalid ObjectId format:", params.id);
       return NextResponse.json({ error: "Invalid course ID format" }, { status: 400 });
     }
 
     const body = await req.json();
-    console.log("📝 Update Course Request Body:", JSON.stringify(body, null, 2));
     
     const { 
       title, 
@@ -55,9 +51,6 @@ export async function PUT(req: Request, { params }: Params) {
       order,
       inclusions // ✅ NEW: Handle inclusions in updates
     } = body;
-
-    console.log("📋 Extracted inclusions:", inclusions);
-    console.log("📜 Course type:", courseType);
 
     // Validate required fields
     if (!title || title.trim().length === 0) {
@@ -90,26 +83,12 @@ export async function PUT(req: Request, { params }: Params) {
     });
 
     if (!existingCourse) {
-      console.error("❌ Course not found:", params.id);
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
-
-    console.log("✅ Course exists, proceeding with update");
 
     // Use transaction to update course and inclusions together
     const result = await prisma.$transaction(async (tx) => {
       // Update the course
-      console.log("🔄 Updating course with data:", { 
-        title: title?.trim(), 
-        description: description?.trim() || null, 
-        price: Number(price), 
-        actualPrice: actualPrice ? Number(actualPrice) : null, 
-        durationMonths: Number(durationMonths), 
-        status: status && validStatuses.includes(status) ? status : 'DRAFT',
-        courseType: validCourseType,
-        order: order ? Number(order) : null 
-      });
-      
       await tx.course.update({
         where: { id: params.id },
         data: { 
@@ -124,25 +103,18 @@ export async function PUT(req: Request, { params }: Params) {
         },
       });
 
-      console.log("✅ Course updated successfully");
-
       // Handle inclusions if provided
       if (inclusions !== undefined && Array.isArray(inclusions)) {
-        console.log("🔄 Processing inclusions:", inclusions);
-        
         try {
           // Delete existing inclusions
-          const deletedCount = await tx.courseInclusion.deleteMany({
+          await tx.courseInclusion.deleteMany({
             where: { courseId: params.id }
           });
-          console.log("🗑️ Deleted existing inclusions:", deletedCount.count);
 
           // Create new inclusions if any
           if (inclusions.length > 0) {
             // Validate inclusion data
             const inclusionData = inclusions.map((inclusion: any, index: number) => {
-              console.log(`📋 Processing inclusion ${index}:`, inclusion);
-              
               if (!inclusion.type || !inclusion.id) {
                 throw new Error(`Invalid inclusion at index ${index}: missing type or id`);
               }
@@ -163,20 +135,14 @@ export async function PUT(req: Request, { params }: Params) {
               };
             });
 
-            console.log("📦 Creating inclusions:", inclusionData);
-
-            const createdInclusions = await tx.courseInclusion.createMany({
+            await tx.courseInclusion.createMany({
               data: inclusionData,
             });
-            
-            console.log("✅ Created inclusions:", createdInclusions.count);
           }
         } catch (inclusionError: any) {
-          console.error("❌ Inclusion processing error:", inclusionError);
+          console.error("Inclusion processing error:", inclusionError);
           throw new Error(`Inclusion error: ${inclusionError.message}`);
         }
-      } else {
-        console.log("ℹ️ No inclusions to process");
       }
 
       // Return updated course with inclusions
@@ -190,16 +156,9 @@ export async function PUT(req: Request, { params }: Params) {
       return finalCourse;
     });
 
-    console.log("✅ Transaction completed successfully");
     return NextResponse.json(result);
   } catch (err: any) {
-    console.error("❌ Update Course Error:", err);
-    console.error("❌ Error details:", {
-      message: err.message,
-      code: err.code,
-      meta: err.meta,
-      stack: err.stack
-    });
+    console.error("Update Course Error:", err);
     
     return NextResponse.json({ 
       error: "Failed to update course",
@@ -217,7 +176,7 @@ export async function DELETE(req: Request, { params }: Params) {
     await prisma.course.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error("❌ Delete Course Error:", err);
+    console.error("Delete Course Error:", err);
     
     // Check if it's a role-based access error
     if (err instanceof Response) {

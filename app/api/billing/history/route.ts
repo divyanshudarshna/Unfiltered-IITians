@@ -5,13 +5,9 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    console.log("🔍 Billing history API called");
-    
     const user = await currentUser();
-    console.log("👤 User:", user?.id);
     
     if (!user) {
-      console.log("❌ No user found");
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -19,22 +15,18 @@ export async function GET() {
     }
 
     // Find user in database
-    console.log("🔍 Finding user in DB...");
     const dbUser = await prisma.user.findUnique({
       where: { clerkUserId: user.id },
       select: { id: true }
     });
-    console.log("✅ DB User:", dbUser?.id);
 
     if (!dbUser) {
-      console.log("❌ User not found in DB");
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
       );
     }
 
-    console.log("🔍 Fetching subscriptions...");
     // Fetch all subscriptions (courses, mocks, bundles)
     const subscriptions = await prisma.subscription.findMany({
       where: { 
@@ -61,9 +53,7 @@ export async function GET() {
       },
       orderBy: { createdAt: "desc" }
     });
-    console.log("✅ Subscriptions found:", subscriptions.length);
 
-    console.log("🔍 Fetching session enrollments...");
     // Fetch all session enrollments
     const sessionEnrollments = await prisma.sessionEnrollment.findMany({
       where: {
@@ -84,9 +74,7 @@ export async function GET() {
       },
       orderBy: { enrolledAt: "desc" }
     });
-    console.log("✅ Session enrollments found:", sessionEnrollments.length);
 
-    console.log("🔄 Transforming subscriptions data...");
     // Transform subscriptions data
     const subscriptionHistory = subscriptions.map((sub) => {
       let itemType = "";
@@ -125,9 +113,7 @@ export async function GET() {
         isExpired: expiryDate ? new Date(expiryDate) < new Date() : false,
       };
     });
-    console.log("✅ Subscription history transformed:", subscriptionHistory.length);
 
-    console.log("🔄 Transforming session enrollments...");
     // Transform session enrollments data
     const sessionHistory = sessionEnrollments.map((enrollment) => {
       const isExpired = enrollment.session.expiryDate 
@@ -152,9 +138,7 @@ export async function GET() {
         duration: enrollment.session.duration,
       };
     });
-    console.log("✅ Session history transformed:", sessionHistory.length);
 
-    console.log("🔄 Combining and sorting history...");
     // Combine and sort by payment date
     const allHistory = [...subscriptionHistory, ...sessionHistory]
       .filter(item => item.actualAmountPaid > 0) // ✅ Filter out ₹0 transactions
@@ -166,9 +150,6 @@ export async function GET() {
         }
       );
 
-    console.log("✅ Final history count:", allHistory.length);
-    console.log("✅ Total spent:", allHistory.reduce((sum, item) => sum + item.actualAmountPaid, 0));
-
     return NextResponse.json({
       success: true,
       billingHistory: allHistory,
@@ -177,9 +158,7 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error("❌ Error fetching billing history:", error);
-    console.error("Error stack:", error instanceof Error ? error.stack : "N/A");
-    console.error("Error message:", error instanceof Error ? error.message : String(error));
+    console.error("Error fetching billing history:", error);
     return NextResponse.json(
       { 
         error: "Failed to fetch billing history",

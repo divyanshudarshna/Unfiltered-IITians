@@ -57,6 +57,18 @@ import {
   Eye,
 } from "lucide-react";
 
+enum PublishStatus {
+  DRAFT = "DRAFT",
+  PUBLISHED = "PUBLISHED",
+  ARCHIVED = "ARCHIVED",
+}
+
+enum CourseType {
+  COMPETITIVE = "COMPETITIVE",
+  SKILLS = "SKILLS",
+  WORKSHOP = "WORKSHOP",
+}
+
 interface Course {
   id: string;
   title: string;
@@ -64,7 +76,8 @@ interface Course {
   price: number;
   actualPrice?: number | null;
   durationMonths: number;
-  status: "PUBLISHED" | "DRAFT" | "ARCHIVED";
+  status: PublishStatus;
+  courseType?: CourseType;
   order?: number;
   inclusions?: {
     id: string;
@@ -221,6 +234,34 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
       },
     },
     {
+      accessorKey: "courseType",
+      header: "Type",
+      cell: ({ row }) => {
+        const courseType = row.original.courseType || CourseType.COMPETITIVE;
+        switch (courseType) {
+          case CourseType.SKILLS:
+            return (
+              <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium text-xs px-2 py-0.5">
+                Skills
+              </Badge>
+            );
+          case CourseType.WORKSHOP:
+            return (
+              <Badge className="bg-amber-50 text-amber-700 border border-amber-200 font-medium text-xs px-2 py-0.5">
+                Workshop
+              </Badge>
+            );
+          case CourseType.COMPETITIVE:
+          default:
+            return (
+              <Badge className="bg-sky-50 text-sky-700 border border-sky-200 font-medium text-xs px-2 py-0.5">
+                Competitive
+              </Badge>
+            );
+        }
+      },
+    },
+    {
       accessorKey: "durationMonths",
       header: "Duration",
       cell: ({ row }) => {
@@ -236,13 +277,13 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => {
-        const status = row.getValue("status") as Course["status"];
+        const status = row.getValue("status") as PublishStatus;
         switch (status) {
-          case "PUBLISHED":
+          case PublishStatus.PUBLISHED:
             return <Badge className="bg-green-100 text-green-700">Published</Badge>;
-          case "DRAFT":
+          case PublishStatus.DRAFT:
             return <Badge className="bg-yellow-100 text-yellow-700">Draft</Badge>;
-          case "ARCHIVED":
+          case PublishStatus.ARCHIVED:
             return <Badge className="bg-gray-200 text-gray-700">Archived</Badge>;
           default:
             return <Badge variant="outline">Unknown</Badge>;

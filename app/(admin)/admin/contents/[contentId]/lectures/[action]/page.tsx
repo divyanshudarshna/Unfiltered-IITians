@@ -268,8 +268,6 @@ const handlePreviewPdf = () => {
   }
 };
 
-console.log("PDF Preview URL:", pdfPreviewUrl);
-
 
 
 

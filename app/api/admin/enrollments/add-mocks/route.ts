@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
             }
           }
         });
-        console.log('📧 Email batch logged to database');
+        
       } catch (logError) {
         console.error('Failed to log email batch to database:', logError);
       }

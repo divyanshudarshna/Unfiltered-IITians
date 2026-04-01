@@ -27,7 +27,7 @@ export async function adminAuth() {
       create: { clerkUserId: userId, email, name, profileImageUrl: clerkUser.imageUrl, role },
       update: { email, name, profileImageUrl: clerkUser.imageUrl },
     });
-    console.log(`[adminAuth] Auto-synced user ${email} with role ${user.role}`);
+    
   }
 
   if (user.role !== "ADMIN") {

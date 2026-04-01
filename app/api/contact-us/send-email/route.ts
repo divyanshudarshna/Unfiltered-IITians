@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { to, subject, message, userName, status, contactId, threadId } = body;
 
-    console.log('📧 Contact-us send-email API called:', { to, subject, userName, status, contactId, threadId });
+    
 
     if (!to || !subject || !message) {
       console.error('❌ Missing required fields:', { to: !!to, subject: !!subject, message: !!message });
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
         });
         if (contact) {
           finalThreadId = contact.threadId;
-          console.log('✅ Retrieved threadId from contact:', finalThreadId);
+          
         } else {
           console.error('⚠️ Contact not found for ID:', contactId);
         }
@@ -38,13 +38,13 @@ export async function POST(req: Request) {
     // Generate a new threadId if still missing (for contacts created before threading was added)
     if (!finalThreadId && contactId) {
       finalThreadId = `thread_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      console.log('🆕 Generated new threadId for legacy contact:', finalThreadId);
+      
       try {
         await prisma.contactUs.update({
           where: { id: contactId },
           data: { threadId: finalThreadId },
         });
-        console.log('✅ Updated original contact with new threadId');
+        
       } catch (updateError) {
         console.error('⚠️ Failed to update contact with threadId:', updateError);
       }
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       ? `${baseUrl}/contact/reply?threadId=${finalThreadId}&email=${encodeURIComponent(to)}&name=${encodeURIComponent(userName || 'User')}`
       : `${baseUrl}/contact`;
     
-    console.log('🔗 Reply URL generated:', replyUrl, { finalThreadId, to, userName });
+    
 
     // Get status badge color
     const getStatusBadge = (statusVal: string | undefined) => {
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
             conversationType: 'ADMIN_REPLY',
           },
         });
-        console.log('✅ Created ADMIN_REPLY entry in database with conversation history');
+        
       } catch (dbError) {
         console.error('⚠️ Failed to create ADMIN_REPLY entry:', dbError);
         // Continue with email sending even if database entry fails
@@ -183,7 +183,7 @@ export async function POST(req: Request) {
     `;
 
     // Send email
-    console.log('📨 Attempting to send email to:', to);
+    
     const result = await sendEmail({
       to,
       customSubject: subject,
@@ -200,7 +200,7 @@ export async function POST(req: Request) {
     });
 
     if (result.success) {
-      console.log('✅ Email sent successfully to:', to);
+      
       return NextResponse.json({
         success: true,
         message: "Email sent successfully",

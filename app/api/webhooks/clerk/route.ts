@@ -65,7 +65,7 @@ export async function POST(req: Request) {
         },
       })
 
-      console.log(`✅ Created user in database: ${email} with role: ${role}`)
+      
       
       // ✅ Send welcome email to newly registered user
       sendEmail({
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
           });
 
           if (existingUser && existingUser.clerkUserId !== id) {
-            console.log(`🔄 [Webhook] Migrating user ${email} from Clerk ID ${existingUser.clerkUserId} to ${id}`);
+            
             // Update the clerkUserId to the new one
             await prisma.user.update({
               where: { email },
@@ -112,7 +112,7 @@ export async function POST(req: Request) {
             role,
           },
         })
-        console.log(`✅ Updated existing user: ${email}`)
+        
       } catch (updateError) {
         console.error('Error updating user:', updateError)
       }
@@ -141,7 +141,7 @@ export async function POST(req: Request) {
         });
 
         if (existingUser && existingUser.clerkUserId !== id) {
-          console.log(`🔄 [Webhook Update] Migrating user ${email} from Clerk ID ${existingUser.clerkUserId} to ${id}`);
+          
           // First update the clerkUserId
           await prisma.user.update({
             where: { email },
@@ -161,11 +161,11 @@ export async function POST(req: Request) {
         },
       })
 
-      console.log(`✅ Synced user update from Clerk: ${email} with role: ${role}`)
+      
       
       // Log if role was changed
       if (updatedUser.role !== role) {
-        console.log(`🔄 Role changed from ${updatedUser.role} to ${role} for user ${email}`)
+        
       }
     } catch (error) {
       console.error('Error updating user in database:', error)
@@ -184,7 +184,7 @@ export async function POST(req: Request) {
         })
 
         if (!user) {
-          console.log(`User with Clerk ID ${id} not found in database`)
+          
           return
         }
 
@@ -202,7 +202,7 @@ export async function POST(req: Request) {
         // Delete the user
         await tx.user.delete({ where: { clerkUserId: id } })
 
-        console.log(`✅ Deleted user from database: ${user.email}`)
+        
       })
     } catch (error) {
       console.error('Error deleting user from database:', error)

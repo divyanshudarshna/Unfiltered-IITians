@@ -108,18 +108,15 @@ export async function POST(req: Request) {
     // ✅ ALWAYS handle course inclusions - regardless of enrollment status
     // This ensures inclusions are processed even if user already had course enrollment
     if (course?.inclusions && course.inclusions.length > 0) {
-      console.log(`🎁 Processing ${course.inclusions.length} inclusions for user ${sub.userId}`);
-      console.log(`📋 Course inclusions:`, course.inclusions.map(inc => ({ 
-        type: inc.inclusionType, 
-        id: inc.inclusionId 
-      })));
+      
+      
       
       try {
         await prisma.$transaction(async (tx) => {
-          console.log("🔄 Starting inclusions transaction");
+          
           for (const inclusion of course.inclusions!) {
             try {
-              console.log(`🔄 Processing inclusion: ${inclusion.inclusionType} - ${inclusion.inclusionId}`);
+              
               
               // Handle different inclusion types
               if (inclusion.inclusionType === 'MOCK_TEST') {
@@ -143,7 +140,7 @@ export async function POST(req: Request) {
                       paidAt: new Date(),
                     },
                   });
-                  console.log(`✅ Created MOCK_TEST subscription for ${inclusion.inclusionId}`);
+                  
                 }
               } else if (inclusion.inclusionType === 'MOCK_BUNDLE') {
                 // For mock bundles, we need to create individual subscriptions for each mock in the bundle
@@ -170,7 +167,7 @@ export async function POST(req: Request) {
                   });
 
                   if (mockBundle && mockBundle.mockIds && mockBundle.mockIds.length > 0) {
-                    console.log(`📦 Processing MockBundle ${inclusion.inclusionId} with ${mockBundle.mockIds.length} mocks`);
+                    
                     
                     // Create individual subscriptions for each mock in the bundle
                     for (const mockId of mockBundle.mockIds) {
@@ -196,9 +193,9 @@ export async function POST(req: Request) {
                             paidAt: new Date(),
                           },
                         });
-                        console.log(`✅ Created mock subscription for ${mockId} from bundle ${inclusion.inclusionId}`);
+                        
                       } else {
-                        console.log(`ℹ️ Mock ${mockId} already has subscription, skipping`);
+                        
                       }
                     }
 
@@ -214,15 +211,15 @@ export async function POST(req: Request) {
                         paidAt: new Date(),
                       },
                     });
-                    console.log(`✅ Created MOCK_BUNDLE subscription for ${inclusion.inclusionId} with ${mockBundle.mockIds.length} individual mocks`);
+                    
                   } else {
                     console.error(`❌ MockBundle ${inclusion.inclusionId} not found or has no mocks`);
                   }
                 } else {
-                  console.log(`ℹ️ MOCK_BUNDLE subscription already exists for ${inclusion.inclusionId}`);
+                  
                 }
               } else if (inclusion.inclusionType === 'SESSION') {
-                console.log(`🎓 Processing SESSION inclusion: ${inclusion.inclusionId}`);
+                
                 
                 // Check if session enrollment already exists with SUCCESS status (same as individual sessions)
                 const existingSessionEnrollment = await tx.sessionEnrollment.findFirst({
@@ -233,7 +230,7 @@ export async function POST(req: Request) {
                   }
                 });
                 
-                console.log(`🔍 Existing session enrollment with SUCCESS status found: ${!!existingSessionEnrollment}`);
+                
                 
                 if (!existingSessionEnrollment) {
                   // Get user and session details (same pattern as individual sessions)
@@ -248,8 +245,8 @@ export async function POST(req: Request) {
                     })
                   ]);
 
-                  console.log(`👤 User found: ${user ? user.email : 'not found'}`);
-                  console.log(`📅 Session found: ${session ? 'yes' : 'not found'}`);
+                  
+                  
 
                   if (user && session) {
                     const sessionPrice = session.discountedPrice || session.price || 0;
@@ -267,7 +264,7 @@ export async function POST(req: Request) {
                         enrolledAt: new Date(),
                       }
                     });
-                    console.log(`✅ Created SESSION enrollment for ${inclusion.inclusionId} for user ${user.email} (original price: ₹${sessionPrice})`);
+                    
                   } else {
                     const missingItems = [];
                     if (!user) missingItems.push('user');
@@ -275,7 +272,7 @@ export async function POST(req: Request) {
                     console.error(`❌ Missing data for session enrollment: ${missingItems.join(', ')} not found. userId=${sub.userId}, sessionId=${inclusion.inclusionId}`);
                   }
                 } else {
-                  console.log(`ℹ️ SESSION enrollment already exists for ${inclusion.inclusionId}`);
+                  
                 }
               }
             } catch (inclusionError) {
@@ -285,13 +282,13 @@ export async function POST(req: Request) {
           }
         });
         
-        console.log(`✅ Inclusions transaction completed successfully for user ${sub.userId}`);
+        
       } catch (transactionError) {
         console.error("❌ Failed to process inclusions in transaction:", transactionError);
         // Don't fail the entire verification - enrollment is already created
       }
     } else {
-      console.log(`ℹ️ No inclusions to process for course ${sub.courseId}`);
+      
     }
 
     // ✅ Send course purchase confirmation email
@@ -302,7 +299,7 @@ export async function POST(req: Request) {
       });
 
       if (user && sub.course) {
-        console.log(`📧 Attempting to send course purchase email to ${user.email}`);
+        
         
         // Convert amount from paise to rupees
         const amountInRupees = ((sub.actualAmountPaid || sub.course.price) / 100).toFixed(2);
@@ -315,13 +312,7 @@ export async function POST(req: Request) {
           year: 'numeric' 
         });
         
-        console.log(`📧 Email data:`, {
-          userName: user.name,
-          courseName: sub.course.title,
-          amountInRupees,
-          courseExpiry: expiryDateString,
-          durationMonths: sub.course.durationMonths
-        });
+        
         
         const emailResult = await Email.sendEmail({
           to: user.email,
@@ -335,7 +326,7 @@ export async function POST(req: Request) {
         });
         
         if (emailResult.success) {
-          console.log(`✅ Course purchase email sent successfully to ${user.email}`, emailResult.messageId);
+          
         } else {
           console.error(`❌ Failed to send course purchase email:`, emailResult.error);
         }

@@ -27,8 +27,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
     const data = await req.json();
-    console.log("Update data received:", data);
-    console.log("Updating ID:", params.id);
+    
+    
 
     // Check if the story exists first
     const existingStory = await prisma.studentSuccessStory.findUnique({

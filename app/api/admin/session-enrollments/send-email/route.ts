@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    console.log('📧 Sending emails to', enrollments.length, 'students');
+    
 
     // Send emails to all selected students
     const results = [];
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
           error: emailResult.error
         });
         
-        console.log(`Email sent to ${enrollment.user.email}:`, emailResult.success ? '✅' : '❌');
+        
       } catch (error) {
         console.error(`Failed to send email to ${enrollment.user.email}:`, error);
         results.push({
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
             }
           }
         });
-        console.log('📧 Email batch logged to database');
+        
       } catch (logError) {
         console.error('Failed to log email batch to database:', logError);
       }

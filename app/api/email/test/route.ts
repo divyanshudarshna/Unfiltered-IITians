@@ -3,9 +3,9 @@ import { verifyEmailConfig } from '@/lib/email';
 
 export async function GET() {
   try {
-    console.log('🔍 Checking email configuration...');
-    console.log('EMAIL_USER:', process.env.EMAIL_USER ? '✅ Set' : '❌ Not set');
-    console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '✅ Set' : '❌ Not set');
+    
+    
+    
     
     const result = await verifyEmailConfig();
     

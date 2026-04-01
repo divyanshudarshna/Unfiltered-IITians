@@ -166,7 +166,6 @@ export default function QuizPage() {
     setEditingQuestion(null);
     setEditingIndex(null);
   };
-  console.log("Course ID:", courseId);
 
   const handleBack = () => {
     router.push(`/admin/courses/${courseId}/contents`); // Replace with actual courseId if available

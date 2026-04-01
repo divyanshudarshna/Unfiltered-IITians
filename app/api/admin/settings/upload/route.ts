@@ -122,7 +122,7 @@ export async function POST(req: Request) {
       },
     });
 
-    console.log('💾 Database record created:', newUpload.id);
+    
 
     return NextResponse.json(newUpload);
 

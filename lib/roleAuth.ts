@@ -52,7 +52,7 @@ export async function getDbUserFromClerk() {
       create: { clerkUserId: userId, email, name, profileImageUrl: clerkUser.imageUrl, role },
       update: { email, name, profileImageUrl: clerkUser.imageUrl },
     })
-    console.log(`[roleAuth] Auto-synced user ${email} with role ${upserted.role}`)
+    
     return upserted
   } catch (error) {
     console.error('[roleAuth] Error in getDbUserFromClerk:', error)

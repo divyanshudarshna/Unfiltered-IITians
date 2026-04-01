@@ -221,7 +221,7 @@ export default function VideoContent({
     setSelectedQuality(quality);
     setShowSettings(false);
     // Note: In a real implementation, you would switch video sources here
-    console.log(`Quality changed to: ${quality}`);
+    
   }, []);
 
   // Fullscreen functions

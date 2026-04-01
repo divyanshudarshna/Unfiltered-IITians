@@ -102,7 +102,6 @@ export async function POST(req: NextRequest) {
     if (sendAsEmail && enrollments.length > 0) {
       // Verify email config quickly
   const verifyResult = await Email.verifyEmailConfig();
-  console.log('verifyEmailConfig result:', verifyResult);
       if (!verifyResult.success) {
         console.warn('Email configuration invalid, skipping email sending', verifyResult.error);
       } else {
@@ -117,7 +116,6 @@ export async function POST(req: NextRequest) {
                 customHtml: `<h2>${title}</h2><p>${message}</p>`,
               });
 
-              console.log(`sendEmail result for ${recipientEmail}:`, result);
               if (result.success) {
                 emailsSent++;
                 await prisma.announcementRecipient.updateMany({
@@ -126,14 +124,14 @@ export async function POST(req: NextRequest) {
                 });
               } else {
                 emailErrors++;
-                console.error(`Failed to send via sendEmail to ${recipientEmail}:`, result.error);
+                console.error(`Failed to send email to ${recipientEmail}:`, result.error);
               }
 
               // small delay to be polite to SMTP providers
               await new Promise((r) => setTimeout(r, 80));
             } catch (err) {
               emailErrors++;
-              console.error(`Unexpected error sending email to ${recipientEmail}:`, err);
+              console.error(`Error sending email to ${recipientEmail}:`, err);
             }
           }
         }
@@ -174,7 +172,6 @@ export async function POST(req: NextRequest) {
             }
           }
         });
-        console.log('📧 Course announcement email batch logged to database');
       } catch (logError) {
         console.error('Failed to log course announcement email batch:', logError);
       }
@@ -202,7 +199,6 @@ export async function PUT(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "Announcement ID is required" }, { status: 400 });
 
     const body = await req.json();
-    console.log('PUT /api/admin/course-announcement body:', body);
 
     // Sanitize update payload to avoid passing unexpected fields to Prisma
     const updateData: any = {};
@@ -212,13 +208,11 @@ export async function PUT(req: NextRequest) {
 
     let announcement;
     try {
-      console.log('Updating announcement id:', id, 'with data:', updateData);
       announcement = await prisma.courseAnnouncement.update({
         where: { id },
         data: updateData,
         include: { course: { select: { title: true } } },
       });
-      console.log('Announcement updated:', { id: announcement.id, title: announcement.title });
     } catch (prismaErr) {
       console.error('Prisma error updating announcement:', prismaErr);
       // Re-throw so outer catch returns 500 but we have detailed logs
@@ -325,7 +319,6 @@ export async function PUT(req: NextRequest) {
               }
             }
           });
-          console.log('📧 Course announcement update email batch logged to database');
         } catch (logError) {
           console.error('Failed to log course announcement update email batch:', logError);
         }

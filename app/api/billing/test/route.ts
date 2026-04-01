@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    console.log("🧪 Test API called");
+    
     
     const user = await currentUser();
     
@@ -43,8 +43,7 @@ export async function GET() {
     console.error("Test API error:", error);
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
+      error: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
   }
 }

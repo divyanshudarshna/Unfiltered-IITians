@@ -33,7 +33,7 @@ export async function GET(req: Request, { params }: Params) {
           create: { clerkUserId, email, name, profileImageUrl: clerkUser.imageUrl, role },
           update: { email, name, profileImageUrl: clerkUser.imageUrl },
         })
-        console.log(`[contents] Auto-synced user ${email}`)
+        
         user = await prisma.user.findUnique({
           where: { clerkUserId },
           select: { id: true, role: true }
@@ -55,7 +55,7 @@ export async function GET(req: Request, { params }: Params) {
       const clerkUser = await client.users.getUser(clerkUserId)
       isAdminFromClerk = clerkUser.publicMetadata?.role === 'ADMIN';
     } catch {
-      console.log('⚠️ [CONTENTS] Could not fetch Clerk user data, continuing with DB role check')
+      
     }
 
     const isAdmin = isAdminFromDB || isAdminFromClerk;
@@ -107,7 +107,7 @@ export async function GET(req: Request, { params }: Params) {
         }, { status: 403 });
       }
     } else {
-      console.log(`✅ [CONTENTS] Admin access granted for course ${params.id}`)
+      
     }
 
     // Fetch course with contents + lectures + quiz

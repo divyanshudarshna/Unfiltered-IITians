@@ -112,16 +112,7 @@ export async function POST(req: Request) {
 
     const percentage = Math.round((correctCount / totalQuestionsCount) * 100);
 
-    console.log("Submit API Debug:", {
-      attemptId,
-      totalQuestions: totalQuestionsCount,
-      correctCount,
-      incorrectCount,
-      unansweredCount,
-      percentage,
-      answersCount: Object.keys(answers).length,
-      sampleAnswers: Object.entries(answers).slice(0, 2)
-    });
+    
 
     // Update attempt with all metrics
     const updatedAttempt = await prisma.mockAttempt.update({

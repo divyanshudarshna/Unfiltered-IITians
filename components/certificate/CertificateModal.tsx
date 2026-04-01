@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, Mail, Loader2, CheckCircle, Sparkles, ZoomIn, ZoomOut } from "lucide-react";
+import { Download, Mail, Loader2, CheckCircle, Sparkles, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
 import CertificateTemplate from "./CertificateTemplate";
 import { CertificateData } from "@/types/certificate";
 import { toast } from "sonner";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 
 interface CertificateModalProps {
@@ -153,28 +153,52 @@ export default function CertificateModal({
 
     setIsDownloading(true);
     try {
-      const canvas = await html2canvas(certificateRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-      });
+      const imgData = (await Promise.race([
+        toPng(certificateRef.current, {
+          cacheBust: true,
+          pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+          backgroundColor: "#ffffff",
+          skipFonts: false,
+        }),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("Certificate rendering timed out")), 20000);
+        }),
+      ])) as string;
 
-      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({
         orientation: "landscape",
-        unit: "px",
-        format: [900, 636],
+        unit: "pt",
+        format: "a4",
       });
 
-      pdf.addImage(imgData, "PNG", 0, 0, 900, 636);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, "PNG", 0, 0, pageWidth, pageHeight, undefined, "FAST");
       pdf.save(`certificate-${certificate.certificateId}.pdf`);
 
       toast.success("Certificate downloaded successfully!");
     } catch (error) {
       console.error("Download error:", error);
-      toast.error("Failed to download certificate");
+
+      try {
+        if (!certificateRef.current) throw error;
+
+        const fallbackPng = await toPng(certificateRef.current, {
+          cacheBust: true,
+          pixelRatio: 1,
+          backgroundColor: "#ffffff",
+          skipFonts: true,
+        });
+
+        const link = document.createElement("a");
+        link.href = fallbackPng;
+        link.download = `certificate-${certificate.certificateId}.png`;
+        link.click();
+        toast.success("Downloaded as image. You can print it as PDF.");
+      } catch (fallbackError) {
+        console.error("Download fallback error:", fallbackError);
+        toast.error("Failed to download certificate");
+      }
     } finally {
       setIsDownloading(false);
     }
@@ -185,6 +209,9 @@ export default function CertificateModal({
 
     setIsEmailing(true);
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+
       const response = await fetch("/api/certificates/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -192,7 +219,10 @@ export default function CertificateModal({
           certificateId: certificate.id,
           courseId: courseId,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
@@ -205,6 +235,10 @@ export default function CertificateModal({
       onEmailSent?.();
     } catch (error: any) {
       console.error("Email error:", error);
+      if (error?.name === "AbortError") {
+        toast.error("Email request timed out. Please try again.");
+        return;
+      }
       toast.error(error.message || "Failed to send certificate email");
     } finally {
       setIsEmailing(false);
