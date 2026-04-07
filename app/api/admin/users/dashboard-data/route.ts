@@ -7,6 +7,10 @@ export async function GET(req: NextRequest) {
   try {
     await assertAdminApiAccess(req.url, req.method);
 
+    // Get revenue settings for date filtering
+    const revenueSettings = await prisma.revenueSettings.findFirst();
+    const lastDisbursementDate = revenueSettings?.lastDisbursementDate || null;
+
     // Fetch users with relations
     const users = await prisma.user.findMany({
       include: {
@@ -32,32 +36,68 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    // ✅ Calculate revenue using EXACT same logic as admin/stats
-    const allPaidSubscriptions = users.flatMap(u => u.subscriptions.filter(sub => sub.paid));
-    const allSessionEnrollments = users.flatMap(u => u.sessionEnrollments);
+    // ✅ Calculate CURRENT revenue (from last disbursement) using EXACT same logic as admin/stats
+    const currentPaidSubscriptions = users.flatMap(u => 
+      u.subscriptions.filter(sub => {
+        if (!sub.paid) return false;
+        if (lastDisbursementDate) {
+          return Boolean(sub.paidAt) && new Date(sub.paidAt as Date) >= new Date(lastDisbursementDate);
+        }
+        return true;
+      })
+    );
+    
+    const currentSessionEnrollments = users.flatMap(u => 
+      u.sessionEnrollments.filter(enrollment => {
+        if (lastDisbursementDate && enrollment.enrolledAt) {
+          return new Date(enrollment.enrolledAt) >= new Date(lastDisbursementDate);
+        }
+        return true;
+      })
+    );
 
-    // ✅ Subscription revenue - replicate admin/stats logic exactly
-    const subscriptionRevenue = allPaidSubscriptions
+    // ✅ Current Subscription revenue
+    const currentSubscriptionRevenue = currentPaidSubscriptions
       .map(sub => {
-        // Calculate actual amount paid - prioritize actualAmountPaid field
         let actualAmount = 0;
         if (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined) {
-          actualAmount = sub.actualAmountPaid / 100; // Convert paise to rupees
+          actualAmount = sub.actualAmountPaid / 100;
         } else {
-          // Only use fallback pricing for old records that don't have actualAmountPaid set
           actualAmount = sub.course?.price || sub.mockTest?.price || sub.mockBundle?.discountedPrice || sub.mockBundle?.basePrice || 0;
         }
         return actualAmount;
       })
-      .filter(amount => amount > 0) // ✅ Filter out zero amount transactions - CRITICAL
+      .filter(amount => amount > 0)
       .reduce((sum, amount) => sum + amount, 0);
 
-    // ✅ Session revenue - only non-zero amounts
-    const sessionRevenue = allSessionEnrollments
-      .filter(enrollment => (enrollment.amountPaid || 0) > 0) // ✅ Filter out zero amounts
+    const currentSessionRevenue = currentSessionEnrollments
+      .filter(enrollment => (enrollment.amountPaid || 0) > 0)
       .reduce((sum, enrollment) => sum + (enrollment.amountPaid || 0), 0);
 
-    const totalRevenue = subscriptionRevenue + sessionRevenue;
+    const currentRevenue = currentSubscriptionRevenue + currentSessionRevenue;
+
+    // ✅ Calculate LIFETIME revenue (all time)
+    const allPaidSubscriptions = users.flatMap(u => u.subscriptions.filter(sub => sub.paid));
+    const allSessionEnrollments = users.flatMap(u => u.sessionEnrollments);
+
+    const lifetimeSubscriptionRevenue = allPaidSubscriptions
+      .map(sub => {
+        let actualAmount = 0;
+        if (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined) {
+          actualAmount = sub.actualAmountPaid / 100;
+        } else {
+          actualAmount = sub.course?.price || sub.mockTest?.price || sub.mockBundle?.discountedPrice || sub.mockBundle?.basePrice || 0;
+        }
+        return actualAmount;
+      })
+      .filter(amount => amount > 0)
+      .reduce((sum, amount) => sum + amount, 0);
+
+    const lifetimeSessionRevenue = allSessionEnrollments
+      .filter(enrollment => (enrollment.amountPaid || 0) > 0)
+      .reduce((sum, enrollment) => sum + (enrollment.amountPaid || 0), 0);
+
+    const lifetimeRevenue = lifetimeSubscriptionRevenue + lifetimeSessionRevenue;
 
     // Compute other stats
     const totalUsers = users.length
@@ -77,7 +117,10 @@ export async function GET(req: NextRequest) {
         totalUsers,
         totalSubscribers,
         totalEnrollments,
-        totalRevenue,
+        totalRevenue: currentRevenue,
+        lifetimeRevenue,
+        lastDisbursementDate,
+        lastDisbursementAmount: revenueSettings?.lastDisbursementAmount || null,
       },
     })
   } catch (error) {

@@ -784,3 +784,32 @@ model Certificate {
   @@index([userId])
   @@index([courseId])
 }
+
+// ================== REVENUE SETTINGS ==================
+model RevenueSettings {
+  id                     String    @id @default(auto()) @map("_id") @db.ObjectId
+  currentRevenue         Float     @default(0) // Current revenue (resets after disbursement)
+  lifetimeRevenue        Float     @default(0) // Total revenue from beginning
+  lastDisbursementDate   DateTime? // Date of last disbursement
+  lastDisbursementAmount Float?    // Amount disbursed last time
+  autoResetEnabled       Boolean   @default(false) // Auto reset on April 1st
+  lastResetDate          DateTime? // Last time auto reset was applied
+  updatedAt              DateTime  @updatedAt
+  createdAt              DateTime  @default(now())
+
+  @@index([updatedAt])
+}
+
+// ================== DISBURSEMENT HISTORY ==================
+model DisbursementHistory {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  amount          Float // Amount disbursed
+  previousBalance Float // Balance before disbursement
+  disbursedBy     String // Admin who performed disbursement
+  disbursementDate DateTime @default(now())
+  notes           String? // Optional notes
+  isAutomatic     Boolean  @default(false) // Was it auto-reset or manual
+
+  @@index([disbursementDate])
+  @@index([disbursedBy])
+}

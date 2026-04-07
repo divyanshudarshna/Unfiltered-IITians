@@ -21,12 +21,26 @@ import {
 } from "@/components/ui/card"
 
 type DashboardStats = {
-  totalRevenue: number
+  currentRevenue?: number
+  totalRevenue?: number
+  lifetimeRevenue?: number
+  lastDisbursementDate?: string | null
+  lastDisbursementAmount?: number | null
   newCustomersCount: number
   activeAccounts: number
   registeredUsers: number
   totalMocks: number
   totalCourses: number
+}
+
+// Helper function to format date as dd/mm/yyyy
+const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) return ""
+  const date = new Date(dateString)
+  const day = String(date.getDate()).padStart(2, "0")
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
 }
 
 export function SectionCards() {
@@ -50,31 +64,44 @@ export function SectionCards() {
     fetchStats()
   }, [])
 
-  if (loading) return <div className="text-ceter">Loading dashboard stats...</div>
+  if (loading) return <div className="text-center">Loading dashboard stats...</div>
   if (error) return <div>Error loading stats: {error}</div>
   if (!stats) return null
+
+  const currentRevenue = stats.currentRevenue ?? stats.totalRevenue ?? 0
+  const lifetimeRevenue = stats.lifetimeRevenue ?? 0
 
   return (
     <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Total Revenue</CardDescription>
+          <CardDescription>Current Revenue</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            ₹{stats.totalRevenue.toLocaleString()}
+            ₹{currentRevenue.toLocaleString()}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
               <IconCurrencyDollar />
-              {/* You can add % change or other info here */}
-              &nbsp; +12.5%
+              &nbsp; Current
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Revenue trend <IconTrendingUp className="size-4" />
+            Revenue since last disbursement <IconTrendingUp className="size-4" />
           </div>
-          <div className="text-muted-foreground">From paid subscriptions</div>
+          {lifetimeRevenue > 0 ? (
+            <div className="text-muted-foreground">
+              ₹{lifetimeRevenue.toLocaleString()} lifetime total
+            </div>
+          ) : (
+            <div className="text-muted-foreground">From paid subscriptions</div>
+          )}
+          {stats.lastDisbursementDate && (
+            <div className="text-xs text-muted-foreground/70">
+              Last disbursed: {formatDate(stats.lastDisbursementDate)}
+            </div>
+          )}
         </CardFooter>
       </Card>
 

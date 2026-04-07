@@ -10,6 +10,16 @@ import { RoleUpdateDialog } from "@/components/admin/role-update-dialog"
 import { UserData } from "@/app/(admin)/admin/users/components/types"
 import { Users, Shield, CreditCard, RefreshCw, TrendingUp } from "lucide-react"
 
+// Helper function to format date as dd/mm/yyyy
+const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) return ""
+  const date = new Date(dateString)
+  const day = String(date.getDate()).padStart(2, "0")
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
 interface UserManagementProps {
   showEnrollmentStats?: boolean
   containerClassName?: string
@@ -23,6 +33,9 @@ export function UserManagement({ showEnrollmentStats = false, containerClassName
     totalSubscribers: 0,
     totalEnrollments: 0,
     totalRevenue: 0,
+    lifetimeRevenue: 0,
+    lastDisbursementDate: null as string | null,
+    lastDisbursementAmount: null as number | null,
   })
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
@@ -107,7 +120,7 @@ export function UserManagement({ showEnrollmentStats = false, containerClassName
       student: users.filter(u => u.role === "STUDENT").length,
     },
     premiumUsers: dashboardStats.totalSubscribers,
-    totalRevenue: dashboardStats.totalRevenue,
+    currentRevenue: dashboardStats.totalRevenue,
   }
 
   if (loading) {
@@ -220,7 +233,7 @@ export function UserManagement({ showEnrollmentStats = false, containerClassName
         <Card className="relative overflow-hidden border-0 shadow-sm bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/20 dark:to-emerald-900/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-              Total Revenue
+              Current Revenue
             </CardTitle>
             <div className="p-2 bg-emerald-100 dark:bg-emerald-800 rounded-lg">
               <CreditCard className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -228,11 +241,21 @@ export function UserManagement({ showEnrollmentStats = false, containerClassName
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
-              ₹{stats.totalRevenue.toLocaleString()}
+              ₹{stats.currentRevenue.toLocaleString()}
             </div>
             <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-1">
-              Lifetime revenue
+              Current revenue
             </p>
+            {dashboardStats.lifetimeRevenue > 0 && (
+              <p className="text-xs text-emerald-500/60 dark:text-emerald-500/60 mt-0.5">
+                ₹{dashboardStats.lifetimeRevenue.toLocaleString()} lifetime
+              </p>
+            )}
+            {dashboardStats.lastDisbursementDate && (
+              <p className="text-xs text-emerald-500/50 dark:text-emerald-500/50 mt-0.5">
+                Last disbursement: {formatDate(dashboardStats.lastDisbursementDate)}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

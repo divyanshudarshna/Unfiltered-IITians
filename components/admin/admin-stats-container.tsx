@@ -89,10 +89,26 @@ interface StatsOverview {
   }
 }
 
+interface RevenueCardStats {
+  currentRevenue: number
+  lifetimeRevenue?: number
+  lastDisbursementDate?: string | null
+}
+
+const formatDisbursementDate = (dateString: string | null | undefined) => {
+  if (!dateString) return ""
+  const date = new Date(dateString)
+  const day = String(date.getDate()).padStart(2, "0")
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
 export function AdminStatsContainer() {
   const { getToken } = useAuth()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [statsOverview, setStatsOverview] = useState<StatsOverview | null>(null)
+  const [revenueCardStats, setRevenueCardStats] = useState<RevenueCardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [overviewLoading, setOverviewLoading] = useState(true)
 
@@ -174,6 +190,26 @@ export function AdminStatsContainer() {
       toast.error("Failed to load stats overview")
     } finally {
       setOverviewLoading(false)
+    }
+  }
+
+  const fetchRevenueCardStats = async () => {
+    try {
+      const token = await getToken()
+      const response = await fetch("/api/admin/dashboard-stats", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (!response.ok) throw new Error("Failed to fetch revenue stats")
+
+      const data = await response.json()
+      setRevenueCardStats({
+        currentRevenue: data.currentRevenue ?? data.totalRevenue ?? 0,
+        lifetimeRevenue: data.lifetimeRevenue ?? 0,
+        lastDisbursementDate: data.lastDisbursementDate ?? null,
+      })
+    } catch (error) {
+      console.error("Error fetching revenue card stats:", error)
     }
   }
 
@@ -277,12 +313,19 @@ export function AdminStatsContainer() {
       setSecurityPassword("")
       fetchTransactions() // Refresh the list
       fetchStatsOverview() // Refresh stats
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating transaction status:', error)
-      toast.error(error.message || 'Failed to update transaction status')
+      const message = error instanceof Error ? error.message : 'Failed to update transaction status'
+      toast.error(message)
     } finally {
       setUpdating(false)
     }
+  }
+
+  const handleRefresh = () => {
+    fetchTransactions()
+    fetchStatsOverview()
+    fetchRevenueCardStats()
   }
 
   const getTypeIcon = (type: string) => {
@@ -326,6 +369,10 @@ export function AdminStatsContainer() {
     fetchStatsOverview()
   }, [])
 
+  useEffect(() => {
+    fetchRevenueCardStats()
+  }, [])
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -337,7 +384,7 @@ export function AdminStatsContainer() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={fetchTransactions} variant="outline" size="sm">
+          <Button onClick={handleRefresh} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -355,8 +402,21 @@ export function AdminStatsContainer() {
             <div className="flex items-center space-x-2 min-w-0">
               <IndianRupee className="h-5 w-5 text-blue-600" />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground truncate">Total Revenue</p>
-                <p className="text-lg font-bold truncate">₹{statsOverview.totalRevenue.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground truncate">Current Revenue</p>
+                <p className="text-lg font-bold truncate">
+                  ₹{(revenueCardStats?.currentRevenue ?? statsOverview.totalRevenue).toLocaleString()}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate">Since last disbursement</p>
+                {(revenueCardStats?.lifetimeRevenue ?? 0) > 0 && (
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    ₹{(revenueCardStats?.lifetimeRevenue ?? 0).toLocaleString()} lifetime
+                  </p>
+                )}
+                {revenueCardStats?.lastDisbursementDate && (
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Last disbursement: {formatDisbursementDate(revenueCardStats.lastDisbursementDate)}
+                  </p>
+                )}
               </div>
             </div>
           </Card>

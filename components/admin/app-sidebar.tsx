@@ -15,6 +15,7 @@ import {
   IconChevronDown,
   IconChartBar,
   IconTicket,
+  IconSettings,
 } from "@tabler/icons-react";
 
 import {
@@ -78,7 +79,7 @@ const data = {
     {
       title: "Settings",
       url: "/admin/settings",
-      icon: IconBook,
+      icon: IconSettings,
       actions: [
         { title: "Email Logs", url: "/admin/settings/emails" },
       ],

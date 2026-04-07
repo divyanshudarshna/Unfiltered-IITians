@@ -10,12 +10,22 @@ export async function GET() {
   const stats = await getOrSet(
     cacheKey,
     async () => {
-      // ✅ Get ALL successful subscriptions - replicate admin/stats logic exactly
+      // Get revenue settings for date filtering
+      const revenueSettings = await prisma.revenueSettings.findFirst();
+      const lastDisbursementDate = revenueSettings?.lastDisbursementDate || null;
+
+      // ✅ Get subscriptions after last disbursement (or all if no disbursement)
       const paidSubscriptions = await prisma.subscription.findMany({
-        where: { paid: true },
+        where: { 
+          paid: true,
+          ...(lastDisbursementDate && {
+            paidAt: { gte: lastDisbursementDate }
+          })
+        },
         select: {
           actualAmountPaid: true,
           originalPrice: true,
+          paidAt: true,
           mockTest: {
             select: {
               price: true,
@@ -53,11 +63,14 @@ export async function GET() {
         .filter(amount => amount > 0) // ✅ Filter out zero amount transactions - CRITICAL
         .reduce((sum, amount) => sum + amount, 0);
 
-      // ✅ Get session enrollment revenue - only SUCCESS payments with non-null amounts
+      // ✅ Get session enrollment revenue after last disbursement - only SUCCESS payments with non-null amounts
       const successfulSessionEnrollments = await prisma.sessionEnrollment.findMany({
         where: { 
           paymentStatus: "SUCCESS",
-          amountPaid: { not: null, gt: 0 } // ✅ Exclude zero amounts
+          amountPaid: { not: null, gt: 0 }, // ✅ Exclude zero amounts
+          ...(lastDisbursementDate && {
+            enrolledAt: { gte: lastDisbursementDate }
+          })
         },
         select: {
           amountPaid: true
@@ -68,7 +81,45 @@ export async function GET() {
         return sum + (enrollment.amountPaid || 0);
       }, 0);
 
-      const totalRevenue = subscriptionRevenue + sessionRevenue;
+      const currentRevenue = subscriptionRevenue + sessionRevenue;
+
+      // Calculate lifetime revenue (all time)
+      const allPaidSubscriptions = await prisma.subscription.findMany({
+        where: { paid: true },
+        select: {
+          actualAmountPaid: true,
+          mockTest: { select: { price: true, actualPrice: true } },
+          course: { select: { price: true, actualPrice: true } },
+          mockBundle: { select: { basePrice: true, discountedPrice: true } }
+        }
+      });
+
+      const lifetimeSubscriptionRevenue = allPaidSubscriptions
+        .map(sub => {
+          let actualAmount = 0;
+          if (sub.actualAmountPaid !== null && sub.actualAmountPaid !== undefined) {
+            actualAmount = sub.actualAmountPaid / 100;
+          } else {
+            actualAmount = sub.course?.price || sub.mockTest?.price || sub.mockBundle?.discountedPrice || sub.mockBundle?.basePrice || 0;
+          }
+          return actualAmount;
+        })
+        .filter(amount => amount > 0)
+        .reduce((sum, amount) => sum + amount, 0);
+
+      const allSessionEnrollments = await prisma.sessionEnrollment.findMany({
+        where: { 
+          paymentStatus: "SUCCESS",
+          amountPaid: { not: null, gt: 0 }
+        },
+        select: { amountPaid: true }
+      });
+
+      const lifetimeSessionRevenue = allSessionEnrollments.reduce((sum, enrollment) => {
+        return sum + (enrollment.amountPaid || 0);
+      }, 0);
+
+      const lifetimeRevenue = lifetimeSubscriptionRevenue + lifetimeSessionRevenue;
 
       const newCustomersCount = await prisma.user.count({
         where: {
@@ -88,7 +139,10 @@ export async function GET() {
       const totalCourses = await prisma.course.count()
 
       return {
-        totalRevenue,
+        currentRevenue,
+        lifetimeRevenue,
+        lastDisbursementDate,
+        lastDisbursementAmount: revenueSettings?.lastDisbursementAmount || null,
         newCustomersCount,
         activeAccounts,
         registeredUsers,
