@@ -199,6 +199,9 @@ model Course {
   // ✅ NEW: Course inclusions for bundling
   inclusions CourseInclusion[]
 
+  // Instructor assignments
+  courseInstructors CourseInstructor[]
+
   // ✅ PERFORMANCE: Indexes for course queries (most critical!)
   @@index([status])
   @@index([status, createdAt])
@@ -813,6 +816,56 @@ model DisbursementHistory {
 
   @@index([disbursementDate])
   @@index([disbursedBy])
+}
+
+// ================== INSTRUCTORS ==================
+model Instructor {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  fullName       String
+  email          String?  @unique
+  title          String?  // e.g. "Principal Investigator | Quantum Biologist"
+  bio            String?
+  profileImageUrl String?
+
+  // Academic affiliations: [{name, role, logoUrl, year}]
+  academicAffiliations Json @default("[]")
+
+  // Research appointments: [{org, role, period}]
+  researchAppointments Json @default("[]")
+
+  // Expertise areas as string array
+  expertiseAreas String[] @default([])
+
+  // Awards & recognition (free text)
+  awards String?
+
+  // Social links: {website, linkedin, researchgate, twitter}
+  socialLinks Json?
+
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  courseInstructors CourseInstructor[]
+
+  @@index([isActive])
+  @@index([order])
+}
+
+model CourseInstructor {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  courseId     String @db.ObjectId
+  instructorId String @db.ObjectId
+  order        Int    @default(0) // display order within the course
+
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instructor Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, instructorId])
+  @@index([courseId])
+  @@index([instructorId])
 }
 
 // ================== CUSTOM CERTIFICATES ==================

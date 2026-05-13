@@ -26,6 +26,7 @@ import {
   Zap,
   Rocket,
   Search,
+  UserCheck,
 } from "lucide-react";
 import { useCoursesQuery, useBatchStatusQuery } from "@/hooks/useCoursesQuery";
 
@@ -38,6 +39,12 @@ interface Course {
   durationMonths?: number;
   enrolledStudents?: number;
   status: string;
+  instructors?: Array<{
+    id: string;
+    fullName: string;
+    title?: string | null;
+    profileImageUrl?: string | null;
+  }>;
 }
 
 interface EnrollmentStatus {
@@ -321,6 +328,36 @@ export default function CourseList({
                       {course.description ||
                         "Comprehensive course with expert instruction and valuable resources."}
                     </CardDescription>
+
+                    {/* Instructor badges */}
+                    {course.instructors && course.instructors.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {course.instructors.slice(0, 2).map((inst) => (
+                          <div
+                            key={inst.id}
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800 rounded-full px-2.5 py-1"
+                          >
+                            {inst.profileImageUrl ? (
+                              <img
+                                src={inst.profileImageUrl}
+                                alt={inst.fullName}
+                                className="h-4 w-4 rounded-full object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <UserCheck className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                            )}
+                            <span className="font-medium text-blue-700 dark:text-blue-300 truncate max-w-[120px]">
+                              {inst.fullName}
+                            </span>
+                          </div>
+                        ))}
+                        {course.instructors.length > 2 && (
+                          <span className="text-xs text-muted-foreground px-2 py-1">
+                            +{course.instructors.length - 2} more
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </CardHeader>
 
                   <CardContent className="pb-3 flex-grow">

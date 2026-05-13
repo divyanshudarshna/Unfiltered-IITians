@@ -4,13 +4,13 @@ import { ObjectId } from "mongodb";
 import { getOrSet, CacheKeys } from "@/lib/cache";
 
 interface Params {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 // ✅ PHASE 2: Cache course details for 5 minutes
 export async function GET(req: Request, { params }: Params) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json({ error: "Invalid course id" }, { status: 400 });

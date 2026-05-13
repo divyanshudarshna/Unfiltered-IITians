@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth, useUser, SignInButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,40 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle, Clock, Users, Shield, Award, FileText, Video, HelpCircle, Target, Package, MessageSquare, Timer, Star } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, Users, Shield, Award, FileText, Video, HelpCircle, Target, Package, MessageSquare, Timer, Star, Globe, Linkedin, Twitter, BookOpen, GraduationCap, FlaskConical } from "lucide-react";
+
+interface AcademicAffiliation {
+  institution: string;
+  role?: string;
+  year?: string;
+  logoUrl?: string;
+}
+
+interface ResearchAppointment {
+  organization: string;
+  role?: string;
+  period?: string;
+}
+
+interface InstructorSocialLinks {
+  website?: string;
+  linkedin?: string;
+  researchgate?: string;
+  twitter?: string;
+}
+
+interface Instructor {
+  id: string;
+  fullName: string;
+  title?: string | null;
+  bio?: string | null;
+  profileImageUrl?: string | null;
+  expertiseAreas?: string[];
+  awards?: string | null;
+  academicAffiliations?: AcademicAffiliation[];
+  researchAppointments?: ResearchAppointment[];
+  socialLinks?: InstructorSocialLinks | null;
+}
 
 interface Course {
   id: string;
@@ -52,6 +85,7 @@ interface Course {
       discountedPrice?: number;
     };
   }[];
+  instructors?: Instructor[];
 }
 
 interface AppliedCoupon {
@@ -74,6 +108,11 @@ export default function CourseDetailPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [publicCoupons, setPublicCoupons] = useState<Array<{id:string;code:string;discountPct:number;validTill:string;usageCount:number}>>([]);
   const [publicLoading, setPublicLoading] = useState(false);
+
+  const instructorsSectionRef = useRef<HTMLDivElement>(null);
+  const scrollToInstructors = () => {
+    instructorsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // Fetch course details
   useEffect(() => {
@@ -261,16 +300,16 @@ export default function CourseDetailPage() {
 
   if (!course) {
     return (
-      <div className="container mx-auto p-6 max-w-4xl animate-pulse">
-        <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-        <div className="h-4 bg-gray-200 rounded w-3/4 mb-8"></div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-4">
-            <div className="h-64 bg-gray-200 rounded"></div>
+      <div className="container mx-auto p-6 max-w-6xl animate-pulse">
+        <div className="h-8 bg-muted rounded w-1/4 mb-4"></div>
+        <div className="h-40 bg-muted rounded mb-6"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+          <div className="lg:col-span-3 space-y-4">
+            <div className="h-64 bg-muted rounded"></div>
+            <div className="h-48 bg-muted rounded"></div>
           </div>
-          <div className="space-y-4">
-            <div className="h-32 bg-gray-200 rounded"></div>
-            <div className="h-40 bg-gray-200 rounded"></div>
+          <div className="lg:col-span-2 space-y-4">
+            <div className="h-80 bg-muted rounded"></div>
           </div>
         </div>
       </div>
@@ -278,261 +317,278 @@ export default function CourseDetailPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto px-4 py-6 max-w-6xl">
       {/* Back button */}
-      <Button variant="ghost" onClick={() => router.back()} className="mb-6 flex items-center gap-2">
+      <Button variant="ghost" onClick={() => router.back()} className="mb-5 flex items-center gap-2 text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to Courses
       </Button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Course Details */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">{course.title}</CardTitle>
-              <CardDescription>{course.description}</CardDescription>
+      {/* ── Hero Card ── */}
+      <Card className="mb-8 border-0 shadow-md bg-gradient-to-br from-background to-muted/40 dark:from-background dark:to-muted/20">
+        <CardHeader className="pb-4">
+          <div className="flex flex-wrap gap-2 mb-3">
+            {course.level && (
+              <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-0 text-xs font-medium">
+                {course.level}
+              </Badge>
+            )}
+            <Badge variant="outline" className="text-xs font-medium flex items-center gap-1">
+              <Clock className="h-3 w-3" /> {course.durationMonths} month{course.durationMonths !== 1 ? "s" : ""}
+            </Badge>
+            {course.enrolledStudents !== undefined && (
+              <Badge variant="outline" className="text-xs font-medium flex items-center gap-1">
+                <Users className="h-3 w-3" /> {course.enrolledStudents.toLocaleString()} students
+              </Badge>
+            )}
+          </div>
+          <CardTitle className="text-2xl sm:text-3xl font-bold leading-tight">{course.title}</CardTitle>
+          {course.description && (
+            <CardDescription className="text-base mt-2 leading-relaxed text-muted-foreground">
+              {course.description}
+            </CardDescription>
+          )}
+        </CardHeader>
+      </Card>
+
+      {/* ── Two-column grid ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+
+        {/* ── Left: Course Content ── */}
+        <div className="lg:col-span-3 space-y-6">
+
+          {/* What's Included */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">What&apos;s Included</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4 mr-2 text-blue-500" />
-                  {course.durationMonths} month{course.durationMonths !== 1 ? "s" : ""}
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Video className="h-4 w-4 text-green-500 flex-shrink-0" /> Video Lectures
                 </div>
-                {course.level && (
-                  <Badge variant="outline" className="flex items-center gap-1">{course.level}</Badge>
-                )}
-                {course.enrolledStudents !== undefined && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Users className="h-4 w-4 mr-2 text-purple-500" />
-                    {course.enrolledStudents.toLocaleString()} students
+                <div className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4 text-blue-500 flex-shrink-0" /> PDF Notes
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <HelpCircle className="h-4 w-4 text-purple-500 flex-shrink-0" /> Weekly Doubt Sessions
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Award className="h-4 w-4 text-amber-500 flex-shrink-0" /> Quizzes &amp; Assessments
+                </div>
+                {course.instructors && course.instructors.length > 0 && (
+                  <div className="flex items-center gap-2 text-sm sm:col-span-2">
+                    <GraduationCap className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+                    <span>Expert Instructor{course.instructors.length > 1 ? "s" : ""}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="ml-auto text-xs h-7 px-3"
+                      onClick={scrollToInstructors}
+                    >
+                      View Instructor Details
+                    </Button>
                   </div>
                 )}
               </div>
-
-              {/* Course Features */}
-              <div className="pt-4">
-                <h3 className="font-semibold mb-3">What&apos;s included:</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex items-center text-sm">
-                    <Video className="h-4 w-4 mr-2 text-green-500" /> Video Lectures
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <FileText className="h-4 w-4 mr-2 text-blue-500" /> PDF Notes
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <HelpCircle className="h-4 w-4 mr-2 text-purple-500" /> Weekly Doubt Sessions
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <Award className="h-4 w-4 mr-2 text-amber-500" /> Quizzes & Assessments
-                  </div>
-                </div>
-              </div>
-
-              {/* Course Inclusions */}
-              {course.inclusions && course.inclusions.length > 0 && (
-                <div className="pt-6 border-t">
-                  <h3 className="font-semibold mb-4 text-lg">Bonus Inclusions with this Course</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Get instant access to these premium resources at no extra cost when you enroll:
-                  </p>
-                  <div className="space-y-4">
-                    {/* Mock Tests */}
-                    {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_TEST' && inc.mockTest).length > 0 && (
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Target className="h-5 w-5 text-blue-600" />
-                          <h4 className="font-medium text-blue-900 dark:text-blue-100">Individual Mock Tests</h4>
-                          <Badge variant="secondary" className="ml-auto bg-blue-100 text-blue-700">
-                            {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_TEST' && inc.mockTest).length} Tests
-                          </Badge>
-                        </div>
-                        <div className="grid gap-3">
-                          {course.inclusions
-                            .filter(inc => inc.inclusionType === 'MOCK_TEST' && inc.mockTest)
-                            .map((inclusion, index) => (
-                              <div key={index} className="bg-white/70 dark:bg-gray-800/70 p-3 rounded-md border border-blue-200/50 dark:border-blue-700/50">
-                                <div className="flex justify-between items-start">
-                                  <div className="flex-1">
-                                    <h5 className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                                      {inclusion.mockTest?.title || 'Mock Test'}
-                                    </h5>
-                                    {inclusion.mockTest?.description && (
-                                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
-                                        {inclusion.mockTest.description}
-                                      </p>
-                                    )}
-                                    <div className="flex items-center gap-2 mt-2">
-                                      <Badge variant="outline" className="text-xs">
-                                        {inclusion.mockTest?.difficulty || 'MEDIUM'}
-                                      </Badge>
-                                      <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                                        Worth ₹{inclusion.mockTest?.price || 0}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Mock Bundles */}
-                    {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_BUNDLE' && inc.mockBundle).length > 0 && (
-                      <div className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20 p-4 rounded-lg border border-emerald-100 dark:border-emerald-800">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Package className="h-5 w-5 text-emerald-600" />
-                          <h4 className="font-medium text-emerald-900 dark:text-emerald-100">Mock Test Bundles</h4>
-                          <Badge variant="secondary" className="ml-auto bg-emerald-100 text-emerald-700">
-                            {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_BUNDLE' && inc.mockBundle).length} Bundles
-                          </Badge>
-                        </div>
-                        <div className="grid gap-3">
-                          {course.inclusions
-                            .filter(inc => inc.inclusionType === 'MOCK_BUNDLE' && inc.mockBundle)
-                            .map((inclusion, index) => (
-                              <div key={index} className="bg-white/70 dark:bg-gray-800/70 p-3 rounded-md border border-emerald-200/50 dark:border-emerald-700/50">
-                                <div className="flex justify-between items-start">
-                                  <div className="flex-1">
-                                    <h5 className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                                      {inclusion.mockBundle?.title || 'Mock Bundle'}
-                                    </h5>
-                                    {inclusion.mockBundle?.description && (
-                                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
-                                        {inclusion.mockBundle.description}
-                                      </p>
-                                    )}
-                                    <div className="flex items-center gap-2 mt-2">
-                                      <Badge variant="outline" className="text-xs">
-                                        {inclusion.mockBundle?.mockIds?.length || 0} Tests
-                                      </Badge>
-                                      <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                                        Worth ₹{inclusion.mockBundle?.discountedPrice || inclusion.mockBundle?.basePrice || 0}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Sessions */}
-                    {course.inclusions.filter(inc => inc.inclusionType === 'SESSION' && inc.session).length > 0 && (
-                      <div className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/20 dark:to-violet-950/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800">
-                        <div className="flex items-center gap-2 mb-3">
-                          <MessageSquare className="h-5 w-5 text-purple-600" />
-                          <h4 className="font-medium text-purple-900 dark:text-purple-100">Guidance Sessions</h4>
-                          <Badge variant="secondary" className="ml-auto bg-purple-100 text-purple-700">
-                            {course.inclusions.filter(inc => inc.inclusionType === 'SESSION' && inc.session).length} Sessions
-                          </Badge>
-                        </div>
-                        <div className="grid gap-3">
-                          {course.inclusions
-                            .filter(inc => inc.inclusionType === 'SESSION' && inc.session)
-                            .map((inclusion, index) => (
-                              <div key={index} className="bg-white/70 dark:bg-gray-800/70 p-3 rounded-md border border-purple-200/50 dark:border-purple-700/50">
-                                <div className="flex justify-between items-start">
-                                  <div className="flex-1">
-                                    <h5 className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                                      {inclusion.session?.title || 'Guidance Session'}
-                                    </h5>
-                                    {inclusion.session?.description && (
-                                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
-                                        {inclusion.session.description}
-                                      </p>
-                                    )}
-                                    <div className="flex items-center gap-2 mt-2">
-                                      <Badge variant="outline" className="text-xs">
-                                        {inclusion.session?.sessionType || 'Session'}
-                                      </Badge>
-                                      <div className="flex items-center text-xs text-gray-500">
-                                        <Timer className="h-3 w-3 mr-1" />
-                                        {inclusion.session?.duration || 60}min
-                                      </div>
-                                      <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                                        Worth ₹{inclusion.session?.discountedPrice || inclusion.session?.price || 0}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Total Value Summary */}
-                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Star className="h-5 w-5 text-amber-600" />
-                          <span className="font-semibold text-amber-900 dark:text-amber-100">
-                            Total Bonus Value
-                          </span>
-                        </div>
-                        <span className="text-lg font-bold text-amber-700 dark:text-amber-300">
-                          ₹{course.inclusions.reduce((total, inc) => {
-                            const price = inc.mockTest?.price || 
-                                         (inc.mockBundle?.discountedPrice || inc.mockBundle?.basePrice) || 
-                                         (inc.session?.discountedPrice || inc.session?.price) || 0;
-                            return total + price;
-                          }, 0)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                        All included at no additional cost with your course enrollment!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
+
+          {/* Bonus Inclusions */}
+          {course.inclusions && course.inclusions.length > 0 && (
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Bonus Inclusions</CardTitle>
+                <CardDescription>
+                  Premium resources included at no extra cost with your enrollment
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-4">
+                {/* Mock Tests */}
+                {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_TEST' && inc.mockTest).length > 0 && (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Target className="h-5 w-5 text-blue-600" />
+                      <h4 className="font-medium text-blue-900 dark:text-blue-100">Individual Mock Tests</h4>
+                      <Badge variant="secondary" className="ml-auto bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
+                        {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_TEST' && inc.mockTest).length} Tests
+                      </Badge>
+                    </div>
+                    <div className="grid gap-3">
+                      {course.inclusions
+                        .filter(inc => inc.inclusionType === 'MOCK_TEST' && inc.mockTest)
+                        .map((inclusion, index) => (
+                          <div key={index} className="bg-white/70 dark:bg-gray-800/70 p-3 rounded-md border border-blue-200/50 dark:border-blue-700/50">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h5 className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                                  {inclusion.mockTest?.title || 'Mock Test'}
+                                </h5>
+                                {inclusion.mockTest?.description && (
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                                    {inclusion.mockTest.description}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {inclusion.mockTest?.difficulty || 'MEDIUM'}
+                                  </Badge>
+                                  <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                                    Worth ₹{inclusion.mockTest?.price || 0}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Mock Bundles */}
+                {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_BUNDLE' && inc.mockBundle).length > 0 && (
+                  <div className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20 p-4 rounded-lg border border-emerald-100 dark:border-emerald-800">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Package className="h-5 w-5 text-emerald-600" />
+                      <h4 className="font-medium text-emerald-900 dark:text-emerald-100">Mock Test Bundles</h4>
+                      <Badge variant="secondary" className="ml-auto bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">
+                        {course.inclusions.filter(inc => inc.inclusionType === 'MOCK_BUNDLE' && inc.mockBundle).length} Bundles
+                      </Badge>
+                    </div>
+                    <div className="grid gap-3">
+                      {course.inclusions
+                        .filter(inc => inc.inclusionType === 'MOCK_BUNDLE' && inc.mockBundle)
+                        .map((inclusion, index) => (
+                          <div key={index} className="bg-white/70 dark:bg-gray-800/70 p-3 rounded-md border border-emerald-200/50 dark:border-emerald-700/50">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h5 className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                                  {inclusion.mockBundle?.title || 'Mock Bundle'}
+                                </h5>
+                                {inclusion.mockBundle?.description && (
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                                    {inclusion.mockBundle.description}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {inclusion.mockBundle?.mockIds?.length || 0} Tests
+                                  </Badge>
+                                  <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                                    Worth ₹{inclusion.mockBundle?.discountedPrice || inclusion.mockBundle?.basePrice || 0}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sessions */}
+                {course.inclusions.filter(inc => inc.inclusionType === 'SESSION' && inc.session).length > 0 && (
+                  <div className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/20 dark:to-violet-950/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800">
+                    <div className="flex items-center gap-2 mb-3">
+                      <MessageSquare className="h-5 w-5 text-purple-600" />
+                      <h4 className="font-medium text-purple-900 dark:text-purple-100">Guidance Sessions</h4>
+                      <Badge variant="secondary" className="ml-auto bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300">
+                        {course.inclusions.filter(inc => inc.inclusionType === 'SESSION' && inc.session).length} Sessions
+                      </Badge>
+                    </div>
+                    <div className="grid gap-3">
+                      {course.inclusions
+                        .filter(inc => inc.inclusionType === 'SESSION' && inc.session)
+                        .map((inclusion, index) => (
+                          <div key={index} className="bg-white/70 dark:bg-gray-800/70 p-3 rounded-md border border-purple-200/50 dark:border-purple-700/50">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h5 className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                                  {inclusion.session?.title || 'Guidance Session'}
+                                </h5>
+                                {inclusion.session?.description && (
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                                    {inclusion.session.description}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {inclusion.session?.sessionType || 'Session'}
+                                  </Badge>
+                                  <div className="flex items-center text-xs text-gray-500">
+                                    <Timer className="h-3 w-3 mr-1" />
+                                    {inclusion.session?.duration || 60}min
+                                  </div>
+                                  <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                                    Worth ₹{inclusion.session?.discountedPrice || inclusion.session?.price || 0}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Total Value */}
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Star className="h-5 w-5 text-amber-600" />
+                      <span className="font-semibold text-amber-900 dark:text-amber-100">Total Bonus Value</span>
+                    </div>
+                    <span className="text-lg font-bold text-amber-700 dark:text-amber-300">
+                      ₹{course.inclusions.reduce((total, inc) => {
+                        const price = inc.mockTest?.price ||
+                          (inc.mockBundle?.discountedPrice || inc.mockBundle?.basePrice) ||
+                          (inc.session?.discountedPrice || inc.session?.price) || 0;
+                        return total + price;
+                      }, 0)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                    All included at no additional cost with your enrollment!
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
         </div>
 
-        {/* Checkout Section */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Summary</CardTitle>
+        {/* ── Right: Sticky Checkout ── */}
+        <div className="lg:col-span-2 space-y-4 lg:sticky lg:top-6 self-start">
+          <Card className="shadow-md">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Order Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                {/* Original Price */}
                 {course.price > basePrice && (
                   <div className="flex justify-between items-center text-muted-foreground">
                     <span className="text-sm line-through">Original Price</span>
                     <span className="text-sm line-through">₹{course.price}</span>
                   </div>
                 )}
-
-                {/* Base Price */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm">Base Price</span>
                   <span className="font-medium">₹{basePrice}</span>
                 </div>
-
-                {/* Coupon Discount */}
                 {appliedCoupon && (
                   <div className="flex justify-between items-center text-green-600">
                     <span className="text-sm">Discount {appliedCoupon.discountPct}%</span>
                     <span className="text-sm">-₹{appliedCoupon.discountAmount}</span>
                   </div>
                 )}
-
                 <Separator />
-
-                {/* Final Amount */}
                 <div className="flex justify-between items-center font-bold text-lg">
-                  <span>Total Amount</span>
-                  <span className="text-green-600">₹{finalPrice}</span>
+                  <span>Total</span>
+                  <span className="text-green-600 dark:text-green-400">₹{finalPrice}</span>
                 </div>
               </div>
 
-              {/* Coupon Section */}
-              <div className="space-y-3 pt-4">
+              {/* Coupon */}
+              <div className="space-y-3 pt-2">
                 <Label htmlFor="coupon">Apply Coupon</Label>
                 <div className="flex gap-2">
                   <Input
@@ -552,66 +608,59 @@ export default function CourseDetailPage() {
                   )}
                 </div>
                 {appliedCoupon && (
-                  <div className="text-sm text-green-600 flex items-center">
-                    <CheckCircle className="h-4 w-4 mr-1" /> Coupon "{appliedCoupon.code}" applied successfully
+                  <div className="text-sm text-green-600 flex items-center gap-1">
+                    <CheckCircle className="h-4 w-4" /> Coupon &quot;{appliedCoupon.code}&quot; applied
                   </div>
                 )}
-                {/* Public coupons promo */}
-                <div className="pt-4">
-                  <h4 className="text-lg font-semibold">Available Coupons</h4>
+
+                {/* Public coupons */}
+                <div className="pt-2">
+                  <h4 className="text-sm font-semibold mb-2">Available Coupons</h4>
                   {publicLoading ? (
-                    <div className="mt-2 text-sm text-muted-foreground">Checking for offers...</div>
+                    <div className="text-sm text-muted-foreground">Checking for offers...</div>
                   ) : publicCoupons.length > 0 ? (
-                    <div className="mt-2 grid grid-cols-1 gap-2">
+                    <div className="grid gap-2">
                       {publicCoupons.map((pc) => (
-                        <div
-                          key={pc.id}
-                          className="flex items-center justify-between p-3 rounded-md border border-gray-200 bg-white/50 dark:bg-gray-800/40 hover:shadow-sm transition-shadow"
-                        >
+                        <div key={pc.id}
+                          className="flex items-center justify-between p-3 rounded-md border border-border bg-muted/30 hover:bg-muted/50 transition-colors">
                           <div>
                             <div className="text-sm font-semibold">{pc.code}</div>
-                            <div className="text-xs text-emerald-400">{pc.discountPct}% off</div>
-                            <div className="text-xs text-muted-foreground mt-1">Expires: {new Date(pc.validTill).toLocaleDateString()}</div>
+                            <div className="text-xs text-emerald-500 dark:text-emerald-400">{pc.discountPct}% off</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              Expires: {new Date(pc.validTill).toLocaleDateString()}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => applyCouponWithCode(pc.code)}
-                              disabled={couponLoading}
-                          
-                            >
-                              {couponLoading ? 'Applying...' : 'Apply'}
-                            </Button>
-                          </div>
+                          <Button size="sm" variant="outline" onClick={() => applyCouponWithCode(pc.code)} disabled={couponLoading}>
+                            {couponLoading ? '...' : 'Apply'}
+                          </Button>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="mt-2 text-sm text-muted-foreground">No public coupons available for this course.</div>
+                    <div className="text-sm text-muted-foreground">No public coupons available.</div>
                   )}
                 </div>
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="pt-0">
               <Button
                 onClick={handleCheckout}
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 text-lg"
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-3 text-base font-semibold"
               >
-                {loading ? <>Processing Payment...</> : <>Pay Now = ₹{finalPrice}</>}
+                {loading ? "Processing..." : `Pay ₹${finalPrice}`}
               </Button>
             </CardFooter>
           </Card>
 
-          {/* Security Assurance */}
-          <Card className="bg-muted/50">
-            <CardContent className="pt-6">
+          {/* Security badge */}
+          <Card className="bg-muted/40 border-border shadow-none">
+            <CardContent className="pt-5 pb-5">
               <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 text-green-500 mt-0.5" />
-                <div className="space-y-1">
+                <Shield className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                <div>
                   <p className="font-medium text-sm">Secure Payment</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Your payment information is encrypted and secure. We do not store your card details.
                   </p>
                 </div>
@@ -619,7 +668,183 @@ export default function CourseDetailPage() {
             </CardContent>
           </Card>
         </div>
+
       </div>
+
+      {/* ── Instructor Profiles — full width ── */}
+      {course.instructors && course.instructors.length > 0 && (
+        <div ref={instructorsSectionRef} id="instructors-section" className="mt-10 scroll-mt-6">
+          <h2 className="text-2xl font-bold flex items-center gap-3 mb-6">
+            <GraduationCap className="h-6 w-6 text-indigo-500" />
+            {course.instructors.length === 1 ? "Meet Your Instructor" : "Meet Your Instructors"}
+          </h2>
+
+          <div className="space-y-6">
+            {course.instructors.map((instructor) => {
+              const affiliations = (instructor.academicAffiliations || []) as AcademicAffiliation[];
+              const appointments = (instructor.researchAppointments || []) as ResearchAppointment[];
+              const social = instructor.socialLinks as InstructorSocialLinks | null;
+
+              return (
+                <Card key={instructor.id} className="overflow-hidden shadow-sm border border-border">
+                  {/* Gradient header strip */}
+                  <div className="h-1.5 bg-gradient-to-r from-indigo-500 via-blue-500 to-purple-500" />
+
+                  <CardContent className="p-8 space-y-6">
+                    {/* Avatar + name + title + socials */}
+                    <div className="flex items-start gap-6">
+                      {instructor.profileImageUrl ? (
+                        <img
+                          src={instructor.profileImageUrl}
+                          alt={instructor.fullName}
+                          className="h-24 w-24 rounded-full object-cover flex-shrink-0 border-2 border-indigo-200 dark:border-indigo-700 shadow-md"
+                        />
+                      ) : (
+                        <div className="h-24 w-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 text-white text-3xl font-bold shadow-md">
+                          {instructor.fullName.charAt(0)}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-xl font-bold text-foreground leading-tight">
+                          {instructor.fullName}
+                        </h3>
+                        {instructor.title && (
+                          <p className="text-base text-indigo-600 dark:text-indigo-400 font-medium mt-1">
+                            {instructor.title}
+                          </p>
+                        )}
+                        {social && (
+                          <div className="flex items-center gap-4 mt-3">
+                            {social.website && (
+                              <a href={social.website} target="_blank" rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Website">
+                                <Globe className="h-5 w-5" />
+                              </a>
+                            )}
+                            {social.linkedin && (
+                              <a href={social.linkedin} target="_blank" rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors" title="LinkedIn">
+                                <Linkedin className="h-5 w-5" />
+                              </a>
+                            )}
+                            {social.researchgate && (
+                              <a href={social.researchgate} target="_blank" rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-green-600 dark:hover:text-green-400 transition-colors" title="ResearchGate">
+                                <FlaskConical className="h-5 w-5" />
+                              </a>
+                            )}
+                            {social.twitter && (
+                              <a href={social.twitter} target="_blank" rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-sky-500 dark:hover:text-sky-400 transition-colors" title="Twitter / X">
+                                <Twitter className="h-5 w-5" />
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bio */}
+                    {instructor.bio && (
+                      <p className="text-base text-muted-foreground leading-relaxed border-l-2 border-indigo-300 dark:border-indigo-700 pl-4">
+                        {instructor.bio}
+                      </p>
+                    )}
+
+                    {/* Expertise */}
+                    {instructor.expertiseAreas && instructor.expertiseAreas.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                          <BookOpen className="h-4 w-4" /> Expertise
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {instructor.expertiseAreas.map((area, i) => (
+                            <Badge key={i} variant="secondary"
+                              className="text-sm px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-0">
+                              {area}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Academic affiliations + Research — side by side on wide screens */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {affiliations.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                            <GraduationCap className="h-4 w-4" /> Academic Background
+                          </h4>
+                          <div className="space-y-2">
+                            {affiliations.map((aff, i) => (
+                              <div key={i} className="flex items-center gap-3 py-2.5 px-4 rounded-lg bg-muted/50 dark:bg-muted/30 border border-border/50">
+                                {aff.logoUrl ? (
+                                  <img
+                                    src={aff.logoUrl}
+                                    alt={aff.institution}
+                                    className="h-9 w-9 object-contain flex-shrink-0 rounded"
+                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                  />
+                                ) : (
+                                  <div className="h-9 w-9 rounded bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0">
+                                    <GraduationCap className="h-4 w-4 text-indigo-500" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-sm font-medium text-foreground block truncate">
+                                    {aff.institution}
+                                  </span>
+                                  {(aff.role || aff.year) && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {[aff.role, aff.year].filter(Boolean).join(" · ")}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {appointments.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                            <FlaskConical className="h-4 w-4" /> Research &amp; Appointments
+                          </h4>
+                          <div className="space-y-2">
+                            {appointments.map((apt, i) => (
+                              <div key={i} className="flex items-start gap-2 text-sm py-1">
+                                <span className="text-indigo-500 mt-1 flex-shrink-0">•</span>
+                                <span className="text-muted-foreground">
+                                  <span className="font-medium text-foreground">{apt.organization}</span>
+                                  {apt.role && <> — {apt.role}</>}
+                                  {apt.period && <span className="text-xs ml-1">({apt.period})</span>}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Awards */}
+                    {instructor.awards && (
+                      <div>
+                        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                          <Award className="h-4 w-4" /> Awards &amp; Recognition
+                        </h4>
+                        <p className="text-base text-muted-foreground leading-relaxed whitespace-pre-line">
+                          {instructor.awards}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

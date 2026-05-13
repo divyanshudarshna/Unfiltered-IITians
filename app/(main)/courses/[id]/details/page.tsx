@@ -8,6 +8,7 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -26,7 +27,47 @@ import {
   FileText as FileTextIcon,
   Users,
   Target,
+  GraduationCap,
+  Globe,
+  Linkedin,
+  Twitter,
+  FlaskConical,
+  BookOpen,
+  Award,
 } from "lucide-react";
+
+interface AcademicAffiliation {
+  institution: string;
+  role?: string;
+  year?: string;
+  logoUrl?: string;
+}
+
+interface ResearchAppointment {
+  organization: string;
+  role?: string;
+  period?: string;
+}
+
+interface InstructorSocialLinks {
+  website?: string;
+  linkedin?: string;
+  researchgate?: string;
+  twitter?: string;
+}
+
+interface Instructor {
+  id: string;
+  fullName: string;
+  title?: string | null;
+  bio?: string | null;
+  profileImageUrl?: string | null;
+  expertiseAreas?: string[];
+  awards?: string | null;
+  academicAffiliations?: AcademicAffiliation[];
+  researchAppointments?: ResearchAppointment[];
+  socialLinks?: InstructorSocialLinks | null;
+}
 
 interface CourseDetail {
   id: string;
@@ -47,6 +88,7 @@ interface Course {
 export default function CourseDetailsPage() {
   const { id } = useParams();
   const [course, setCourse] = useState<Course | null>(null);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,13 +99,20 @@ export default function CourseDetailsPage() {
     const fetchCourse = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/course-details/${id}`);
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
+        const [detailsRes, courseRes] = await Promise.all([
+          fetch(`/api/course-details/${id}`),
+          fetch(`/api/courses/${id}`),
+        ]);
+        if (!detailsRes.ok) {
+          const errData = await detailsRes.json().catch(() => ({}));
           throw new Error(errData.error || "Failed to fetch course");
         }
-        const data: Course = await res.json();
+        const data: Course = await detailsRes.json();
         setCourse(data);
+        if (courseRes.ok) {
+          const courseData = await courseRes.json();
+          setInstructors(courseData.instructors || []);
+        }
       } catch (err: any) {
         console.error("Error fetching course:", err);
         setError(err.message);
@@ -327,6 +376,189 @@ export default function CourseDetailsPage() {
             </Accordion>
           )}
         </section>
+
+        {/* ── Instructor Profiles ── */}
+        {instructors.length > 0 && (
+          <section className="mb-16">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl lg:text-4xl font-bold inline-block relative">
+                {instructors.length === 1 ? "Meet Your Instructor" : "Meet Your Instructors"}
+                <div className="absolute bottom-[-12px] left-1/2 transform -translate-x-1/2 w-20 h-1 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full"></div>
+              </h2>
+            </div>
+
+            <div className="space-y-6">
+              {instructors.map((instructor) => {
+                const affiliations = (instructor.academicAffiliations || []) as AcademicAffiliation[];
+                const appointments = (instructor.researchAppointments || []) as ResearchAppointment[];
+                const social = instructor.socialLinks as InstructorSocialLinks | null;
+
+                return (
+                  <div
+                    key={instructor.id}
+                    className="bg-white dark:bg-gray-900/50 backdrop-blur-lg border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-lg shadow-gray-100 dark:shadow-purple-500/5"
+                  >
+                    {/* Purple top strip */}
+                    <div className="h-1.5 bg-gradient-to-r from-purple-500 via-purple-600 to-indigo-500" />
+
+                    <div className="p-8 space-y-6">
+                      {/* Avatar + name + title + socials */}
+                      <div className="flex items-start gap-6">
+                        {instructor.profileImageUrl ? (
+                          <img
+                            src={instructor.profileImageUrl}
+                            alt={instructor.fullName}
+                            className="h-24 w-24 rounded-full object-cover flex-shrink-0 border-2 border-purple-300 dark:border-purple-600/60 shadow-md"
+                          />
+                        ) : (
+                          <div className="h-24 w-24 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white text-3xl font-bold shadow-md">
+                            {instructor.fullName.charAt(0)}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">
+                            {instructor.fullName}
+                          </h3>
+                          {instructor.title && (
+                            <p className="text-base text-purple-600 dark:text-purple-400 font-medium mt-1">
+                              {instructor.title}
+                            </p>
+                          )}
+                          {social && (
+                            <div className="flex items-center gap-4 mt-3">
+                              {social.website && (
+                                <a href={social.website} target="_blank" rel="noopener noreferrer"
+                                  className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors" title="Website">
+                                  <Globe className="h-5 w-5" />
+                                </a>
+                              )}
+                              {social.linkedin && (
+                                <a href={social.linkedin} target="_blank" rel="noopener noreferrer"
+                                  className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors" title="LinkedIn">
+                                  <Linkedin className="h-5 w-5" />
+                                </a>
+                              )}
+                              {social.researchgate && (
+                                <a href={social.researchgate} target="_blank" rel="noopener noreferrer"
+                                  className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors" title="ResearchGate">
+                                  <FlaskConical className="h-5 w-5" />
+                                </a>
+                              )}
+                              {social.twitter && (
+                                <a href={social.twitter} target="_blank" rel="noopener noreferrer"
+                                  className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors" title="Twitter / X">
+                                  <Twitter className="h-5 w-5" />
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bio */}
+                      {instructor.bio && (
+                        <p className="text-base text-gray-600 dark:text-gray-300 leading-relaxed border-l-2 border-purple-400 dark:border-purple-600 pl-4">
+                          {instructor.bio}
+                        </p>
+                      )}
+
+                      {/* Expertise chips */}
+                      {instructor.expertiseAreas && instructor.expertiseAreas.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
+                            <BookOpen className="h-4 w-4 text-purple-500" /> Expertise
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {instructor.expertiseAreas.map((area, i) => (
+                              <Badge
+                                key={i}
+                                variant="secondary"
+                                className="text-sm px-3 py-1 bg-purple-500/10 text-purple-700 dark:text-purple-300 border-0"
+                              >
+                                {area}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Affiliations + Research side by side */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {affiliations.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
+                              <GraduationCap className="h-4 w-4 text-purple-500" /> Academic Background
+                            </h4>
+                            <div className="space-y-2">
+                              {affiliations.map((aff, i) => (
+                                <div key={i} className="flex items-center gap-3 py-2.5 px-4 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                  {aff.logoUrl ? (
+                                    <img
+                                      src={aff.logoUrl}
+                                      alt={aff.institution}
+                                      className="h-9 w-9 object-contain flex-shrink-0 rounded"
+                                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                    />
+                                  ) : (
+                                    <div className="h-9 w-9 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                                      <GraduationCap className="h-4 w-4 text-purple-500" />
+                                    </div>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-sm font-medium text-gray-900 dark:text-white block truncate">
+                                      {aff.institution}
+                                    </span>
+                                    {(aff.role || aff.year) && (
+                                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        {[aff.role, aff.year].filter(Boolean).join(" · ")}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {appointments.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
+                              <FlaskConical className="h-4 w-4 text-purple-500" /> Research &amp; Appointments
+                            </h4>
+                            <div className="space-y-2">
+                              {appointments.map((apt, i) => (
+                                <div key={i} className="flex items-start gap-2 text-sm py-1">
+                                  <span className="text-purple-500 mt-1 flex-shrink-0">•</span>
+                                  <span className="text-gray-600 dark:text-gray-300">
+                                    <span className="font-medium text-gray-900 dark:text-white">{apt.organization}</span>
+                                    {apt.role && <> — {apt.role}</>}
+                                    {apt.period && <span className="text-xs ml-1 text-gray-400">({apt.period})</span>}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Awards */}
+                      {instructor.awards && (
+                        <div>
+                          <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
+                            <Award className="h-4 w-4 text-purple-500" /> Awards &amp; Recognition
+                          </h4>
+                          <p className="text-base text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                            {instructor.awards}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Features Section */}
         <section className="mb-16">

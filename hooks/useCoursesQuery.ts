@@ -23,6 +23,12 @@ interface Course {
   thumbnail?: string;
   order?: number;
   createdAt?: string;
+  instructors?: Array<{
+    id: string;
+    fullName: string;
+    title?: string | null;
+    profileImageUrl?: string | null;
+  }>;
 }
 
 interface CourseDetails extends Course {

@@ -19,6 +19,28 @@ export async function GET(req: Request, { params }: Params) {
         },
         coupons: true,
         inclusions: true, // Get raw inclusions first
+        // ✅ Instructor full profiles
+        courseInstructors: {
+          orderBy: { order: "asc" },
+          include: {
+            instructor: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+                title: true,
+                bio: true,
+                profileImageUrl: true,
+                academicAffiliations: true,
+                researchAppointments: true,
+                expertiseAreas: true,
+                awards: true,
+                socialLinks: true,
+                isActive: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -70,12 +92,16 @@ export async function GET(req: Request, { params }: Params) {
       })
     );
 
+    // Flatten instructor data from join table
+    const instructors = course.courseInstructors.map((ci) => ci.instructor);
+
     // Ensure actualPrice fallback to price if missing
     const responseData = {
       ...course,
       actualPrice: course.actualPrice ?? course.price,
       price: course.price,
       inclusions: inclusionsWithData, // Replace with enriched inclusions
+      instructors, // ✅ Flattened instructor profiles
     };
 
     return NextResponse.json(responseData);

@@ -12,7 +12,7 @@ export async function GET() {
     const courses = await getOrSet(
       cacheKey,
       async () => {
-        return await prisma.course.findMany({
+        const rows = await prisma.course.findMany({
           where: { status: "PUBLISHED" },
           orderBy: [
             { order: "asc" },
@@ -27,9 +27,29 @@ export async function GET() {
             durationMonths: true,
             order: true,
             courseType: true,
-            // ✅ PERFORMANCE: Only select needed fields to reduce payload size
+            // ✅ Instructor badges
+            courseInstructors: {
+              orderBy: { order: "asc" },
+              select: {
+                order: true,
+                instructor: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    title: true,
+                    profileImageUrl: true,
+                  },
+                },
+              },
+            },
           },
         });
+
+        // Flatten instructor badge data
+        return rows.map(({ courseInstructors, ...rest }) => ({
+          ...rest,
+          instructors: courseInstructors.map((ci) => ci.instructor),
+        }));
       },
       60 // ✅ Cache for 60 seconds
     );

@@ -30,7 +30,7 @@ import {
 import { IconLock } from "@tabler/icons-react";
 import { NavSecondary } from "@/components/admin/nav-secondary";
 import { NavUser } from "@/components/admin/nav-user";
-import { GraduationCap, MailOpen, MessageSquare, Video } from "lucide-react";
+import { GraduationCap, MailOpen, MessageSquare, Video, UserCheck } from "lucide-react";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import { INSTRUCTOR_ALLOWED_ADMIN_PREFIXES } from "@/lib/roleConfig";
 
@@ -58,6 +58,7 @@ const data = {
         { title: "Feedbacks", url: "/admin/feedbacks"},
       ],
     },
+    { title: "Manage Instructors", url: "/admin/instructors", icon: UserCheck },
     { title: "Coupons", url: "/admin/coupons", icon: IconTicket },
     { title: "Free Materials", url: "/admin/materials", icon: IconFolder },
     { title: "Success Stories", url: "/admin/successStories", icon: IconStar },
