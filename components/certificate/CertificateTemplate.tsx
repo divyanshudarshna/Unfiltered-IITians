@@ -8,10 +8,14 @@ import { format } from "date-fns";
 interface CertificateTemplateProps {
   certificate: CertificateData;
   className?: string;
+  // Optional override for the body text (e.g. for custom certificates)
+  bodyText?: string;
+  // Optional override for the course/purpose label
+  purposeLabel?: string;
 }
 
 const CertificateTemplate = forwardRef<HTMLDivElement, CertificateTemplateProps>(
-  ({ certificate, className = "" }, ref) => {
+  ({ certificate, className = "", bodyText, purposeLabel }, ref) => {
     const formattedDate = format(
       new Date(certificate.completionDate),
       "MMMM dd, yyyy"
@@ -21,6 +25,24 @@ const CertificateTemplate = forwardRef<HTMLDivElement, CertificateTemplateProps>
       new Date(certificate.issuedAt),
       "MMMM dd, yyyy"
     );
+
+    const formattedStartDate = certificate.startDate
+      ? format(new Date(certificate.startDate), "MMMM dd, yyyy")
+      : null;
+
+    // Auto-calculate duration from startDate → completionDate if both are present
+    const calculatedDuration: string | null = (() => {
+      if (!certificate.startDate) return null;
+      const start = new Date(certificate.startDate);
+      const end = new Date(certificate.completionDate);
+      const totalDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      if (totalDays <= 0) return null;
+      const months = Math.floor(totalDays / 30);
+      const days = totalDays % 30;
+      if (months > 0 && days > 0) return `${months} month${months > 1 ? 's' : ''} ${days} day${days > 1 ? 's' : ''}`;
+      if (months > 0) return `${months} month${months > 1 ? 's' : ''}`;
+      return `${days} day${days > 1 ? 's' : ''}`;
+    })();
 
     return (
       <div
@@ -151,24 +173,55 @@ const CertificateTemplate = forwardRef<HTMLDivElement, CertificateTemplateProps>
             </div>
 
             <p className="text-base tracking-wide" style={{ color: "#4b5563" }}>
-              has successfully completed the course
+              {bodyText ?? "has successfully completed the course"}
             </p>
 
-            {/* Course Name */}
+            {/* Course/Purpose Name */}
             <div className="py-2">
               <h2 className="text-2xl font-semibold tracking-wide" style={{ color: "#7c3aed" }}>
-                {certificate.courseName}
+                {purposeLabel ?? certificate.courseName}
               </h2>
-              <p className="text-sm mt-2" style={{ color: "#6b7280" }}>
-                Duration: {certificate.durationMonths}{" "}
-                {certificate.durationMonths === 1 ? "month" : "months"}
-              </p>
+
+              {/* Start & End date row — shown when startDate is present */}
+              {formattedStartDate ? (
+                <div className="mt-3 flex items-center justify-center gap-6 text-sm" style={{ color: "#4b5563" }}>
+                  <div className="text-center">
+                    <p className="text-xs uppercase tracking-widest mb-0.5" style={{ color: "#9ca3af" }}>From</p>
+                    <p className="font-semibold" style={{ color: "#1f2937" }}>{formattedStartDate}</p>
+                  </div>
+                  <div style={{ color: "#d1d5db" }}>→</div>
+                  <div className="text-center">
+                    <p className="text-xs uppercase tracking-widest mb-0.5" style={{ color: "#9ca3af" }}>To</p>
+                    <p className="font-semibold" style={{ color: "#1f2937" }}>{formattedDate}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm mt-2 tracking-wide" style={{ color: "#4b5563" }}>
+                  Completed on{" "}
+                  <span className="font-semibold" style={{ color: "#1f2937" }}>{formattedDate}</span>
+                </p>
+              )}
+
+              {/* Duration — auto-calculated or from durationMonths */}
+              {calculatedDuration ? (
+                <p className="text-sm mt-2" style={{ color: "#6b7280" }}>
+                  Duration: <span className="font-medium" style={{ color: "#374151" }}>{calculatedDuration}</span>
+                </p>
+              ) : certificate.durationMonths != null && certificate.durationMonths > 0 ? (
+                <p className="text-sm mt-2" style={{ color: "#6b7280" }}>
+                  Duration: {certificate.durationMonths}{" "}
+                  {certificate.durationMonths === 1 ? "month" : "months"}
+                </p>
+              ) : null}
             </div>
 
-            <p className="text-sm tracking-wide" style={{ color: "#4b5563" }}>
-              Completed on{" "}
-              <span className="font-semibold" style={{ color: "#1f2937" }}>{formattedDate}</span>
-            </p>
+            {/* Completion line — only shown when no startDate (to avoid duplication) */}
+            {!formattedStartDate && (
+              <p className="text-sm tracking-wide" style={{ color: "#4b5563" }}>
+                Completed on{" "}
+                <span className="font-semibold" style={{ color: "#1f2937" }}>{formattedDate}</span>
+              </p>
+            )}
           </div>
 
           {/* Footer Section */}

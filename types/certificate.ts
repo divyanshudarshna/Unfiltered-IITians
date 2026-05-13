@@ -6,9 +6,10 @@ export interface CertificateData {
   studentName: string;
   courseName: string;
   courseType: 'COMPETITIVE' | 'SKILLS' | 'WORKSHOP';
+  startDate?: Date | string;        // Optional start date
   completionDate: Date | string;
   issuedAt: Date | string;
-  durationMonths: number;
+  durationMonths?: number;
   instructorName: string;
   instructorDesignation: string;
   companyName: string;

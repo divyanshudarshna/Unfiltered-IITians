@@ -26,7 +26,7 @@ const stats = [
     glow: "shadow-emerald-400/50",
   },
   {
-    number: "7,000+",
+    number: "8,000+",
     label: "Subscribers",
     icon: FaYoutube,
     href: "/youtube",

@@ -84,6 +84,7 @@ model User {
   couponUsages            CouponUsage[] // Track coupon usages by this user
   generalCouponUsages     GeneralCouponUsage[]     @relation("GeneralCouponUsages") // Track general coupon usages
   certificates            Certificate[] // Certificates earned by this user
+  customCertificates      CustomCertificate[] // Custom certificates issued by admin
 
   // ✅ PERFORMANCE: Indexes for frequently queried fields
   @@index([role, createdAt])
@@ -812,4 +813,25 @@ model DisbursementHistory {
 
   @@index([disbursementDate])
   @@index([disbursedBy])
+}
+
+// ================== CUSTOM CERTIFICATES ==================
+model CustomCertificate {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  certificateId  String    @unique // Unique certificate number e.g. UNF-2024-XXXXXXXX
+  recipientName  String    // Name as shown on certificate
+  recipientEmail String    // Email of the recipient
+  purpose        String    // e.g. "Internship", "Mentorship", "Contribution"
+  startDate      DateTime?
+  completionDate DateTime
+  issuedAt       DateTime  @default(now())
+  emailSentAt    DateTime?
+  generatedBy    String?   // Admin name who generated this
+
+  // Optional link to a platform user
+  userId String? @db.ObjectId
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([issuedAt])
+  @@index([recipientEmail])
 }

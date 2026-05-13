@@ -7,7 +7,8 @@ import {
   Mail, 
   DollarSign,
   Settings as SettingsIcon,
-  ChevronRight
+  ChevronRight,
+  Award,
 } from "lucide-react";
 
 export default function AdminSettingsPage() {
@@ -35,6 +36,14 @@ export default function AdminSettingsPage() {
       href: "/admin/settings/revenue",
       color: "text-emerald-600 dark:text-emerald-400",
       bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+    },
+    {
+      title: "Custom Certificates",
+      description: "Generate and manage certificates for interns, mentors, and contributors",
+      icon: Award,
+      href: "/admin/settings/certificates",
+      color: "text-amber-600 dark:text-amber-400",
+      bgColor: "bg-amber-50 dark:bg-amber-950/30",
     },
   ];
 

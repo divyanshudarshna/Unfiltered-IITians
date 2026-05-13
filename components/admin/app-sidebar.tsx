@@ -82,6 +82,7 @@ const data = {
       icon: IconSettings,
       actions: [
         { title: "Email Logs", url: "/admin/settings/emails" },
+        { title: "Certificates", url: "/admin/settings/certificates" },
       ],
     },
   ],
