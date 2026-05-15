@@ -172,15 +172,15 @@ export default function QuizPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Header with Back Button */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 flex-wrap">
         <Button variant="outline" size="icon" onClick={handleBack} className="shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">Quiz Management</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm break-words">
             For content: <span className="text-blue-600 font-medium">{contentTitle}</span>
           </p>
         </div>
@@ -188,7 +188,7 @@ export default function QuizPage() {
 
       {/* Stats Cards */}
       {stats.total > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Questions</CardTitle>
@@ -236,14 +236,14 @@ export default function QuizPage() {
       )}
 
       {/* Action Bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Questions</h2>
           <p className="text-sm text-muted-foreground">
             Manage all questions for this content
           </p>
         </div>
-        <Button onClick={() => setOpen(true)} className="gap-2">
+        <Button onClick={() => setOpen(true)} className="gap-2 w-full sm:w-auto shrink-0">
           <PlusCircle className="h-4 w-4" />
           Add Question
         </Button>

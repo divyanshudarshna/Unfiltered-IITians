@@ -687,6 +687,7 @@ const columns = useMemo<ColumnDef<Content>[]>(
         </div>
       )}
 
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <div className="rounded-xl border bg-card">
         <Table>
           <TableHeader className="sticky top-0 bg-muted/40 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
@@ -723,8 +724,7 @@ const columns = useMemo<ColumnDef<Content>[]>(
             ))}
           </TableHeader>
 
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={localContents.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={localContents.map((c) => c.id)} strategy={verticalListSortingStrategy}>
               <TableBody>
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
@@ -748,9 +748,9 @@ const columns = useMemo<ColumnDef<Content>[]>(
                 )}
               </TableBody>
             </SortableContext>
-          </DndContext>
         </Table>
       </div>
+      </DndContext>
 
       {/* Pagination */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">

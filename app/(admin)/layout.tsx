@@ -76,9 +76,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           } as React.CSSProperties}
         >
           <AppSidebar variant="inset" />
-          <SidebarInset>
+          <SidebarInset className="min-w-0">
             <SiteHeader />
-            <main className="flex flex-1 flex-col p-6 bg-muted/10 min-h-screen">
+            <main className="flex flex-1 flex-col p-6 bg-muted/10 min-h-screen w-full min-w-0 overflow-x-clip">
              
                 {children}
          

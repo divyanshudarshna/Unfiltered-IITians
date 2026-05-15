@@ -120,7 +120,7 @@ export default function QuizTable({ questions, onEdit, onDelete }: QuizTableProp
   return (
     <div className="space-y-4">
       {/* Search Bar */}
-      <div className="relative max-w-sm">
+      <div className="relative w-full sm:max-w-sm">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           type="search"
@@ -135,8 +135,8 @@ export default function QuizTable({ questions, onEdit, onDelete }: QuizTableProp
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border overflow-x-auto">
+        <Table className="min-w-[700px]">
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">#</TableHead>
@@ -145,7 +145,7 @@ export default function QuizTable({ questions, onEdit, onDelete }: QuizTableProp
               <TableHead className="min-w-[120px]">Options</TableHead>
               <TableHead className="min-w-[120px]">Correct Answer</TableHead>
               <TableHead className="min-w-[150px]">Explanation</TableHead>
-              <TableHead className="text-right w-32">Actions</TableHead>
+              <TableHead className="text-right w-32 sticky right-0 bg-background shadow-[-1px_0_0_0_hsl(var(--border))]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -168,7 +168,7 @@ export default function QuizTable({ questions, onEdit, onDelete }: QuizTableProp
                     <TableCell>
                       <TruncatedText text={question.explanation || ""} maxLength={50} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="sticky right-0 bg-background shadow-[-1px_0_0_0_hsl(var(--border))]">
                       <div className="flex justify-end gap-2">
                         <Button size="sm" variant="outline" onClick={() => onEdit(globalIndex)}>
                           <Edit className="w-4 h-4" />
