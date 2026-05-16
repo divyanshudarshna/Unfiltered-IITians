@@ -489,22 +489,22 @@ export default function InstructorFormPage() {
 
   // ── Form ──────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-indigo-50/20 dark:from-[#050408] dark:via-[#0b0714] dark:to-[#060a10]">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50/70 to-slate-50 dark:from-[#050408] dark:via-[#0b0714] dark:to-[#060a10]">
       {/* ── Hero Banner ── */}
-      <div className="relative overflow-hidden bg-purple-900 dark:bg-[#130d23]">
-        {/* Subtle radial glow — single color, no rainbow */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(167,139,250,0.2),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(139,92,246,0.15),transparent)]" />
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PHBhdGggZD0iTTM2IDM0djZoNnYtNmgtNnptMCAwdi02aC02djZoNnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-60" />
+      <div className="relative overflow-hidden bg-violet-600 dark:bg-[#130d23]">
+        {/* Subtle radial glow */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(255,255,255,0.1),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(139,92,246,0.15),transparent)]" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djZoNnYtNmgtNnptMCAwdi02aC02djZoNnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-50" />
 
         <div className="relative max-w-4xl mx-auto px-4 py-14 text-center">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 text-sm font-medium text-white/90 mb-6">
+          <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm border border-white/25 rounded-full px-4 py-1.5 text-sm font-medium text-white mb-6">
             <Sparkles className="h-3.5 w-3.5" /> Instructor Application
           </div>
           <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight text-white tracking-tight">
             Teach at{" "}
-            <span className="text-purple-400">Unfiltered IITians</span>
+            <span className="text-violet-200 dark:text-purple-400">Unfiltered IITians</span>
           </h1>
-          <p className="text-purple-200 dark:text-white/60 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-8">
+          <p className="text-violet-100 dark:text-white/60 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-8">
             Share your expertise with thousands of aspiring IITians. Fill in
             the form below — our team will review your profile and reach out
             upon approval.
@@ -517,7 +517,7 @@ export default function InstructorFormPage() {
             ].map((item, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-4 py-2 text-sm text-white/90"
+                className="flex items-center gap-2 bg-white/15 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 text-sm text-white"
               >
                 {item.icon}
                 {item.text}
@@ -528,10 +528,10 @@ export default function InstructorFormPage() {
       </div>
 
       {/* ── Form Container ── */}
-      <div className="max-w-3xl mx-auto px-4 py-10 -mt-4">
+      <div className="max-w-3xl mx-auto px-4 py-10">
         <form
           onSubmit={handleSubmit}
-          className="bg-white dark:bg-[#0e0c1a] rounded-3xl shadow-2xl shadow-purple-100/20 dark:shadow-purple-900/10 border border-gray-100 dark:border-[#1e1a2e] overflow-hidden"
+          className="bg-white dark:bg-[#0e0c1a] rounded-3xl shadow-2xl shadow-violet-200/50 dark:shadow-purple-900/10 border border-violet-100 dark:border-[#1e1a2e] overflow-hidden"
         >
           {/* ── Basic Info ── */}
           <Section
