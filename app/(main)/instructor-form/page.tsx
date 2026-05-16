@@ -502,7 +502,7 @@ export default function InstructorFormPage() {
           </div>
           <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight text-white tracking-tight">
             Teach at{" "}
-            <span className="text-yellow-300">Unfiltered IITians</span>
+            <span className="text-purple-400">Unfiltered IITians</span>
           </h1>
           <p className="text-white/60 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-8">
             Share your expertise with thousands of aspiring IITians. Fill in
@@ -1023,7 +1023,7 @@ export default function InstructorFormPage() {
 
             <Button
               type="submit"
-              className="w-full h-12 text-base font-semibold bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:from-violet-700 hover:via-purple-700 hover:to-indigo-700 shadow-lg shadow-purple-500/20 border-0 transition-all duration-200 hover:shadow-purple-500/30 hover:scale-[1.01]"
+              className="w-full h-12 text-base font-semibold bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white shadow-lg shadow-emerald-900/20 dark:shadow-emerald-900/40 border-0 transition-all duration-200 hover:shadow-emerald-900/30 hover:scale-[1.01]"
               disabled={saving}
             >
               {saving ? (
