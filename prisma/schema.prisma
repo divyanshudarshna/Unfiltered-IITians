@@ -844,6 +844,14 @@ model Instructor {
 
   isActive  Boolean  @default(true)
   order     Int      @default(0)
+
+  // Approval workflow
+  isApproved        Boolean   @default(false)
+  approvedAt        DateTime?
+  approvalNotes     String?   // Admin notes on approval
+  submittedViaForm  Boolean   @default(false) // true = submitted from public /instructor-form
+  approvalStatus    String    @default("pending") // "pending" | "approved" | "rejected"
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -852,6 +860,8 @@ model Instructor {
 
   @@index([isActive])
   @@index([order])
+  @@index([approvalStatus])
+  @@index([isApproved])
 }
 
 model CourseInstructor {

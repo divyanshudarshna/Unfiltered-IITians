@@ -12,11 +12,14 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -28,10 +31,32 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Pencil, Trash2, BookOpen, UserCircle, PlusCircle, X } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  BookOpen,
+  UserCircle,
+  PlusCircle,
+  X,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  ShieldCheck,
+  GraduationCap,
+  FlaskConical,
+  Globe,
+  Linkedin,
+  Star,
+  Mail,
+  Loader2,
+  ExternalLink,
+  AlertCircle,
+} from "lucide-react";
 import InstructorForm from "./InstructorForm";
 
+// ── Types ────────────────────────────────────────────────────────────────────
 interface CourseRow {
   id: string;
   title: string;
@@ -44,6 +69,26 @@ interface CourseInstructorRow {
   course: CourseRow;
 }
 
+interface AcademicAffiliation {
+  name: string;
+  role: string;
+  year: string;
+  logoUrl: string;
+}
+
+interface ResearchAppointment {
+  org: string;
+  role: string;
+  period: string;
+}
+
+interface SocialLinks {
+  website?: string;
+  linkedin?: string;
+  researchgate?: string;
+  twitter?: string;
+}
+
 interface Instructor {
   id: string;
   fullName: string;
@@ -51,6 +96,11 @@ interface Instructor {
   title?: string;
   profileImageUrl?: string;
   isActive: boolean;
+  isApproved: boolean;
+  approvalStatus: string;
+  submittedViaForm: boolean;
+  approvedAt?: string;
+  approvalNotes?: string;
   order: number;
   courseInstructors: CourseInstructorRow[];
   academicAffiliations: unknown[];
@@ -63,10 +113,34 @@ interface Instructor {
 
 interface InstructorTableProps {
   instructors: Instructor[];
-  allCourses: { id: string; title: string; status: string }[];
+  allCourses: CourseRow[];
   onRefresh: () => void;
 }
 
+// ── Approval status badge ────────────────────────────────────────────────────
+function ApprovalBadge({ status }: { status: string }) {
+  if (status === "approved") {
+    return (
+      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 gap-1">
+        <CheckCircle2 className="h-3 w-3" /> Approved
+      </Badge>
+    );
+  }
+  if (status === "rejected") {
+    return (
+      <Badge className="bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 gap-1">
+        <XCircle className="h-3 w-3" /> Rejected
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 gap-1">
+      <Clock className="h-3 w-3" /> Pending
+    </Badge>
+  );
+}
+
+// ── Main Table Component ──────────────────────────────────────────────────────
 export default function InstructorTable({
   instructors,
   allCourses,
@@ -74,11 +148,21 @@ export default function InstructorTable({
 }: InstructorTableProps) {
   const [editInstructor, setEditInstructor] = useState<Instructor | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Course-assign dialog (for approved instructors only)
   const [assignInstructor, setAssignInstructor] = useState<Instructor | null>(null);
   const [assigningCourseId, setAssigningCourseId] = useState("");
   const [assignLoading, setAssignLoading] = useState(false);
   const [removingCourseId, setRemovingCourseId] = useState<string | null>(null);
 
+  // Approve dialog
+  const [approveInstructor, setApproveInstructor] = useState<Instructor | null>(null);
+  const [approvalNotes, setApprovalNotes] = useState("");
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+  const [approving, setApproving] = useState(false);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+
+  // ── Delete ───────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
@@ -93,6 +177,64 @@ export default function InstructorTable({
     }
   };
 
+  // ── Approve / Reject ─────────────────────────────────────────────────────
+  const openApproveDialog = (inst: Instructor) => {
+    setApproveInstructor(inst);
+    setApprovalNotes(inst.approvalNotes ?? "");
+    // Pre-select already assigned courses
+    setSelectedCourseIds(inst.courseInstructors.map((ci) => ci.courseId));
+  };
+
+  const handleApprove = async () => {
+    if (!approveInstructor) return;
+    setApproving(true);
+    try {
+      const res = await fetch(`/api/admin/instructors/${approveInstructor.id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "approve",
+          courseIds: selectedCourseIds,
+          approvalNotes,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to approve");
+      }
+      toast.success(`${approveInstructor.fullName} approved! Confirmation email sent.`, {
+        duration: 5000,
+      });
+      setApproveInstructor(null);
+      setApprovalNotes("");
+      setSelectedCourseIds([]);
+      onRefresh();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Approval failed");
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    setRejectingId(id);
+    try {
+      const res = await fetch(`/api/admin/instructors/${id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reject" }),
+      });
+      if (!res.ok) throw new Error("Failed to reject");
+      toast.success("Application rejected");
+      onRefresh();
+    } catch {
+      toast.error("Failed to reject application");
+    } finally {
+      setRejectingId(null);
+    }
+  };
+
+  // ── Course assignment (for already-approved instructors) ─────────────────
   const handleAssignCourse = async () => {
     if (!assignInstructor || !assigningCourseId) return;
     setAssignLoading(true);
@@ -103,10 +245,9 @@ export default function InstructorTable({
         body: JSON.stringify({ courseId: assigningCourseId }),
       });
       if (!res.ok) throw new Error("Failed to assign");
-      toast.success("Course assigned to instructor");
+      toast.success("Course assigned");
       setAssigningCourseId("");
       onRefresh();
-      // Refresh assignInstructor state
       const updated = await fetch(`/api/admin/instructors/${assignInstructor.id}`).then((r) =>
         r.json()
       );
@@ -127,7 +268,7 @@ export default function InstructorTable({
         body: JSON.stringify({ courseId }),
       });
       if (!res.ok) throw new Error("Failed to remove");
-      toast.success("Course removed from instructor");
+      toast.success("Course removed");
       onRefresh();
       const updated = await fetch(`/api/admin/instructors/${instructorId}`).then((r) => r.json());
       setAssignInstructor(updated);
@@ -138,19 +279,27 @@ export default function InstructorTable({
     }
   };
 
-  // Courses not yet assigned to this instructor
   const unassignedCourses = assignInstructor
     ? allCourses.filter(
         (c) => !assignInstructor.courseInstructors.some((ci) => ci.courseId === c.id)
       )
     : [];
 
+  // Course toggle for approval dialog
+  const toggleCourse = (courseId: string) => {
+    setSelectedCourseIds((prev) =>
+      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
+    );
+  };
+
   if (instructors.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <UserCircle className="h-16 w-16 text-muted-foreground mb-4" />
         <p className="text-lg font-medium">No instructors yet</p>
-        <p className="text-sm text-muted-foreground">Create your first instructor to get started.</p>
+        <p className="text-sm text-muted-foreground">
+          Create an instructor directly or share the application form.
+        </p>
       </div>
     );
   }
@@ -163,15 +312,23 @@ export default function InstructorTable({
             <TableRow>
               <TableHead>Instructor</TableHead>
               <TableHead>Title</TableHead>
-              <TableHead>Courses</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Courses</TableHead>
+              <TableHead>Source</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {instructors.map((inst) => (
-              <TableRow key={inst.id}>
-                {/* Instructor column */}
+              <TableRow
+                key={inst.id}
+                className={
+                  inst.approvalStatus === "pending"
+                    ? "bg-amber-50/40 dark:bg-amber-950/10"
+                    : ""
+                }
+              >
+                {/* Instructor */}
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="relative h-10 w-10 rounded-full overflow-hidden border bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shrink-0">
@@ -199,62 +356,113 @@ export default function InstructorTable({
 
                 {/* Title */}
                 <TableCell>
-                  <p className="text-sm text-muted-foreground line-clamp-2 max-w-[200px]">
+                  <p className="text-sm text-muted-foreground line-clamp-2 max-w-[180px]">
                     {inst.title || "—"}
                   </p>
                 </TableCell>
 
-                {/* Courses assigned */}
+                {/* Approval Status */}
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <ApprovalBadge status={inst.approvalStatus} />
+                    <Badge
+                      className={`text-[10px] px-1.5 py-0 w-fit ${
+                        inst.isActive
+                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                          : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                      }`}
+                    >
+                      {inst.isActive ? "Live" : "Hidden"}
+                    </Badge>
+                  </div>
+                </TableCell>
+
+                {/* Courses */}
                 <TableCell>
                   <div className="flex flex-wrap gap-1 max-w-[200px]">
                     {inst.courseInstructors.length === 0 ? (
-                      <span className="text-xs text-muted-foreground">None assigned</span>
+                      <span className="text-xs text-muted-foreground">None</span>
                     ) : (
                       inst.courseInstructors.slice(0, 2).map((ci) => (
                         <Badge key={ci.courseId} variant="outline" className="text-xs">
-                          {ci.course.title.length > 18
-                            ? ci.course.title.substring(0, 18) + "…"
+                          {ci.course.title.length > 16
+                            ? ci.course.title.substring(0, 16) + "…"
                             : ci.course.title}
                         </Badge>
                       ))
                     )}
                     {inst.courseInstructors.length > 2 && (
                       <Badge variant="secondary" className="text-xs">
-                        +{inst.courseInstructors.length - 2} more
+                        +{inst.courseInstructors.length - 2}
                       </Badge>
                     )}
                   </div>
                 </TableCell>
 
-                {/* Status */}
+                {/* Source */}
                 <TableCell>
-                  <Badge
-                    className={
-                      inst.isActive
-                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                        : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                    }
-                  >
-                    {inst.isActive ? "Active" : "Inactive"}
-                  </Badge>
+                  {inst.submittedViaForm ? (
+                    <Badge variant="outline" className="text-xs gap-1 text-blue-700 border-blue-300">
+                      <ExternalLink className="h-2.5 w-2.5" /> Public Form
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs gap-1 text-gray-500">
+                      <ShieldCheck className="h-2.5 w-2.5" /> Admin
+                    </Badge>
+                  )}
                 </TableCell>
 
                 {/* Actions */}
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setAssignInstructor(inst)}
-                      title="Manage courses"
-                    >
-                      <BookOpen className="h-3 w-3 mr-1" /> Courses
-                    </Button>
+                  <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                    {/* Approve button (shown if pending or rejected) */}
+                    {inst.approvalStatus !== "approved" && (
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white h-7 px-2.5 text-xs"
+                        onClick={() => openApproveDialog(inst)}
+                      >
+                        <ShieldCheck className="h-3 w-3 mr-1" /> Approve
+                      </Button>
+                    )}
+
+                    {/* Reject (shown if pending) */}
+                    {inst.approvalStatus === "pending" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-300 text-red-600 hover:bg-red-50 h-7 px-2.5 text-xs"
+                        disabled={rejectingId === inst.id}
+                        onClick={() => handleReject(inst.id)}
+                      >
+                        {rejectingId === inst.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <XCircle className="h-3 w-3 mr-1" />
+                        )}
+                        Reject
+                      </Button>
+                    )}
+
+                    {/* Courses (only for approved) */}
+                    {inst.approvalStatus === "approved" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAssignInstructor(inst)}
+                        title="Manage courses"
+                        className="h-7 px-2.5 text-xs"
+                      >
+                        <BookOpen className="h-3 w-3 mr-1" /> Courses
+                      </Button>
+                    )}
+
                     <Button
                       size="icon"
                       variant="outline"
                       onClick={() => setEditInstructor(inst)}
                       title="Edit"
+                      className="h-7 w-7"
                     >
                       <Pencil className="h-3 w-3" />
                     </Button>
@@ -263,6 +471,7 @@ export default function InstructorTable({
                       variant="destructive"
                       onClick={() => setDeleteId(inst.id)}
                       title="Delete"
+                      className="h-7 w-7"
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -274,7 +483,357 @@ export default function InstructorTable({
         </Table>
       </div>
 
-      {/* Edit Dialog */}
+      {/* ── Approve Dialog ────────────────────────────────────────────────────── */}
+      <Dialog
+        open={!!approveInstructor}
+        onOpenChange={(o) => {
+          if (!o) {
+            setApproveInstructor(null);
+            setApprovalNotes("");
+            setSelectedCourseIds([]);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <ShieldCheck className="h-5 w-5 text-green-600" />
+              Review & Approve Instructor
+            </DialogTitle>
+            <DialogDescription>
+              Review all submitted details below. Assign the appropriate courses before approving.
+              A confirmation email will be sent automatically.
+            </DialogDescription>
+          </DialogHeader>
+
+          {approveInstructor && (
+            <div className="space-y-5 mt-2">
+              {/* Profile Header */}
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30 border border-purple-100 dark:border-purple-800">
+                <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shrink-0">
+                  {approveInstructor.profileImageUrl ? (
+                    <Image
+                      src={approveInstructor.profileImageUrl}
+                      alt={approveInstructor.fullName}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <span className="text-white font-bold text-xl">
+                      {approveInstructor.fullName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 leading-tight">
+                    {approveInstructor.fullName}
+                  </h3>
+                  {approveInstructor.title && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                      {approveInstructor.title}
+                    </p>
+                  )}
+                  {approveInstructor.email && (
+                    <p className="text-sm text-purple-700 dark:text-purple-300 flex items-center gap-1 mt-1">
+                      <Mail className="h-3.5 w-3.5" />
+                      {approveInstructor.email}
+                    </p>
+                  )}
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {approveInstructor.submittedViaForm && (
+                      <Badge variant="outline" className="text-xs text-blue-700 border-blue-300">
+                        <ExternalLink className="h-2.5 w-2.5 mr-1" /> Via Public Form
+                      </Badge>
+                    )}
+                    <ApprovalBadge status={approveInstructor.approvalStatus} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bio */}
+              {approveInstructor.bio && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bio</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
+                    {approveInstructor.bio}
+                  </p>
+                </div>
+              )}
+
+              {/* Expertise */}
+              {approveInstructor.expertiseAreas.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Expertise Areas
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {approveInstructor.expertiseAreas.map((tag) => (
+                      <Badge
+                        key={tag}
+                        className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Academic Affiliations */}
+              {(approveInstructor.academicAffiliations as AcademicAffiliation[]).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                    <GraduationCap className="h-3.5 w-3.5" /> Academic Affiliations
+                  </p>
+                  <div className="space-y-1.5">
+                    {(approveInstructor.academicAffiliations as AcademicAffiliation[]).map(
+                      (aff, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-3 text-sm bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2.5 border border-gray-100 dark:border-gray-700"
+                        >
+                          {aff.logoUrl && (
+                            <img
+                              src={aff.logoUrl}
+                              alt={aff.name}
+                              className="h-7 w-7 object-contain rounded"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = "none";
+                              }}
+                            />
+                          )}
+                          <div className="flex-1">
+                            <span className="font-medium text-gray-800 dark:text-gray-200">
+                              {aff.name}
+                            </span>
+                            {aff.role && (
+                              <span className="text-gray-500 ml-1.5">— {aff.role}</span>
+                            )}
+                            {aff.year && (
+                              <span className="text-gray-400 ml-1.5 text-xs">({aff.year})</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Research Appointments */}
+              {(approveInstructor.researchAppointments as ResearchAppointment[]).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                    <FlaskConical className="h-3.5 w-3.5" /> Research Appointments
+                  </p>
+                  <div className="space-y-1.5">
+                    {(approveInstructor.researchAppointments as ResearchAppointment[]).map(
+                      (appt, i) => (
+                        <div
+                          key={i}
+                          className="text-sm bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2.5 border border-gray-100 dark:border-gray-700"
+                        >
+                          <span className="font-medium text-gray-800 dark:text-gray-200">
+                            {appt.org}
+                          </span>
+                          {appt.role && (
+                            <span className="text-gray-500 ml-1.5">— {appt.role}</span>
+                          )}
+                          {appt.period && (
+                            <span className="text-gray-400 ml-1.5 text-xs">({appt.period})</span>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Awards */}
+              {approveInstructor.awards && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                    <Star className="h-3.5 w-3.5" /> Awards & Recognition
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
+                    {approveInstructor.awards}
+                  </p>
+                </div>
+              )}
+
+              {/* Social Links */}
+              {!!approveInstructor.socialLinks &&
+                Object.values(approveInstructor.socialLinks as SocialLinks).some(Boolean) && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                      <Globe className="h-3.5 w-3.5" /> Online Presence
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(approveInstructor.socialLinks as SocialLinks)
+                        .filter(([, v]) => v)
+                        .map(([key, url]) => (
+                          <a
+                            key={key}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-800"
+                          >
+                            {key === "linkedin" ? (
+                              <Linkedin className="h-3 w-3" />
+                            ) : (
+                              <Globe className="h-3 w-3" />
+                            )}
+                            {key}
+                          </a>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+              <Separator />
+
+              {/* Course Assignment (CRITICAL — admin-only) */}
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-blue-600" />
+                    Assign Courses
+                    <span className="text-xs font-normal text-gray-500 ml-1">
+                      (based on expertise & qualifications)
+                    </span>
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Select which courses this instructor should be assigned to. This can be updated
+                    after approval.
+                  </p>
+                </div>
+
+                {allCourses.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 p-4 text-center text-sm text-gray-400">
+                    No courses available yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {allCourses.map((course) => {
+                      const isSelected = selectedCourseIds.includes(course.id);
+                      return (
+                        <button
+                          key={course.id}
+                          type="button"
+                          onClick={() => toggleCourse(course.id)}
+                          className={`flex items-center gap-2.5 text-left p-2.5 rounded-lg border text-sm transition-all ${
+                            isSelected
+                              ? "bg-blue-50 border-blue-400 text-blue-900 dark:bg-blue-900/30 dark:border-blue-600 dark:text-blue-200"
+                              : "bg-gray-50 border-gray-200 text-gray-700 hover:border-gray-300 dark:bg-gray-800/50 dark:border-gray-700 dark:text-gray-300"
+                          }`}
+                        >
+                          <div
+                            className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                              isSelected
+                                ? "bg-blue-600 border-blue-600"
+                                : "border-gray-300 dark:border-gray-600"
+                            }`}
+                          >
+                            {isSelected && (
+                              <svg
+                                className="h-2.5 w-2.5 text-white"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={3}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{course.title}</p>
+                            <p className="text-xs text-gray-400 capitalize">{course.status.toLowerCase()}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {selectedCourseIds.length > 0 && (
+                  <p className="text-xs text-blue-700 dark:text-blue-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    {selectedCourseIds.length} course{selectedCourseIds.length !== 1 ? "s" : ""} selected
+                  </p>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Admin Notes */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold">
+                  Admin Notes{" "}
+                  <span className="font-normal text-gray-400">(optional — included in email)</span>
+                </Label>
+                <Textarea
+                  placeholder="e.g. Welcome aboard! We look forward to working with you on the JEE Advanced Chemistry course."
+                  rows={3}
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                />
+              </div>
+
+              {/* Warning if no courses selected */}
+              {selectedCourseIds.length === 0 && (
+                <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm text-amber-800 dark:text-amber-300">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <p>
+                    No courses selected. You can approve without assigning courses now and assign them
+                    later via the Courses button.
+                  </p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 justify-end pt-1">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setApproveInstructor(null);
+                    setApprovalNotes("");
+                    setSelectedCourseIds([]);
+                  }}
+                  disabled={approving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-green-600 hover:bg-green-700 text-white min-w-[130px]"
+                  onClick={handleApprove}
+                  disabled={approving}
+                >
+                  {approving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Approving...
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="h-4 w-4 mr-2" />
+                      Approve & Notify
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Dialog ───────────────────────────────────────────────────────── */}
       <Dialog open={!!editInstructor} onOpenChange={(o) => !o && setEditInstructor(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -292,18 +851,18 @@ export default function InstructorTable({
         </DialogContent>
       </Dialog>
 
-      {/* Assign Courses Dialog */}
+      {/* ── Assign Courses Dialog (approved instructors) ─────────────────────── */}
       <Dialog open={!!assignInstructor} onOpenChange={(o) => !o && setAssignInstructor(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>
-              Manage Courses — {assignInstructor?.fullName}
-            </DialogTitle>
+            <DialogTitle>Manage Courses — {assignInstructor?.fullName}</DialogTitle>
+            <DialogDescription>
+              Add or remove course assignments for this instructor. Changes are admin-authorised only.
+            </DialogDescription>
           </DialogHeader>
 
           {assignInstructor && (
             <div className="space-y-4">
-              {/* Currently assigned */}
               <div>
                 <p className="text-sm font-medium mb-2">Assigned Courses</p>
                 {assignInstructor.courseInstructors.length === 0 ? (
@@ -321,11 +880,13 @@ export default function InstructorTable({
                           variant="ghost"
                           className="h-6 w-6 text-destructive"
                           disabled={removingCourseId === ci.courseId}
-                          onClick={() =>
-                            handleRemoveCourse(assignInstructor.id, ci.courseId)
-                          }
+                          onClick={() => handleRemoveCourse(assignInstructor.id, ci.courseId)}
                         >
-                          <X className="h-3 w-3" />
+                          {removingCourseId === ci.courseId ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <X className="h-3 w-3" />
+                          )}
                         </Button>
                       </div>
                     ))}
@@ -333,7 +894,6 @@ export default function InstructorTable({
                 )}
               </div>
 
-              {/* Assign new course */}
               {unassignedCourses.length > 0 && (
                 <div>
                   <p className="text-sm font-medium mb-2">Assign a Course</p>
@@ -372,7 +932,7 @@ export default function InstructorTable({
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirm */}
+      {/* ── Delete Confirm ────────────────────────────────────────────────────── */}
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

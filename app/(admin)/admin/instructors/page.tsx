@@ -21,7 +21,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserCircle, Plus, RotateCcw, Users, BookOpen, CheckCircle } from "lucide-react";
+import {
+  UserCircle,
+  Plus,
+  RotateCcw,
+  Users,
+  BookOpen,
+  CheckCircle,
+  ClipboardCopy,
+  ExternalLink,
+  Clock,
+} from "lucide-react";
 import InstructorTable from "./InstructorTable";
 import InstructorForm from "./InstructorForm";
 
@@ -44,6 +54,11 @@ interface Instructor {
   title?: string;
   profileImageUrl?: string;
   isActive: boolean;
+  isApproved: boolean;
+  approvalStatus: string;
+  submittedViaForm: boolean;
+  approvedAt?: string;
+  approvalNotes?: string;
   order: number;
   courseInstructors: CourseInstructorRow[];
   academicAffiliations: unknown[];
@@ -100,10 +115,24 @@ export default function InstructorsAdminPage() {
     initialLoad();
   }, [initialLoad]);
 
+  // Instructor form public URL
+  const instructorFormUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/instructor-form`
+      : "/instructor-form";
+
+  const handleCopyFormUrl = () => {
+    navigator.clipboard
+      .writeText(instructorFormUrl)
+      .then(() => toast.success("Form URL copied to clipboard!"))
+      .catch(() => toast.error("Failed to copy URL"));
+  };
+
   // Stats
   const stats = {
     total: instructors.length,
     active: instructors.filter((i) => i.isActive).length,
+    pending: instructors.filter((i) => i.approvalStatus === "pending").length,
     totalAssignments: instructors.reduce((s, i) => s + i.courseInstructors.length, 0),
     withCourses: instructors.filter((i) => i.courseInstructors.length > 0).length,
   };
@@ -120,11 +149,11 @@ export default function InstructorsAdminPage() {
             Instructor Management
           </h1>
           <p className="text-muted-foreground mt-1">
-            Create and manage instructors — assign them to courses for display on the frontend.
+            Review applications, approve instructors, and assign them to courses.
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button
             variant="outline"
             onClick={handleRefresh}
@@ -158,6 +187,41 @@ export default function InstructorsAdminPage() {
         </div>
       </div>
 
+      {/* Instructor Form Banner */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30 p-4">
+        <div className="space-y-0.5">
+          <p className="text-sm font-semibold text-purple-900 dark:text-purple-200 flex items-center gap-2">
+            <ExternalLink className="h-4 w-4" />
+            Public Instructor Application Form
+          </p>
+          <p className="text-xs text-purple-700 dark:text-purple-400">
+            Share this link with prospective instructors — applications appear below for your review.
+          </p>
+          <p className="text-xs text-purple-600/70 dark:text-purple-500 font-mono truncate max-w-sm">
+            {instructorFormUrl}
+          </p>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-purple-300 text-purple-700 hover:bg-purple-100 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/40"
+            onClick={handleCopyFormUrl}
+          >
+            <ClipboardCopy className="h-3.5 w-3.5 mr-1.5" />
+            Copy URL
+          </Button>
+          <Button
+            size="sm"
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+            onClick={() => window.open("/instructor-form", "_blank")}
+          >
+            <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+            Open Form
+          </Button>
+        </div>
+      </div>
+
       <Separator />
 
       {/* Stats */}
@@ -184,6 +248,22 @@ export default function InstructorsAdminPage() {
           </CardContent>
         </Card>
 
+        <Card className={`border-0 shadow-md bg-gradient-to-br ${stats.pending > 0 ? "from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30" : "from-gray-50 to-slate-50 dark:from-gray-900 dark:to-slate-900"}`}>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
+            <Clock className={`h-4 w-4 ${stats.pending > 0 ? "text-amber-600" : "text-gray-400"}`} />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold flex items-center gap-2">
+              {stats.pending}
+              {stats.pending > 0 && (
+                <span className="inline-flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">awaiting approval</p>
+          </CardContent>
+        </Card>
+
         <Card className="border-0 shadow-md bg-gradient-to-br from-blue-50 to-sky-50 dark:from-blue-950/30 dark:to-sky-950/30">
           <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-sm font-medium">With Courses</CardTitle>
@@ -194,25 +274,14 @@ export default function InstructorsAdminPage() {
             <p className="text-xs text-muted-foreground">assigned to courses</p>
           </CardContent>
         </Card>
-
-        <Card className="border-0 shadow-md bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-sm font-medium">Assignments</CardTitle>
-            <UserCircle className="h-4 w-4 text-amber-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalAssignments}</div>
-            <p className="text-xs text-muted-foreground">course–instructor pairs</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Info banner */}
       <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm text-blue-800 dark:text-blue-300">
-        <strong>How it works:</strong> Create an instructor profile with their bio, academic
-        affiliations (logos auto-fetched from the internet), and expertise. Then assign them to one
-        or more courses via the <em>Courses</em> button. Instructor badges will appear on course
-        cards and full profiles will be shown on course detail pages.
+        <strong>Workflow:</strong> Instructors can apply via the public form or be created directly here.
+        Applications start as <em>Pending</em>. Use the <em>Approve</em> action to review their full
+        profile and assign courses — only then will they go live on the platform and receive a
+        confirmation email.
       </div>
 
       {/* Table */}
@@ -223,11 +292,16 @@ export default function InstructorsAdminPage() {
               <CardTitle className="text-xl flex items-center gap-2 mt-3">
                 <UserCircle className="w-5 h-5 text-primary" />
                 All Instructors
+                {stats.pending > 0 && (
+                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 ml-1">
+                    {stats.pending} pending
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription>
                 {instructors.length > 0
-                  ? `${instructors.length} instructor${instructors.length !== 1 ? "s" : ""} — click Courses to assign`
-                  : "No instructors yet. Click New Instructor to create one."}
+                  ? `${instructors.length} instructor${instructors.length !== 1 ? "s" : ""} — review pending applications and assign courses at approval`
+                  : "No instructors yet. Create one or share the application form."}
               </CardDescription>
             </div>
             {instructors.length > 0 && (

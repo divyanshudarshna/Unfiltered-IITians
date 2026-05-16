@@ -68,6 +68,11 @@ export async function POST(req: NextRequest) {
         socialLinks: socialLinks ?? null,
         isActive: isActive ?? true,
         order: order ?? 0,
+        // Admin-created instructors are auto-approved
+        isApproved: true,
+        approvalStatus: "approved",
+        approvedAt: new Date(),
+        submittedViaForm: false,
       },
     });
 
