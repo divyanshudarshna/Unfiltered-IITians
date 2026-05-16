@@ -491,9 +491,9 @@ export default function InstructorFormPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-indigo-50/20 dark:from-[#050408] dark:via-[#0b0714] dark:to-[#060a10]">
       {/* ── Hero Banner ── */}
-      <div className="relative overflow-hidden bg-[#130d23]">
+      <div className="relative overflow-hidden bg-purple-900 dark:bg-[#130d23]">
         {/* Subtle radial glow — single color, no rainbow */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(139,92,246,0.15),transparent)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(167,139,250,0.2),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(139,92,246,0.15),transparent)]" />
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PHBhdGggZD0iTTM2IDM0djZoNnYtNmgtNnptMCAwdi02aC02djZoNnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-60" />
 
         <div className="relative max-w-4xl mx-auto px-4 py-14 text-center">
@@ -504,7 +504,7 @@ export default function InstructorFormPage() {
             Teach at{" "}
             <span className="text-purple-400">Unfiltered IITians</span>
           </h1>
-          <p className="text-white/60 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-8">
+          <p className="text-purple-200 dark:text-white/60 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-8">
             Share your expertise with thousands of aspiring IITians. Fill in
             the form below — our team will review your profile and reach out
             upon approval.
