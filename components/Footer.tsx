@@ -151,9 +151,6 @@ export default function Footer() {
           </ul>
         </div>
 
-        {/* Newsletter Section */}
-        <NewsletterForm />
-
         {/* Work with us */}
         <div>
           <h4 className="text-lg font-semibold text-foreground dark:text-white mb-3">Work with us</h4>
@@ -175,6 +172,9 @@ export default function Footer() {
             </li>
           </ul>
         </div>
+
+        {/* Newsletter Section */}
+        <NewsletterForm />
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-4 border-t border-border text-center text-sm">
