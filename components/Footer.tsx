@@ -69,7 +69,7 @@ export default function Footer() {
     <>
     <div className="h-1 bg-purple-600 w-full"></div>
     <footer className="border-t bg-muted text-muted-foreground dark:bg-zinc-950 dark:text-zinc-400">
-      <div className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-4 gap-8 text-sm">
+      <div className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 text-sm">
         
      {/* About Section */}
 <div>
@@ -153,6 +153,28 @@ export default function Footer() {
 
         {/* Newsletter Section */}
         <NewsletterForm />
+
+        {/* Work with us */}
+        <div>
+          <h4 className="text-lg font-semibold text-foreground dark:text-white mb-3">Work with us</h4>
+          <ul className="space-y-2">
+            <li>
+              <a
+                href="https://www.divyanshudarshna.com/instructor-form"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline hover:text-purple-500 transition-colors"
+              >
+                Join as an Instructor
+              </a>
+            </li>
+            <li>
+              <span className="text-muted-foreground cursor-default" title="Coming soon">
+                Join as a Sponsor
+              </span>
+            </li>
+          </ul>
+        </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-4 border-t border-border text-center text-sm">

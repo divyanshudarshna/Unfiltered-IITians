@@ -26,6 +26,8 @@ import {
   Star,
   Shield,
   ArrowLeft,
+  Sparkles,
+  Award,
 } from "lucide-react";
 
 // ── Institution Suggestions ──────────────────────────────────────────────────
@@ -105,6 +107,46 @@ const emptyForm = (): FormData => ({
   socialLinks: { website: "", linkedin: "", researchgate: "", twitter: "" },
 });
 
+// ── Section wrapper ──────────────────────────────────────────────────────────
+function Section({
+  number,
+  icon,
+  title,
+  subtitle,
+  children,
+  action,
+}: {
+  number: number;
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: React.ReactNode;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="p-6 md:p-8 space-y-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center">
+            <span className="text-xs font-bold text-purple-600 dark:text-purple-400">{number}</span>
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-50 flex items-center gap-2">
+              {icon}
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">{subtitle}</p>
+            )}
+          </div>
+        </div>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 // ── Institution Combobox ─────────────────────────────────────────────────────
 function InstitutionInput({
   value,
@@ -121,11 +163,12 @@ function InstitutionInput({
   const [fetchingLogo, setFetchingLogo] = useState(false);
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filtered = value.trim().length > 0
-    ? INSTITUTION_SUGGESTIONS.filter((s) =>
-        s.name.toLowerCase().includes(value.toLowerCase())
-      ).slice(0, 8)
-    : [];
+  const filtered =
+    value.trim().length > 0
+      ? INSTITUTION_SUGGESTIONS.filter((s) =>
+          s.name.toLowerCase().includes(value.toLowerCase())
+        ).slice(0, 8)
+      : [];
 
   const handleSelect = (suggestion: { name: string; domain: string }) => {
     onChange(suggestion.name);
@@ -146,7 +189,9 @@ function InstitutionInput({
       if (!matched) {
         try {
           setFetchingLogo(true);
-          const res = await fetch(`/api/institution-logo?name=${encodeURIComponent(val)}`);
+          const res = await fetch(
+            `/api/institution-logo?name=${encodeURIComponent(val)}`
+          );
           const data = await res.json();
           if (data.logoUrl) onLogoChange(data.logoUrl);
         } catch {
@@ -167,7 +212,7 @@ function InstitutionInput({
           onChange={(e) => handleInputChange(e.target.value)}
           onFocus={() => value.trim().length > 0 && setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
-          className="h-9 text-sm pr-8"
+          className="h-9 text-sm pr-8 bg-white dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] focus:border-purple-400 dark:focus:border-purple-500"
         />
         {fetchingLogo && (
           <Loader2 className="absolute right-2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
@@ -178,14 +223,14 @@ function InstitutionInput({
       </div>
 
       {open && filtered.length > 0 && (
-        <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden max-h-56 overflow-y-auto">
+        <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white dark:bg-[#12101e] border border-gray-200 dark:border-[#2a2440] rounded-xl shadow-2xl overflow-hidden max-h-56 overflow-y-auto">
           {filtered.map((s) => (
             <button
               key={s.domain}
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => handleSelect(s)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors"
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors border-b border-gray-50 dark:border-[#1e1a2e] last:border-0"
             >
               <img
                 src={`https://logo.clearbit.com/${s.domain}`}
@@ -195,7 +240,7 @@ function InstitutionInput({
                   (e.target as HTMLImageElement).style.display = "none";
                 }}
               />
-              <span className="truncate">{s.name}</span>
+              <span className="truncate text-gray-700 dark:text-gray-300">{s.name}</span>
             </button>
           ))}
         </div>
@@ -255,7 +300,11 @@ export default function InstructorFormPage() {
       academicAffiliations: prev.academicAffiliations.filter((_, idx) => idx !== i),
     }));
 
-  const updateAffiliation = (i: number, field: keyof AcademicAffiliation, value: string) =>
+  const updateAffiliation = (
+    i: number,
+    field: keyof AcademicAffiliation,
+    value: string
+  ) =>
     setForm((prev) => {
       const affs = [...prev.academicAffiliations];
       affs[i] = { ...affs[i], [field]: value };
@@ -266,7 +315,10 @@ export default function InstructorFormPage() {
   const addAppointment = () =>
     setForm((prev) => ({
       ...prev,
-      researchAppointments: [...prev.researchAppointments, { org: "", role: "", period: "" }],
+      researchAppointments: [
+        ...prev.researchAppointments,
+        { org: "", role: "", period: "" },
+      ],
     }));
 
   const removeAppointment = (i: number) =>
@@ -275,7 +327,11 @@ export default function InstructorFormPage() {
       researchAppointments: prev.researchAppointments.filter((_, idx) => idx !== i),
     }));
 
-  const updateAppointment = (i: number, field: keyof ResearchAppointment, value: string) =>
+  const updateAppointment = (
+    i: number,
+    field: keyof ResearchAppointment,
+    value: string
+  ) =>
     setForm((prev) => {
       const appts = [...prev.researchAppointments];
       appts[i] = { ...appts[i], [field]: value };
@@ -286,7 +342,10 @@ export default function InstructorFormPage() {
   const addExpertise = () => {
     const trimmed = expertiseInput.trim();
     if (!trimmed || form.expertiseAreas.includes(trimmed)) return;
-    setForm((prev) => ({ ...prev, expertiseAreas: [...prev.expertiseAreas, trimmed] }));
+    setForm((prev) => ({
+      ...prev,
+      expertiseAreas: [...prev.expertiseAreas, trimmed],
+    }));
     setExpertiseInput("");
   };
 
@@ -334,12 +393,15 @@ export default function InstructorFormPage() {
       }
 
       toast.success("Application submitted successfully!", {
-        description: "Our team will review your profile and get back to you via email.",
+        description:
+          "Our team will review your profile and get back to you via email.",
         duration: 6000,
       });
       setSubmitted(true);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Submission failed. Please try again.");
+      toast.error(
+        err instanceof Error ? err.message : "Submission failed. Please try again."
+      );
     } finally {
       setSaving(false);
     }
@@ -348,56 +410,78 @@ export default function InstructorFormPage() {
   // ── Success Screen ────────────────────────────────────────────────────────
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-indigo-950/20 flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center space-y-6">
-          <div className="flex justify-center">
-            <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-5">
-              <CheckCircle2 className="h-16 w-16 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-          <div className="space-y-3">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-              Application Submitted!
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 text-base leading-relaxed">
-              Thank you for applying to become an instructor at{" "}
-              <span className="font-semibold text-purple-600">Unfiltered IITians</span>. Our academic
-              team will review your profile carefully and reach out to you at{" "}
-              <span className="font-semibold">{form.email}</span>.
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-500">
-              You will receive a confirmation email once your application is approved, along with the
-              courses assigned to you.
-            </p>
-          </div>
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-left space-y-2">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              What happens next?
-            </p>
-            <div className="space-y-1.5">
-              {[
-                "Our team reviews your academic credentials and expertise",
-                "Admin assigns relevant courses based on your qualifications",
-                "You receive an email with your approval and course details",
-                "Your profile goes live on the platform",
-              ].map((step, i) => (
-                <div key={i} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <span className="flex-shrink-0 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 w-5 h-5 flex items-center justify-center text-xs font-bold mt-0.5">
-                    {i + 1}
-                  </span>
-                  {step}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/40 to-indigo-50/40 dark:from-[#050408] dark:via-[#0b0714] dark:to-[#06090f] flex items-center justify-center p-4">
+        <div className="max-w-lg w-full">
+          <div className="bg-white dark:bg-[#0e0c1a] border border-gray-100 dark:border-[#1e1a2e] rounded-3xl shadow-2xl shadow-purple-100/30 dark:shadow-purple-900/20 p-8 text-center space-y-6">
+            <div className="flex justify-center">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-green-400/20 blur-xl scale-150" />
+                <div className="relative rounded-full bg-gradient-to-br from-green-400/20 to-emerald-400/20 dark:from-green-500/10 dark:to-emerald-500/10 border border-green-200 dark:border-green-800/50 p-5">
+                  <CheckCircle2 className="h-14 w-14 text-green-500 dark:text-green-400" />
                 </div>
-              ))}
+              </div>
             </div>
+            <div className="space-y-3">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">
+                Application Submitted!
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
+                Thank you for applying to teach at{" "}
+                <span className="font-semibold text-purple-600 dark:text-purple-400">
+                  Unfiltered IITians
+                </span>
+                . Our academic team will review your profile and reach out at{" "}
+                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  {form.email}
+                </span>
+                .
+              </p>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-[#0a0817] border border-gray-100 dark:border-[#1e1a2e] rounded-2xl p-5 text-left space-y-3">
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                What happens next
+              </p>
+              <div className="space-y-3">
+                {[
+                  {
+                    text: "Our team reviews your academic credentials",
+                    color: "bg-purple-500",
+                  },
+                  {
+                    text: "Admin assigns courses based on your expertise",
+                    color: "bg-indigo-500",
+                  },
+                  {
+                    text: "You get an approval email with course details",
+                    color: "bg-blue-500",
+                  },
+                  {
+                    text: "Your profile goes live on the platform",
+                    color: "bg-emerald-500",
+                  },
+                ].map((step, i) => (
+                  <div key={i} className="flex items-center gap-3 text-sm">
+                    <div
+                      className={`flex-shrink-0 w-6 h-6 rounded-full ${step.color} flex items-center justify-center text-white text-xs font-bold`}
+                    >
+                      {i + 1}
+                    </div>
+                    <span className="text-gray-600 dark:text-gray-400">{step.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              className="w-full border-gray-200 dark:border-[#2a2440] dark:bg-[#12101e] dark:text-gray-300 dark:hover:bg-[#1a1730] hover:bg-gray-50 transition-colors"
+              onClick={() => (window.location.href = "/")}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Return to Home
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => (window.location.href = "/")}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Return to Home
-          </Button>
         </div>
       </div>
     );
@@ -405,54 +489,66 @@ export default function InstructorFormPage() {
 
   // ── Form ──────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 dark:from-gray-950 dark:via-purple-950/10 dark:to-indigo-950/10">
-      {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white">
-        <div className="max-w-4xl mx-auto px-4 py-12 text-center">
-          <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-4 py-1.5 text-sm font-medium mb-5">
-            <Star className="h-3.5 w-3.5" /> Instructor Application
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-indigo-50/20 dark:from-[#050408] dark:via-[#0b0714] dark:to-[#060a10]">
+      {/* ── Hero Banner ── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-700">
+        {/* Decorative background blobs */}
+        <div className="absolute top-0 left-1/4 w-72 h-72 bg-white/5 rounded-full blur-3xl -translate-y-1/2" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl translate-y-1/2" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djZoNnYtNmgtNnptMCAwdi02aC02djZoNnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-40" />
+
+        <div className="relative max-w-4xl mx-auto px-4 py-14 text-center">
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 text-sm font-medium text-white/90 mb-6">
+            <Sparkles className="h-3.5 w-3.5" /> Instructor Application
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-3 leading-tight">
-            Join Unfiltered IITians as an Instructor
+          <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight text-white tracking-tight">
+            Teach at{" "}
+            <span className="text-yellow-300">Unfiltered IITians</span>
           </h1>
-          <p className="text-purple-100 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
-            Share your expertise with thousands of aspiring IITians. Fill in the form below — our
-            team will review your profile and reach out upon approval.
+          <p className="text-purple-100/80 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-8">
+            Share your expertise with thousands of aspiring IITians. Fill in
+            the form below — our team will review your profile and reach out
+            upon approval.
           </p>
-          <div className="flex flex-wrap justify-center gap-6 mt-6 text-sm text-purple-100">
-            <div className="flex items-center gap-1.5">
-              <Users className="h-4 w-4" /> Reach thousands of learners
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Shield className="h-4 w-4" /> Verified instructor badge
-            </div>
-            <div className="flex items-center gap-1.5">
-              <ChevronRight className="h-4 w-4" /> Get assigned to courses
-            </div>
+          <div className="flex flex-wrap justify-center gap-3">
+            {[
+              { icon: <Users className="h-4 w-4" />, text: "Reach thousands of learners" },
+              { icon: <Shield className="h-4 w-4" />, text: "Verified instructor badge" },
+              { icon: <Star className="h-4 w-4" />, text: "Assigned to relevant courses" },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-4 py-2 text-sm text-white/90"
+              >
+                {item.icon}
+                {item.text}
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Form Container */}
-      <div className="max-w-3xl mx-auto px-4 py-10">
+      {/* ── Form Container ── */}
+      <div className="max-w-3xl mx-auto px-4 py-10 -mt-4">
         <form
           onSubmit={handleSubmit}
-          className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+          className="bg-white dark:bg-[#0e0c1a] rounded-3xl shadow-2xl shadow-purple-100/20 dark:shadow-purple-900/10 border border-gray-100 dark:border-[#1e1a2e] overflow-hidden"
         >
           {/* ── Basic Info ── */}
-          <div className="p-6 md:p-8 space-y-5">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-0.5">
-                Basic Information
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Fields marked with <span className="text-red-500">*</span> are required.
-              </p>
-            </div>
-
+          <Section
+            number={1}
+            icon={null}
+            title="Basic Information"
+            subtitle={
+              <>
+                Fields marked with{" "}
+                <span className="text-red-500">*</span> are required.
+              </>
+            }
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="fullName">
+                <Label htmlFor="fullName" className="text-gray-700 dark:text-gray-300">
                   Full Name <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -461,10 +557,11 @@ export default function InstructorFormPage() {
                   value={form.fullName}
                   onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                   required
+                  className="bg-gray-50 dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] focus:border-purple-400 dark:focus:border-purple-500 dark:text-gray-100 dark:placeholder:text-gray-600"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="email">
+                <Label htmlFor="email" className="text-gray-700 dark:text-gray-300">
                   Email Address <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -474,12 +571,13 @@ export default function InstructorFormPage() {
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required
+                  className="bg-gray-50 dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] focus:border-purple-400 dark:focus:border-purple-500 dark:text-gray-100 dark:placeholder:text-gray-600"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="title">
+              <Label htmlFor="title" className="text-gray-700 dark:text-gray-300">
                 Title / Designation
               </Label>
               <Input
@@ -487,27 +585,35 @@ export default function InstructorFormPage() {
                 placeholder="e.g. Principal Investigator | Quantum & Systems Biologist"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
+                className="bg-gray-50 dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] focus:border-purple-400 dark:focus:border-purple-500 dark:text-gray-100 dark:placeholder:text-gray-600"
               />
-              <p className="text-xs text-gray-400">Your professional title as it will appear on course pages.</p>
+              <p className="text-xs text-gray-400 dark:text-gray-600">
+                Your professional title as it will appear on course pages.
+              </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="bio">Bio / About You</Label>
+              <Label htmlFor="bio" className="text-gray-700 dark:text-gray-300">
+                Bio / About You
+              </Label>
               <Textarea
                 id="bio"
                 placeholder="Write a short biography highlighting your academic background, research interests, and teaching philosophy..."
                 rows={5}
                 value={form.bio}
                 onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                className="bg-gray-50 dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] focus:border-purple-400 dark:focus:border-purple-500 dark:text-gray-100 dark:placeholder:text-gray-600 resize-none"
               />
-              <p className="text-xs text-gray-400">This will appear on course detail pages. Keep it concise but informative (150–300 words recommended).</p>
+              <p className="text-xs text-gray-400 dark:text-gray-600">
+                Appears on course detail pages. 150–300 words recommended.
+              </p>
             </div>
 
             {/* Profile Photo */}
             <div className="space-y-2">
-              <Label>Profile Photo</Label>
-              <div className="flex items-center gap-4">
-                <div className="relative h-20 w-20 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-800 flex-shrink-0">
+              <Label className="text-gray-700 dark:text-gray-300">Profile Photo</Label>
+              <div className="flex items-center gap-5 p-4 bg-gray-50 dark:bg-[#12101e] border border-dashed border-gray-200 dark:border-[#2a2440] rounded-xl">
+                <div className="relative h-20 w-20 rounded-full border-2 border-purple-200 dark:border-purple-800/50 overflow-hidden flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 flex-shrink-0">
                   {form.profileImageUrl ? (
                     <Image
                       src={form.profileImageUrl}
@@ -517,10 +623,10 @@ export default function InstructorFormPage() {
                       unoptimized
                     />
                   ) : (
-                    <Camera className="h-7 w-7 text-muted-foreground" />
+                    <Camera className="h-7 w-7 text-purple-300 dark:text-purple-700" />
                   )}
                   {uploadingImage && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-full">
                       <Loader2 className="h-5 w-5 text-white animate-spin" />
                     </div>
                   )}
@@ -544,12 +650,12 @@ export default function InstructorFormPage() {
                       size="sm"
                       disabled={uploadingImage}
                       onClick={() => imageInputRef.current?.click()}
-                      className="flex items-center gap-2"
+                      className="border-purple-200 dark:border-purple-800/50 text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
                     >
                       {uploadingImage ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                       ) : (
-                        <Upload className="h-3.5 w-3.5" />
+                        <Upload className="h-3.5 w-3.5 mr-1.5" />
                       )}
                       {uploadingImage ? "Uploading..." : "Upload Photo"}
                     </Button>
@@ -558,7 +664,7 @@ export default function InstructorFormPage() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive hover:text-destructive"
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10"
                         onClick={() => setForm({ ...form, profileImageUrl: "" })}
                       >
                         <X className="h-3.5 w-3.5 mr-1" /> Remove
@@ -568,58 +674,67 @@ export default function InstructorFormPage() {
                   <Input
                     placeholder="Or paste image URL..."
                     value={form.profileImageUrl}
-                    onChange={(e) => setForm({ ...form, profileImageUrl: e.target.value })}
-                    className="text-xs h-8"
+                    onChange={(e) =>
+                      setForm({ ...form, profileImageUrl: e.target.value })
+                    }
+                    className="text-xs h-8 bg-white dark:bg-[#0e0c1a] border-gray-200 dark:border-[#2a2440] dark:text-gray-300"
                   />
-                  <p className="text-xs text-gray-400">Professional headshot recommended. Max 5 MB.</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-600">
+                    Professional headshot recommended. Max 5 MB.
+                  </p>
                 </div>
               </div>
             </div>
-          </div>
+          </Section>
 
-          <div className="border-t border-gray-100 dark:border-gray-800" />
+          <div className="border-t border-gray-100 dark:border-[#1a1730]" />
 
           {/* ── Academic Affiliations ── */}
-          <div className="p-6 md:p-8 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                  <GraduationCap className="h-5 w-5 text-purple-600" /> Academic Affiliations
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                  Universities, colleges, or research institutions you are/were associated with.
-                </p>
-              </div>
-              <Button type="button" size="sm" variant="outline" onClick={addAffiliation}>
+          <Section
+            number={2}
+            icon={<GraduationCap className="h-4 w-4 text-purple-500" />}
+            title="Academic Affiliations"
+            subtitle="Universities, colleges, or research institutions you are/were associated with."
+            action={
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={addAffiliation}
+                className="border-purple-200 dark:border-purple-800/50 text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 shrink-0"
+              >
                 <Plus className="h-3 w-3 mr-1" /> Add
               </Button>
-            </div>
-
+            }
+          >
             {form.academicAffiliations.map((aff, i) => (
-              <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-3 bg-gray-50 dark:bg-gray-800/50 relative">
+              <div
+                key={i}
+                className="border border-gray-100 dark:border-[#2a2440] rounded-2xl p-4 space-y-3 bg-gray-50/80 dark:bg-[#12101e]/80 relative group"
+              >
                 <Button
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="absolute top-3 right-3 h-6 w-6 text-destructive"
+                  className="absolute top-3 right-3 h-6 w-6 text-gray-400 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => removeAffiliation(i)}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>
 
                 <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 rounded border bg-white shrink-0 flex items-center justify-center overflow-hidden mt-0.5">
+                  <div className="h-10 w-10 rounded-xl border border-gray-200 dark:border-[#2a2440] bg-white dark:bg-[#0e0c1a] shrink-0 flex items-center justify-center overflow-hidden mt-0.5">
                     {aff.logoUrl ? (
                       <img
                         src={aff.logoUrl}
                         alt={aff.name}
-                        className="h-full w-full object-contain p-1"
+                        className="h-full w-full object-contain p-1.5"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />
                     ) : (
-                      <BookOpen className="h-4 w-4 text-muted-foreground" />
+                      <BookOpen className="h-4 w-4 text-gray-300 dark:text-gray-600" />
                     )}
                   </div>
                   <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2 pr-8">
@@ -635,13 +750,13 @@ export default function InstructorFormPage() {
                       placeholder="Degree / Role (e.g. M.Tech, PhD)"
                       value={aff.role}
                       onChange={(e) => updateAffiliation(i, "role", e.target.value)}
-                      className="h-9 text-sm"
+                      className="h-9 text-sm bg-white dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] dark:text-gray-100 dark:placeholder:text-gray-600"
                     />
                     <Input
                       placeholder="Year (e.g. 2010–2014)"
                       value={aff.year}
                       onChange={(e) => updateAffiliation(i, "year", e.target.value)}
-                      className="h-9 text-sm"
+                      className="h-9 text-sm bg-white dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] dark:text-gray-100 dark:placeholder:text-gray-600"
                     />
                   </div>
                 </div>
@@ -649,38 +764,52 @@ export default function InstructorFormPage() {
             ))}
 
             {form.academicAffiliations.length === 0 && (
-              <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 p-6 text-center">
-                <GraduationCap className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-400">No affiliations added yet. Click &ldquo;Add&rdquo; to add your academic institutions.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-gray-100 dark:border-gray-800" />
-
-          {/* ── Research Appointments ── */}
-          <div className="p-6 md:p-8 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                  <FlaskConical className="h-5 w-5 text-blue-600" /> Research & Professional Appointments
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                  Research positions, postdocs, fellowships, or industry roles.
+              <div className="rounded-2xl border border-dashed border-gray-200 dark:border-[#2a2440] p-8 text-center">
+                <GraduationCap className="h-9 w-9 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+                <p className="text-sm text-gray-400 dark:text-gray-600">
+                  No affiliations added yet.{" "}
+                  <button
+                    type="button"
+                    onClick={addAffiliation}
+                    className="text-purple-500 hover:underline"
+                  >
+                    Add one
+                  </button>
                 </p>
               </div>
-              <Button type="button" size="sm" variant="outline" onClick={addAppointment}>
+            )}
+          </Section>
+
+          <div className="border-t border-gray-100 dark:border-[#1a1730]" />
+
+          {/* ── Research Appointments ── */}
+          <Section
+            number={3}
+            icon={<FlaskConical className="h-4 w-4 text-blue-500" />}
+            title="Research & Professional Appointments"
+            subtitle="Research positions, postdocs, fellowships, or industry roles."
+            action={
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={addAppointment}
+                className="border-blue-200 dark:border-blue-800/50 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 shrink-0"
+              >
                 <Plus className="h-3 w-3 mr-1" /> Add
               </Button>
-            </div>
-
+            }
+          >
             {form.researchAppointments.map((appt, i) => (
-              <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-800/50 relative">
+              <div
+                key={i}
+                className="border border-gray-100 dark:border-[#2a2440] rounded-2xl p-4 bg-gray-50/80 dark:bg-[#12101e]/80 relative group"
+              >
                 <Button
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="absolute top-3 right-3 h-6 w-6 text-destructive"
+                  className="absolute top-3 right-3 h-6 w-6 text-gray-400 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => removeAppointment(i)}
                 >
                   <Trash2 className="h-3 w-3" />
@@ -690,47 +819,53 @@ export default function InstructorFormPage() {
                     placeholder="Organisation / Institute"
                     value={appt.org}
                     onChange={(e) => updateAppointment(i, "org", e.target.value)}
-                    className="h-9 text-sm"
+                    className="h-9 text-sm bg-white dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] dark:text-gray-100 dark:placeholder:text-gray-600"
                   />
                   <Input
                     placeholder="Role (e.g. Postdoctoral Associate)"
                     value={appt.role}
                     onChange={(e) => updateAppointment(i, "role", e.target.value)}
-                    className="h-9 text-sm"
+                    className="h-9 text-sm bg-white dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] dark:text-gray-100 dark:placeholder:text-gray-600"
                   />
                   <Input
                     placeholder="Period (e.g. 2015–2018)"
                     value={appt.period}
                     onChange={(e) => updateAppointment(i, "period", e.target.value)}
-                    className="h-9 text-sm"
+                    className="h-9 text-sm bg-white dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] dark:text-gray-100 dark:placeholder:text-gray-600"
                   />
                 </div>
               </div>
             ))}
 
             {form.researchAppointments.length === 0 && (
-              <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 p-6 text-center">
-                <FlaskConical className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-400">No appointments added yet.</p>
+              <div className="rounded-2xl border border-dashed border-gray-200 dark:border-[#2a2440] p-8 text-center">
+                <FlaskConical className="h-9 w-9 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+                <p className="text-sm text-gray-400 dark:text-gray-600">
+                  No appointments added.{" "}
+                  <button
+                    type="button"
+                    onClick={addAppointment}
+                    className="text-blue-500 hover:underline"
+                  >
+                    Add one
+                  </button>
+                </p>
               </div>
             )}
-          </div>
+          </Section>
 
-          <div className="border-t border-gray-100 dark:border-gray-800" />
+          <div className="border-t border-gray-100 dark:border-[#1a1730]" />
 
           {/* ── Expertise Areas ── */}
-          <div className="p-6 md:p-8 space-y-4">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                Areas of Expertise
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                Add tags for the subjects and domains you specialise in.
-              </p>
-            </div>
+          <Section
+            number={4}
+            icon={<Sparkles className="h-4 w-4 text-amber-500" />}
+            title="Areas of Expertise"
+            subtitle="Add tags for the subjects and domains you specialise in."
+          >
             <div className="flex gap-2">
               <Input
-                placeholder="e.g. Quantum Biology, Thermodynamics, JEE Chemistry..."
+                placeholder="e.g. Quantum Biology, JEE Chemistry, Thermodynamics..."
                 value={expertiseInput}
                 onChange={(e) => setExpertiseInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -739,129 +874,157 @@ export default function InstructorFormPage() {
                     addExpertise();
                   }
                 }}
-                className="flex-1"
+                className="flex-1 bg-gray-50 dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] focus:border-amber-400 dark:focus:border-amber-500 dark:text-gray-100 dark:placeholder:text-gray-600"
               />
-              <Button type="button" size="sm" variant="outline" onClick={addExpertise}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={addExpertise}
+                className="border-amber-200 dark:border-amber-800/50 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 shrink-0"
+              >
                 Add Tag
               </Button>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 min-h-[2rem]">
               {form.expertiseAreas.map((tag) => (
                 <Badge
                   key={tag}
-                  className="gap-1 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-200 transition-colors"
+                  className="gap-1 bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700/40 hover:bg-purple-100 dark:hover:bg-purple-500/20 transition-colors"
                 >
                   {tag}
                   <button
                     type="button"
                     onClick={() => removeExpertise(tag)}
-                    className="ml-1 hover:text-red-600 transition-colors"
+                    className="ml-0.5 hover:text-red-500 transition-colors"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-2.5 w-2.5" />
                   </button>
                 </Badge>
               ))}
               {form.expertiseAreas.length === 0 && (
-                <p className="text-sm text-gray-400">No tags added yet. Press Enter or click &ldquo;Add Tag&rdquo;.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-600">
+                  No tags added. Press Enter or click &ldquo;Add Tag&rdquo;.
+                </p>
               )}
             </div>
-          </div>
+          </Section>
 
-          <div className="border-t border-gray-100 dark:border-gray-800" />
+          <div className="border-t border-gray-100 dark:border-[#1a1730]" />
 
           {/* ── Awards ── */}
-          <div className="p-6 md:p-8 space-y-3">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                Awards & Recognition
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                Any notable awards, fellowships, or achievements.
-              </p>
-            </div>
+          <Section
+            number={5}
+            icon={<Award className="h-4 w-4 text-yellow-500" />}
+            title="Awards & Recognition"
+            subtitle="Notable awards, fellowships, or achievements."
+          >
             <Textarea
               placeholder="e.g. Young Investigator Award (Biophysical Society 2020), DST-INSPIRE Faculty Fellow, MIT Technology Review 35 Innovators Under 35..."
               rows={3}
               value={form.awards}
               onChange={(e) => setForm({ ...form, awards: e.target.value })}
+              className="bg-gray-50 dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] focus:border-yellow-400 dark:focus:border-yellow-600 dark:text-gray-100 dark:placeholder:text-gray-600 resize-none"
             />
-          </div>
+          </Section>
 
-          <div className="border-t border-gray-100 dark:border-gray-800" />
+          <div className="border-t border-gray-100 dark:border-[#1a1730]" />
 
           {/* ── Social Links ── */}
-          <div className="p-6 md:p-8 space-y-4">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                <Globe className="h-5 w-5 text-green-600" /> Online Presence
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                Add your professional links so students can learn more about you.
-              </p>
-            </div>
+          <Section
+            number={6}
+            icon={<Globe className="h-4 w-4 text-green-500" />}
+            title="Online Presence"
+            subtitle="Add your professional links so students can learn more about you."
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-sm flex items-center gap-1.5">
-                  <Globe className="h-3.5 w-3.5" /> Personal Website
+                <Label className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-green-500" /> Personal Website
                 </Label>
                 <Input
                   placeholder="https://your-website.com"
                   value={form.socialLinks.website}
                   onChange={(e) =>
-                    setForm({ ...form, socialLinks: { ...form.socialLinks, website: e.target.value } })
+                    setForm({
+                      ...form,
+                      socialLinks: { ...form.socialLinks, website: e.target.value },
+                    })
                   }
+                  className="bg-gray-50 dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] dark:text-gray-100 dark:placeholder:text-gray-600"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm flex items-center gap-1.5">
-                  <Linkedin className="h-3.5 w-3.5" /> LinkedIn
+                <Label className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+                  <Linkedin className="h-3.5 w-3.5 text-blue-500" /> LinkedIn
                 </Label>
                 <Input
                   placeholder="https://linkedin.com/in/your-profile"
                   value={form.socialLinks.linkedin}
                   onChange={(e) =>
-                    setForm({ ...form, socialLinks: { ...form.socialLinks, linkedin: e.target.value } })
+                    setForm({
+                      ...form,
+                      socialLinks: { ...form.socialLinks, linkedin: e.target.value },
+                    })
                   }
+                  className="bg-gray-50 dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] dark:text-gray-100 dark:placeholder:text-gray-600"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm">ResearchGate</Label>
+                <Label className="text-sm text-gray-600 dark:text-gray-400">
+                  ResearchGate
+                </Label>
                 <Input
                   placeholder="https://researchgate.net/profile/..."
                   value={form.socialLinks.researchgate}
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      socialLinks: { ...form.socialLinks, researchgate: e.target.value },
+                      socialLinks: {
+                        ...form.socialLinks,
+                        researchgate: e.target.value,
+                      },
                     })
                   }
+                  className="bg-gray-50 dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] dark:text-gray-100 dark:placeholder:text-gray-600"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm">Twitter / X</Label>
+                <Label className="text-sm text-gray-600 dark:text-gray-400">
+                  Twitter / X
+                </Label>
                 <Input
                   placeholder="https://twitter.com/your-handle"
                   value={form.socialLinks.twitter}
                   onChange={(e) =>
-                    setForm({ ...form, socialLinks: { ...form.socialLinks, twitter: e.target.value } })
+                    setForm({
+                      ...form,
+                      socialLinks: { ...form.socialLinks, twitter: e.target.value },
+                    })
                   }
+                  className="bg-gray-50 dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] dark:text-gray-100 dark:placeholder:text-gray-600"
                 />
               </div>
             </div>
-          </div>
+          </Section>
 
-          {/* ── Submit ── */}
-          <div className="p-6 md:p-8 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 space-y-4">
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-sm text-amber-800 dark:text-amber-300">
-              <strong>Before submitting:</strong> Please ensure all information is accurate and up
-              to date. Your application will be reviewed by our academic team. Once approved, you
-              will receive a notification email with the courses assigned to you. Course assignments
-              are at the sole discretion of the admin team.
+          {/* ── Submit Footer ── */}
+          <div className="p-6 md:p-8 bg-gradient-to-b from-gray-50/80 to-gray-100/60 dark:from-[#0a0817] dark:to-[#08061a] border-t border-gray-100 dark:border-[#1a1730] space-y-4">
+            <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-500/5 border border-amber-200/70 dark:border-amber-700/20 rounded-xl p-4 text-sm">
+              <div className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full bg-amber-400/30 flex items-center justify-center">
+                <span className="text-amber-600 dark:text-amber-400 text-[10px] font-bold">!</span>
+              </div>
+              <p className="text-amber-800 dark:text-amber-400/80 text-xs leading-relaxed">
+                <strong className="font-semibold">Before submitting:</strong> Ensure all
+                information is accurate and up to date. Once approved, you will receive an
+                email with the courses assigned to you. Course assignments are at the sole
+                discretion of the admin team.
+              </p>
             </div>
 
             <Button
               type="submit"
-              className="w-full h-12 text-base font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg"
+              className="w-full h-12 text-base font-semibold bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:from-violet-700 hover:via-purple-700 hover:to-indigo-700 shadow-lg shadow-purple-500/20 border-0 transition-all duration-200 hover:shadow-purple-500/30 hover:scale-[1.01]"
               disabled={saving}
             >
               {saving ? (
@@ -877,9 +1040,9 @@ export default function InstructorFormPage() {
               )}
             </Button>
 
-            <p className="text-center text-xs text-gray-400">
-              By submitting, you agree that the information provided is accurate. Your data will be
-              reviewed solely for the purpose of instructor onboarding at Unfiltered IITians.
+            <p className="text-center text-xs text-gray-400 dark:text-gray-600">
+              By submitting, you agree that the information provided is accurate. Your data
+              will be reviewed solely for instructor onboarding at Unfiltered IITians.
             </p>
           </div>
         </form>
