@@ -491,7 +491,7 @@ export default function InstructorFormPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50/70 to-slate-50 dark:from-[#050408] dark:via-[#0b0714] dark:to-[#060a10]">
       {/* ── Hero Banner ── */}
-      <div className="relative overflow-hidden bg-violet-600 dark:bg-[#130d23]">
+      <div className="relative overflow-hidden bg-violet-800 dark:bg-[#130d23]">
         {/* Subtle radial glow */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(255,255,255,0.1),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(139,92,246,0.15),transparent)]" />
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djZoNnYtNmgtNnptMCAwdi02aC02djZoNnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-50" />
