@@ -43,7 +43,7 @@ export async function GET(req: Request) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
     const { userId: clerkUserId } = await auth()
@@ -68,9 +68,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid role" }, { status: 400 })
     }
 
+    const { userId: targetUserId } = await context.params
+
     // Get user's Clerk ID
     const userToUpdate = await prisma.user.findUnique({
-      where: { id: params.userId },
+      where: { id: targetUserId },
       select: { clerkUserId: true }
     })
 
@@ -80,7 +82,7 @@ export async function PATCH(
 
     // Update role in database
     const updatedUser = await prisma.user.update({
-      where: { id: params.userId },
+      where: { id: targetUserId },
       data: { role },
       select: {
         id: true,
@@ -125,7 +127,7 @@ export async function PATCH(
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { userId: string } }) {
+export async function PUT(req: Request, context: { params: Promise<{ userId: string }> }) {
   try {
     const { userId: clerkUserId } = await auth()
     
@@ -143,7 +145,7 @@ export async function PUT(req: Request, { params }: { params: { userId: string }
       return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
     }
 
-    const userId = params.userId;
+    const { userId: targetUserId } = await context.params
     const data = await req.json();
 
     // Only allow updating specific fields:
@@ -167,7 +169,7 @@ export async function PUT(req: Request, { params }: { params: { userId: string }
 
     // Get user's Clerk ID before update
     const userToUpdate = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: targetUserId },
       select: { clerkUserId: true }
     })
 
@@ -176,7 +178,7 @@ export async function PUT(req: Request, { params }: { params: { userId: string }
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: userId },
+      where: { id: targetUserId },
       data: updateData,
     });
 
@@ -214,7 +216,7 @@ export async function PUT(req: Request, { params }: { params: { userId: string }
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { userId: string } }) {
+export async function DELETE(req: Request, context: { params: Promise<{ userId: string }> }) {
   try {
     const { userId: clerkUserId } = await auth()
     
@@ -232,10 +234,37 @@ export async function DELETE(req: Request, { params }: { params: { userId: strin
       return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
     }
 
-    const userId = params.userId;
+    // ✅ Next.js 15: params is a Promise — must be awaited
+    const { userId } = await context.params;
+
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
+    }
+
+    // Fetch the user's clerkUserId before deleting so we can remove from Clerk too
+    const userToDelete = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { clerkUserId: true, name: true, email: true }
+    })
+
+    if (!userToDelete) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
 
     // Delete all related records in a transaction
     await prisma.$transaction(async (tx) => {
+      // Delete coupon usages (course coupons)
+      await tx.couponUsage.deleteMany({ where: { userId } });
+
+      // Delete general coupon usages
+      await tx.generalCouponUsage.deleteMany({ where: { userId } });
+
+      // Delete certificates earned by this user
+      await tx.certificate.deleteMany({ where: { userId } });
+
+      // Delete custom certificates issued to this user
+      await tx.customCertificate.deleteMany({ where: { userId } });
+
       // Delete user's mock attempts
       await tx.mockAttempt.deleteMany({ where: { userId } });
       
@@ -250,22 +279,44 @@ export async function DELETE(req: Request, { params }: { params: { userId: strin
       
       // Delete user's session enrollments
       await tx.sessionEnrollment.deleteMany({ where: { userId } });
-      
-      // Delete user's feedbacks
-      await tx.courseFeedback.deleteMany({ where: { userId } });
-      
-      // Delete user's feedback replies (when user is admin)
+
+      // Delete feedback replies sent by this user (as admin/instructor)
       await tx.feedbackReply.deleteMany({ where: { adminId: userId } });
+
+      // Delete feedback reply recipients for this user
+      await tx.feedbackReplyRecipient.deleteMany({ where: { userId } });
+
+      // Delete user's course feedbacks
+      await tx.courseFeedback.deleteMany({ where: { userId } });
       
       // Delete announcement recipients
       await tx.announcementRecipient.deleteMany({ where: { userId } });
       
-      // Delete feedback reply recipients
-      await tx.feedbackReplyRecipient.deleteMany({ where: { userId } });
-      
-      // Finally, delete the user
+      // Finally, delete the user record
       await tx.user.delete({ where: { id: userId } });
     });
+
+    // ✅ Also delete the user's Clerk account so they cannot log back in
+    try {
+      const clerkDeleteResponse = await fetch(
+        `https://api.clerk.com/v1/users/${userToDelete.clerkUserId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
+          },
+        }
+      )
+      if (!clerkDeleteResponse.ok) {
+        // Log but don't fail — DB is already cleaned up
+        console.error("Failed to delete Clerk user account", {
+          clerkUserId: userToDelete.clerkUserId,
+          status: clerkDeleteResponse.status,
+        })
+      }
+    } catch (clerkError) {
+      console.error("Error deleting Clerk account:", clerkError)
+    }
 
     return NextResponse.json({ message: "User deleted successfully" });
   } catch (error) {

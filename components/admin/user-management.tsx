@@ -4,11 +4,19 @@ import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "@clerk/nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { DataTable } from "@/app/(admin)/admin/users/components/data-table"
 import { RoleUpdateDialog } from "@/components/admin/role-update-dialog"
 import { UserData } from "@/app/(admin)/admin/users/components/types"
-import { Users, Shield, CreditCard, RefreshCw, TrendingUp } from "lucide-react"
+import { Users, Shield, CreditCard, RefreshCw, TrendingUp, AlertTriangle } from "lucide-react"
 
 // Helper function to format date as dd/mm/yyyy
 const formatDate = (dateString: string | null | undefined) => {
@@ -41,6 +49,11 @@ export function UserManagement({ showEnrollmentStats = false, containerClassName
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
   const [roleDialogOpen, setRoleDialogOpen] = useState(false)
 
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<UserData | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true)
@@ -72,23 +85,36 @@ export function UserManagement({ showEnrollmentStats = false, containerClassName
     }
   }, [getToken])
 
-  const handleDeleteUser = async (user: UserData) => {
-    if (!confirm(`Delete user "${user.name}"? This cannot be undone.`)) return
+  const handleDeleteUser = (user: UserData) => {
+    setUserToDelete(user)
+    setDeleteDialogOpen(true)
+  }
 
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return
+
+    setIsDeleting(true)
     try {
       const token = await getToken()
-      const response = await fetch(`/api/admin/users/${user.id}`, {
+      const response = await fetch(`/api/admin/users/${userToDelete.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       })
 
-      if (!response.ok) throw new Error("Failed to delete user")
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to delete user")
+      }
 
-      toast.success("User deleted successfully")
+      toast.success(`User "${userToDelete.name || userToDelete.email}" has been permanently deleted.`)
+      setDeleteDialogOpen(false)
+      setUserToDelete(null)
       fetchUsers()
     } catch (error) {
       console.error("Error deleting user:", error)
-      toast.error("Failed to delete user")
+      toast.error(error instanceof Error ? error.message : "Failed to delete user")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -291,6 +317,81 @@ export function UserManagement({ showEnrollmentStats = false, containerClassName
           onUpdate={handleRoleUpdate}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={(open) => {
+        if (!isDeleting) {
+          setDeleteDialogOpen(open)
+          if (!open) setUserToDelete(null)
+        }
+      }}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Delete User Permanently
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-sm text-muted-foreground pt-1">
+              You are about to permanently delete{" "}
+              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                {userToDelete?.name || userToDelete?.email}
+              </span>
+              {userToDelete?.name && (
+                <span className="text-xs block text-muted-foreground mt-0.5">
+                  {userToDelete.email}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 px-4 py-3 text-sm text-red-700 dark:text-red-300 space-y-1">
+            <p className="font-semibold">This action will permanently wipe:</p>
+            <ul className="list-disc list-inside space-y-0.5 text-red-600 dark:text-red-400">
+              <li>All enrollments and course progress</li>
+              <li>All subscriptions and payment history</li>
+              <li>All mock test attempts and scores</li>
+              <li>All certificates and session enrollments</li>
+              <li>Their platform account (Clerk login)</li>
+            </ul>
+          </div>
+
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            This cannot be undone. Are you sure you want to continue?
+          </p>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false)
+                setUserToDelete(null)
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteUser}
+              disabled={isDeleting}
+              className="gap-2"
+            >
+              {isDeleting ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Permanently"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
