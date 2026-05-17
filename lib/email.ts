@@ -116,6 +116,10 @@ const getEmailTemplate = (template: EmailTemplate, data: EmailData): { subject: 
                   <a href="${baseUrl}/courses" class="button button-secondary">Browse Courses</a>
                 </center>
                 
+                <p style="text-align: center; margin-top: 16px;">
+                  Work with us? <a href="${baseUrl}/instructor-form" style="color: #667eea; font-weight: bold; text-decoration: underline;">Join as Instructor &rarr;</a>
+                </p>
+                
                 <p><strong>Need Help?</strong><br>
                 Our support team is here for you. Feel free to reach out at any time!</p>
                 
