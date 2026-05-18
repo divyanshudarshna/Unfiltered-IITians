@@ -1,7 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Table,
   TableBody,
@@ -53,6 +70,9 @@ import {
   Loader2,
   ExternalLink,
   AlertCircle,
+  GripVertical,
+  Save,
+  RotateCcw,
 } from "lucide-react";
 import InstructorForm from "./InstructorForm";
 
@@ -161,6 +181,59 @@ export default function InstructorTable({
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [approving, setApproving] = useState(false);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+
+  // ── Drag-and-drop order state ────────────────────────────────────────────
+  const [localInstructors, setLocalInstructors] = useState<Instructor[]>(instructors);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Keep localInstructors in sync when parent refreshes (but not if we have unsaved changes)
+  useEffect(() => {
+    if (!hasChanges) setLocalInstructors(instructors);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instructors]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setLocalInstructors((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        setHasChanges(true);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const handleSaveOrder = async () => {
+    try {
+      setIsSaving(true);
+      const instructorOrders = localInstructors.map((inst, i) => ({ id: inst.id, order: i + 1 }));
+      const res = await fetch("/api/admin/instructors/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instructorOrders }),
+      });
+      if (!res.ok) throw new Error("Failed to reorder");
+      toast.success("Instructor order saved");
+      setHasChanges(false);
+      onRefresh();
+    } catch {
+      toast.error("Failed to save instructor order");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelReorder = () => {
+    setLocalInstructors(instructors);
+    setHasChanges(false);
+  };
 
   // ── Delete ───────────────────────────────────────────────────────────────
   const handleDelete = async () => {
@@ -292,7 +365,7 @@ export default function InstructorTable({
     );
   };
 
-  if (instructors.length === 0) {
+  if (localInstructors.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <UserCircle className="h-16 w-16 text-muted-foreground mb-4" />
@@ -304,12 +377,81 @@ export default function InstructorTable({
     );
   }
 
+  // ── SortableRow ────────────────────────────────────────────────────────────
+  function SortableRow({ inst, children }: { inst: Instructor; children: React.ReactNode }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+      id: inst.id,
+    });
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+    return (
+      <TableRow
+        ref={setNodeRef}
+        style={style}
+        className={`${inst.approvalStatus === "pending" ? "bg-amber-50/40 dark:bg-amber-950/10" : ""} ${isDragging ? "bg-muted/50" : ""}`}
+      >
+        <TableCell className="w-10 text-center">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing flex items-center justify-center p-1.5 hover:bg-muted/50 rounded mx-auto w-fit"
+            title="Drag to reorder"
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </TableCell>
+        {children}
+      </TableRow>
+    );
+  }
+
   return (
     <>
+      {/* ── Unsaved order banner ─────────────────────────────────────────────── */}
+      {hasChanges && (
+        <div className="flex items-center justify-between gap-4 px-4 py-3 mb-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 text-sm text-amber-800 dark:text-amber-300">
+          <p className="flex items-center gap-2 font-medium">
+            <GripVertical className="h-4 w-4" />
+            Drag to reorder instructors, then save to apply.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleCancelReorder}
+              disabled={isSaving}
+              className="h-7 gap-1.5 text-xs"
+            >
+              <RotateCcw className="h-3 w-3" /> Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveOrder}
+              disabled={isSaving}
+              className="h-7 gap-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {isSaving ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Save className="h-3 w-3" />
+              )}
+              {isSaving ? "Saving..." : "Save Order"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10 text-center">
+                <GripVertical className="h-4 w-4 mx-auto text-muted-foreground" />
+              </TableHead>
               <TableHead>Instructor</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Status</TableHead>
@@ -318,16 +460,10 @@ export default function InstructorTable({
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
+          <SortableContext items={localInstructors.map((i) => i.id)} strategy={verticalListSortingStrategy}>
           <TableBody>
-            {instructors.map((inst) => (
-              <TableRow
-                key={inst.id}
-                className={
-                  inst.approvalStatus === "pending"
-                    ? "bg-amber-50/40 dark:bg-amber-950/10"
-                    : ""
-                }
-              >
+            {localInstructors.map((inst) => (
+              <SortableRow key={inst.id} inst={inst}>
                 {/* Instructor */}
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -477,10 +613,12 @@ export default function InstructorTable({
                     </Button>
                   </div>
                 </TableCell>
-              </TableRow>
+              </SortableRow>
             ))}
           </TableBody>
+          </SortableContext>
         </Table>
+        </DndContext>
       </div>
 
       {/* ── Approve Dialog ────────────────────────────────────────────────────── */}

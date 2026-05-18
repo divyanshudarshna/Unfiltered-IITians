@@ -37,6 +37,7 @@ export async function GET(req: Request, { params }: Params) {
                 awards: true,
                 socialLinks: true,
                 isActive: true,
+                order: true,
               },
             },
           },
@@ -92,8 +93,10 @@ export async function GET(req: Request, { params }: Params) {
       })
     );
 
-    // Flatten instructor data from join table
-    const instructors = course.courseInstructors.map((ci) => ci.instructor);
+    // Flatten instructor data from join table, sorted by Instructor.order ascending
+    const instructors = course.courseInstructors
+      .map((ci) => ci.instructor)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
     // Ensure actualPrice fallback to price if missing
     const responseData = {

@@ -9,8 +9,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle, Clock, Users, Shield, Award, FileText, Video, HelpCircle, Target, Package, MessageSquare, Timer, Star, Globe, Linkedin, Twitter, BookOpen, GraduationCap, FlaskConical } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, Users, Shield, Award, FileText, Video, HelpCircle, Target, Package, MessageSquare, Timer, Star, Globe, Linkedin, Twitter, BookOpen, GraduationCap, FlaskConical, ZoomIn, X } from "lucide-react";
 
 interface AcademicAffiliation {
   institution: string;
@@ -108,6 +114,7 @@ export default function CourseDetailPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [publicCoupons, setPublicCoupons] = useState<Array<{id:string;code:string;discountPct:number;validTill:string;usageCount:number}>>([]);
   const [publicLoading, setPublicLoading] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState<{ url: string; name: string } | null>(null);
 
   const instructorsSectionRef = useRef<HTMLDivElement>(null);
   const scrollToInstructors = () => {
@@ -692,18 +699,28 @@ export default function CourseDetailPage() {
 
                   <CardContent className="p-8 space-y-6">
                     {/* Avatar + name + title + socials */}
-                    <div className="flex items-start gap-6">
-                      {instructor.profileImageUrl ? (
-                        <img
-                          src={instructor.profileImageUrl}
-                          alt={instructor.fullName}
-                          className="h-24 w-24 rounded-full object-cover flex-shrink-0 border-2 border-indigo-200 dark:border-indigo-700 shadow-md"
-                        />
-                      ) : (
-                        <div className="h-24 w-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 text-white text-3xl font-bold shadow-md">
-                          {instructor.fullName.charAt(0)}
-                        </div>
-                      )}
+                      <div className="flex items-start gap-6">
+                        {instructor.profileImageUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => setZoomedImage({ url: instructor.profileImageUrl!, name: instructor.fullName })}
+                            className="relative flex-shrink-0 group focus:outline-none"
+                            title="Click to zoom"
+                          >
+                            <img
+                              src={instructor.profileImageUrl}
+                              alt={instructor.fullName}
+                              className="h-24 w-24 rounded-full object-cover border-2 border-indigo-200 dark:border-indigo-700 shadow-md transition-transform group-hover:scale-105 cursor-zoom-in"
+                            />
+                            <span className="absolute inset-0 rounded-full flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-colors">
+                              <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                            </span>
+                          </button>
+                        ) : (
+                          <div className="h-24 w-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 text-white text-3xl font-bold shadow-md select-none">
+                            {instructor.fullName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                       <div className="flex-1 min-w-0">
                         <h3 className="text-xl font-bold text-foreground leading-tight">
                           {instructor.fullName}
@@ -845,6 +862,32 @@ export default function CourseDetailPage() {
           </div>
         </div>
       )}
+
+      {/* ── Instructor image lightbox ─────────────────────────────────────── */}
+      <Dialog open={!!zoomedImage} onOpenChange={(o) => !o && setZoomedImage(null)}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden bg-black/90 border-0 shadow-2xl">
+          <VisuallyHidden><DialogTitle>{zoomedImage?.name ?? "Instructor photo"}</DialogTitle></VisuallyHidden>
+          <button
+            onClick={() => setZoomedImage(null)}
+            className="absolute top-3 right-3 z-50 rounded-full bg-black/60 hover:bg-black/80 text-white p-1.5 transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          {zoomedImage && (
+            <div className="flex flex-col items-center">
+              <img
+                src={zoomedImage.url}
+                alt={zoomedImage.name}
+                className="w-full max-h-[70vh] object-contain"
+              />
+              <p className="text-white/80 text-sm font-medium py-3 px-4 text-center">
+                {zoomedImage.name}
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

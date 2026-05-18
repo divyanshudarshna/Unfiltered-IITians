@@ -518,24 +518,12 @@ export default function InstructorForm({ initial, onSuccess }: InstructorFormPro
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <Label htmlFor="order">Display Order</Label>
-            <Input
-              id="order"
-              type="number"
-              min={0}
-              value={form.order}
-              onChange={(e) => setForm({ ...form, order: Number(e.target.value) })}
-            />
-          </div>
-          <div className="flex items-center gap-3 pt-6">
-            <Switch
-              checked={form.isActive}
-              onCheckedChange={(v) => setForm({ ...form, isActive: v })}
-            />
-            <Label>Active</Label>
-          </div>
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={form.isActive}
+            onCheckedChange={(v) => setForm({ ...form, isActive: v })}
+          />
+          <Label>Active</Label>
         </div>
       </div>
 
