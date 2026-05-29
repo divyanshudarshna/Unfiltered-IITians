@@ -69,7 +69,7 @@ const Navbar = () => {
           >
             <div className="flex flex-col relative">
               <span className="font-bold text-xl sm:text-2xl text-gray-800 dark:text-white relative inline-block">
-                Divyanshu <span className="text-primary/80">Darshna</span>
+                Unfiltered IITians
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-violet-700 transition-all duration-300 group-hover:w-full"></span>
               </span>
             </div>

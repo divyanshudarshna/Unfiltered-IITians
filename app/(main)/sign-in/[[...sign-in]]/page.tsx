@@ -21,7 +21,7 @@ export default function LoginPage() {
           {/* Custom Title */}
         <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 mb-2 text-center">
           Login to{" "}
-          <span className="text-violet-600">Divyanshudarshna.com</span>
+          <span className="text-violet-600">unfilterediitians.com</span>
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mb-8 text-center text-sm md:text-base">
           Securely sign in to access your personalized dashboard
