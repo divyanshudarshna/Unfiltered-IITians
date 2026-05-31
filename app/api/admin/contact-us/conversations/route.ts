@@ -12,15 +12,18 @@ export async function GET(req: NextRequest) {
     });
 
     const conversations = groupContactsIntoConversations(contacts);
-    const count = conversations.filter((conversation) => conversation.needsReply).length;
 
-    return NextResponse.json({ count });
+    return NextResponse.json({
+      conversations,
+      total: conversations.length,
+    });
   } catch (error) {
     const authResponse = handleAuthError(error);
     if (authResponse) return authResponse;
-    console.error("Error fetching pending contact count:", error);
+
+    console.error("Error fetching admin contact conversations:", error);
     return NextResponse.json(
-      { error: "Failed to fetch pending contact count" },
+      { error: "Failed to fetch contact conversations" },
       { status: 500 }
     );
   }

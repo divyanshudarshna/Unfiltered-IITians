@@ -47,13 +47,39 @@ export async function getDbUserFromClerk() {
     const name = `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || null
     const role = (clerkUser.publicMetadata?.role as 'ADMIN' | 'INSTRUCTOR' | 'STUDENT') || 'STUDENT'
 
-    const upserted = await prisma.user.upsert({
-      where: { clerkUserId: userId },
-      create: { clerkUserId: userId, email, name, profileImageUrl: clerkUser.imageUrl, role },
-      update: { email, name, profileImageUrl: clerkUser.imageUrl },
+    if (!email) {
+      console.warn(`[roleAuth] Clerk user ${userId} has no email, cannot sync user record`)
+      return null
+    }
+
+    // If user already exists by email, link that record to current Clerk user
+    // instead of creating a duplicate that violates unique email constraint.
+    const existingByEmail = await prisma.user.findUnique({ where: { email } })
+    if (existingByEmail) {
+      const linked = await prisma.user.update({
+        where: { id: existingByEmail.id },
+        data: {
+          clerkUserId: userId,
+          email,
+          name,
+          profileImageUrl: clerkUser.imageUrl,
+          // Preserve role already present in DB for existing accounts.
+        },
+      })
+      return linked
+    }
+
+    const created = await prisma.user.create({
+      data: {
+        clerkUserId: userId,
+        email,
+        name,
+        profileImageUrl: clerkUser.imageUrl,
+        role,
+      },
     })
-    
-    return upserted
+
+    return created
   } catch (error) {
     console.error('[roleAuth] Error in getDbUserFromClerk:', error)
     return null
@@ -107,9 +133,11 @@ export async function assertAdminApiAccess(reqUrl: string, method: string) {
   throw new AuthError("Forbidden", 403)
 }
 
-export default {
+const roleAuth = {
   getDbUserFromClerk,
   assertAdminApiAccess,
   handleAuthError,
   AuthError,
 }
+
+export default roleAuth
