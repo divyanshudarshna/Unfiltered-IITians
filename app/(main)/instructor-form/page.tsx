@@ -1,12 +1,24 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useUser } from "@clerk/nextjs";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   Plus,
@@ -92,6 +104,29 @@ interface FormData {
     researchgate: string;
     twitter: string;
   };
+}
+
+type ApprovalStatus = "pending" | "approved" | "rejected" | string;
+
+interface ExistingApplicationResponse {
+  id: string;
+  fullName: string;
+  email: string;
+  title: string | null;
+  bio: string | null;
+  profileImageUrl: string | null;
+  academicAffiliations: AcademicAffiliation[];
+  researchAppointments: ResearchAppointment[];
+  expertiseAreas: string[];
+  awards: string | null;
+  socialLinks: {
+    website?: string;
+    linkedin?: string;
+    researchgate?: string;
+    twitter?: string;
+  } | null;
+  approvalStatus: ApprovalStatus;
+  approvalNotes: string | null;
 }
 
 const emptyForm = (): FormData => ({
@@ -251,12 +286,156 @@ function InstitutionInput({
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function InstructorFormPage() {
+  const searchParams = useSearchParams();
+  const { user, isLoaded } = useUser();
+  const isEditMode = searchParams.get("edit") === "1";
+  const dashboardPath = user?.firstName
+    ? `/${encodeURIComponent(user.firstName)}/dashboard`
+    : "/";
+
   const [form, setForm] = useState<FormData>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [expertiseInput, setExpertiseInput] = useState("");
+  const [loadingExisting, setLoadingExisting] = useState(isEditMode);
+  const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<ApprovalStatus>("pending");
+  const [approvalNotes, setApprovalNotes] = useState<string | null>(null);
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [lastSubmissionWasEdit, setLastSubmissionWasEdit] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isEditMode) {
+      setLoadingExisting(false);
+      return;
+    }
+
+    if (!isLoaded) return;
+    if (!user) {
+      setLoadingExisting(false);
+      return;
+    }
+
+    async function fetchExistingApplication() {
+      setLoadingExisting(true);
+      try {
+        const res = await fetch("/api/instructor-application", { cache: "no-store" });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to load your instructor form.");
+        }
+
+        const app = data.application as ExistingApplicationResponse | null;
+        if (!app) {
+          toast.error("No existing instructor application found for your account.");
+          setLoadingExisting(false);
+          return;
+        }
+
+        setApplicationId(app.id);
+        setCurrentStatus(app.approvalStatus ?? "pending");
+        setApprovalNotes(app.approvalNotes ?? null);
+        setForm({
+          fullName: app.fullName || "",
+          email: app.email || "",
+          title: app.title || "",
+          bio: app.bio || "",
+          profileImageUrl: app.profileImageUrl || "",
+          academicAffiliations: app.academicAffiliations ?? [],
+          researchAppointments: app.researchAppointments ?? [],
+          expertiseAreas: app.expertiseAreas ?? [],
+          awards: app.awards || "",
+          socialLinks: {
+            website: app.socialLinks?.website || "",
+            linkedin: app.socialLinks?.linkedin || "",
+            researchgate: app.socialLinks?.researchgate || "",
+            twitter: app.socialLinks?.twitter || "",
+          },
+        });
+      } catch (err: unknown) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to load instructor application."
+        );
+      } finally {
+        setLoadingExisting(false);
+      }
+    }
+
+    fetchExistingApplication();
+  }, [isEditMode, isLoaded, user]);
+
+  const validateForm = () => {
+    if (!form.fullName.trim()) {
+      toast.error("Full name is required");
+      return false;
+    }
+    if (!form.email.trim()) {
+      toast.error("Email address is required");
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email.trim())) {
+      toast.error("Please enter a valid email address");
+      return false;
+    }
+    return true;
+  };
+
+  const submitApplication = async () => {
+    setSaving(true);
+    try {
+      if (isEditMode && !applicationId) {
+        throw new Error("No existing instructor application found for this account.");
+      }
+
+      const payload = {
+        ...form,
+        applicationId,
+        socialLinks: Object.values(form.socialLinks).some((v) => v.trim())
+          ? form.socialLinks
+          : null,
+      };
+
+      const res = await fetch("/api/instructor-application", {
+        method: isEditMode ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to submit application");
+      }
+
+      if (isEditMode) {
+        setCurrentStatus("pending");
+        setApprovalNotes(null);
+        setLastSubmissionWasEdit(true);
+        toast.success("Profile updated and sent for admin approval.", {
+          description: "Your status is now pending until the admin approves the latest changes.",
+          duration: 7000,
+        });
+      } else {
+        toast.success("Application submitted successfully!", {
+          description:
+            "Our team will review your profile and get back to you via email.",
+          duration: 6000,
+        });
+      }
+
+      setSubmitted(true);
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Submission failed. Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // ── Image upload ─────────────────────────────────────────────────────────
   const handleImageUpload = async (file: File) => {
@@ -359,53 +538,42 @@ export default function InstructorFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!form.fullName.trim()) {
-      toast.error("Full name is required");
-      return;
-    }
-    if (!form.email.trim()) {
-      toast.error("Email address is required");
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(form.email.trim())) {
-      toast.error("Please enter a valid email address");
+    if (!validateForm()) return;
+
+    if (isEditMode) {
+      setSubmitDialogOpen(true);
       return;
     }
 
-    setSaving(true);
-    try {
-      const res = await fetch("/api/instructor-application", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          socialLinks: Object.values(form.socialLinks).some((v) => v.trim())
-            ? form.socialLinks
-            : null,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to submit application");
-      }
-
-      toast.success("Application submitted successfully!", {
-        description:
-          "Our team will review your profile and get back to you via email.",
-        duration: 6000,
-      });
-      setSubmitted(true);
-    } catch (err: unknown) {
-      toast.error(
-        err instanceof Error ? err.message : "Submission failed. Please try again."
-      );
-    } finally {
-      setSaving(false);
-    }
+    await submitApplication();
   };
+
+  if (loadingExisting) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50/70 to-slate-50 dark:from-[#050408] dark:via-[#0b0714] dark:to-[#060a10] flex items-center justify-center p-4">
+        <div className="w-full max-w-xl rounded-3xl border border-violet-100 dark:border-[#1e1a2e] bg-white dark:bg-[#0e0c1a] p-8 text-center shadow-xl">
+          <Loader2 className="h-7 w-7 animate-spin mx-auto text-violet-500 mb-3" />
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Loading your instructor application details...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isEditMode && !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50/70 to-slate-50 dark:from-[#050408] dark:via-[#0b0714] dark:to-[#060a10] flex items-center justify-center p-4">
+        <div className="w-full max-w-xl rounded-3xl border border-violet-100 dark:border-[#1e1a2e] bg-white dark:bg-[#0e0c1a] p-8 text-center shadow-xl space-y-4">
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Sign in required</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Please sign in to edit your instructor application.
+          </p>
+          <Button onClick={() => (window.location.href = "/sign-in")}>Go to Sign In</Button>
+        </div>
+      </div>
+    );
+  }
 
   // ── Success Screen ────────────────────────────────────────────────────────
   if (submitted) {
@@ -423,18 +591,31 @@ export default function InstructorFormPage() {
             </div>
             <div className="space-y-3">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">
-                Application Submitted!
+                {lastSubmissionWasEdit ? "Profile Updated!" : "Application Submitted!"}
               </h1>
               <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
-                Thank you for applying to teach at{" "}
-                <span className="font-semibold text-purple-600 dark:text-purple-400">
-                  Unfiltered IITians
-                </span>
-                . Our academic team will review your profile and reach out at{" "}
-                <span className="font-semibold text-gray-700 dark:text-gray-300">
-                  {form.email}
-                </span>
-                .
+                {lastSubmissionWasEdit ? (
+                  <>
+                    Your instructor profile changes were submitted successfully. The latest
+                    update has been sent to admin for review. Status is now{" "}
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">
+                      pending approval
+                    </span>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Thank you for applying to teach at{" "}
+                    <span className="font-semibold text-purple-600 dark:text-purple-400">
+                      Unfiltered IITians
+                    </span>
+                    . Our academic team will review your profile and reach out at{" "}
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {form.email}
+                    </span>
+                    .
+                  </>
+                )}
               </p>
             </div>
 
@@ -476,10 +657,10 @@ export default function InstructorFormPage() {
             <Button
               variant="outline"
               className="w-full border-gray-200 dark:border-[#2a2440] dark:bg-[#12101e] dark:text-gray-300 dark:hover:bg-[#1a1730] hover:bg-gray-50 transition-colors"
-              onClick={() => (window.location.href = "/")}
+              onClick={() => (window.location.href = lastSubmissionWasEdit ? dashboardPath : "/")}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Return to Home
+              {lastSubmissionWasEdit ? "Back to Dashboard" : "Return to Home"}
             </Button>
           </div>
         </div>
@@ -498,16 +679,25 @@ export default function InstructorFormPage() {
 
         <div className="relative max-w-4xl mx-auto px-4 py-14 text-center">
           <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm border border-white/25 rounded-full px-4 py-1.5 text-sm font-medium text-white mb-6">
-            <Sparkles className="h-3.5 w-3.5" /> Instructor Application
+            <Sparkles className="h-3.5 w-3.5" /> {isEditMode ? "Edit Instructor Profile" : "Instructor Application"}
           </div>
           <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight text-white tracking-tight">
-            Teach at{" "}
-            <span className="text-violet-200 dark:text-purple-400">Unfiltered IITians</span>
+            {isEditMode ? (
+              <>
+                Update your{" "}
+                <span className="text-violet-200 dark:text-purple-400">Instructor Form</span>
+              </>
+            ) : (
+              <>
+                Teach at{" "}
+                <span className="text-violet-200 dark:text-purple-400">Unfiltered IITians</span>
+              </>
+            )}
           </h1>
           <p className="text-violet-100 dark:text-white/60 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-8">
-            Share your expertise with thousands of aspiring IITians. Fill in
-            the form below — our team will review your profile and reach out
-            upon approval.
+            {isEditMode
+              ? "Your form is prefilled. Update details and save to send the latest version for admin approval."
+              : "Share your expertise with thousands of aspiring IITians. Fill in the form below - our team will review your profile and reach out upon approval."}
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             {[
@@ -529,6 +719,35 @@ export default function InstructorFormPage() {
 
       {/* ── Form Container ── */}
       <div className="max-w-3xl mx-auto px-4 py-10">
+        {isEditMode && (
+          <div className="mb-5 rounded-2xl border border-violet-200/70 dark:border-violet-700/30 bg-white/90 dark:bg-[#0e0c1a]/90 p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                Current status: <span className="capitalize">{currentStatus}</span>
+              </p>
+              <Badge
+                className={`capitalize ${
+                  currentStatus === "approved"
+                    ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/25 dark:text-emerald-300"
+                    : currentStatus === "rejected"
+                      ? "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/25 dark:text-rose-300"
+                      : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/25 dark:text-amber-300"
+                }`}
+              >
+                {currentStatus}
+              </Badge>
+            </div>
+            <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+              Saving edits will reset status to pending and send your latest profile to admin for approval.
+            </p>
+            {approvalNotes && (
+              <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">
+                <strong>Admin note:</strong> {approvalNotes}
+              </p>
+            )}
+          </div>
+        )}
+
         <form
           onSubmit={handleSubmit}
           className="bg-white dark:bg-[#0e0c1a] rounded-3xl shadow-2xl shadow-violet-200/50 dark:shadow-purple-900/10 border border-violet-100 dark:border-[#1e1a2e] overflow-hidden"
@@ -569,9 +788,15 @@ export default function InstructorFormPage() {
                   placeholder="you@institution.edu"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  readOnly={isEditMode}
                   required
                   className="bg-gray-50 dark:bg-[#12101e] border-gray-200 dark:border-[#2a2440] focus:border-purple-400 dark:focus:border-purple-500 dark:text-gray-100 dark:placeholder:text-gray-600"
                 />
+                {isEditMode && (
+                  <p className="text-xs text-gray-400 dark:text-gray-600">
+                    Email is locked to your signed-in account for secure ownership.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1015,9 +1240,9 @@ export default function InstructorFormPage() {
               </div>
               <p className="text-amber-800 dark:text-amber-400/80 text-xs leading-relaxed">
                 <strong className="font-semibold">Before submitting:</strong> Ensure all
-                information is accurate and up to date. Once approved, you will receive an
-                email with the courses assigned to you. Course assignments are at the sole
-                discretion of the admin team.
+                information is accurate and up to date. {isEditMode
+                  ? "Any updates will be re-reviewed by admin before your profile becomes approved again."
+                  : "Once approved, you will receive an email with the courses assigned to you."} Course assignments are at the sole discretion of the admin team.
               </p>
             </div>
 
@@ -1029,11 +1254,11 @@ export default function InstructorFormPage() {
               {saving ? (
                 <>
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Submitting Application...
+                  {isEditMode ? "Saving Changes..." : "Submitting Application..."}
                 </>
               ) : (
                 <>
-                  Submit Application
+                  {isEditMode ? "Save Changes" : "Submit Application"}
                   <ChevronRight className="h-5 w-5 ml-2" />
                 </>
               )}
@@ -1045,6 +1270,31 @@ export default function InstructorFormPage() {
             </p>
           </div>
         </form>
+
+        <AlertDialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Send updated profile for approval?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Saving these changes will reset your instructor status to pending until admin
+                reviews and approves the updated profile.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={saving}
+                onClick={(event) => {
+                  event.preventDefault();
+                  setSubmitDialogOpen(false);
+                  void submitApplication();
+                }}
+              >
+                {saving ? "Saving..." : "Yes, submit for approval"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { UserWelcome } from "./UserWelcome";
 import { ProfileCard } from "./ProfileCard";
 import { QuickActions } from "./QuickActions";
 import { UpcomingSessions } from "./UpcomingSessions";
+import { InstructorApplicationCard } from "./InstructorApplicationCard";
 import { MockPerformance } from "./MockPerformance";
 import { ActiveItems } from "./ActiveItems";
 
@@ -84,6 +85,7 @@ export default function DashboardClient({
 
           <QuickActions username={safeUser.firstName} />
           <UpcomingSessions />
+          <InstructorApplicationCard />
         </div>
 
         {/* Full-width Active Items Section */}

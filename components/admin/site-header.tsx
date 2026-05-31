@@ -18,10 +18,10 @@ import { formatDistanceToNow } from "date-fns"
 
 interface Notification {
   id: string
-  type: "contact" | "feedback"
+  type: "contact" | "feedback" | "instructor"
   title: string
   message: string
-  email: string
+  email?: string
   createdAt: Date
   link: string
 }
@@ -97,7 +97,15 @@ export function SiteHeader() {
                         className="flex flex-col items-start gap-1 p-3 cursor-pointer hover:bg-accent"
                       >
                         <div className="flex items-center gap-2 w-full">
-                          <div className={`h-2 w-2 rounded-full ${notif.type === "contact" ? "bg-blue-500" : "bg-green-500"}`} />
+                          <div
+                            className={`h-2 w-2 rounded-full ${
+                              notif.type === "contact"
+                                ? "bg-blue-500"
+                                : notif.type === "feedback"
+                                  ? "bg-green-500"
+                                  : "bg-amber-500"
+                            }`}
+                          />
                           <span className="font-medium text-sm">{notif.title}</span>
                         </div>
                         <p className="text-xs text-muted-foreground pl-4">
@@ -115,8 +123,8 @@ export function SiteHeader() {
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/admin/contact-us" className="w-full text-center text-sm cursor-pointer">
-                      View all notifications
+                    <Link href="/admin/instructors?filter=attention" className="w-full text-center text-sm cursor-pointer">
+                      Review Instructor Queue
                     </Link>
                   </DropdownMenuItem>
                 </>

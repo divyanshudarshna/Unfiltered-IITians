@@ -6,6 +6,8 @@ export async function GET(req: NextRequest) {
   try {
     await assertAdminApiAccess(req.url, req.method);
 
+    const instructorUnreadStatuses = ["pending", "rejected"];
+
     // Fetch pending contact messages
     const contactMessages = await prisma.contactUs.findMany({
       where: {
@@ -53,10 +55,56 @@ export async function GET(req: NextRequest) {
       take: 10
     });
 
+    // Fetch unapproved/rejected instructor applications submitted via form
+    const instructorApplications = await prisma.instructor.findMany({
+      where: {
+        submittedViaForm: true,
+        approvalStatus: {
+          in: instructorUnreadStatuses,
+        },
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        approvalStatus: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 10,
+    });
+
+    // Exact unread counters for bell/sidebar badges
+    const [contactCount, feedbackCount, instructorCount] = await Promise.all([
+      prisma.contactUs.count({
+        where: {
+          status: "PENDING",
+        },
+      }),
+      prisma.courseFeedback.count({
+        where: {
+          status: "PENDING",
+          replies: {
+            none: {},
+          },
+        },
+      }),
+      prisma.instructor.count({
+        where: {
+          submittedViaForm: true,
+          approvalStatus: {
+            in: instructorUnreadStatuses,
+          },
+        },
+      }),
+    ]);
+
     // Combine and format notifications
     const notifications = [
       ...contactMessages.map(msg => ({
-        id: msg.id,
+        id: `contact-${msg.id}`,
         type: "contact" as const,
         title: `New contact from ${msg.name}`,
         message: msg.subject,
@@ -64,22 +112,37 @@ export async function GET(req: NextRequest) {
         link: "/admin/contact-us"
       })),
       ...feedbacks.map(fb => ({
-        id: fb.id,
+        id: `feedback-${fb.id}`,
         type: "feedback" as const,
         title: `Feedback from ${fb.user.name || fb.user.email}`,
         message: `${fb.course.title}: ${fb.content.substring(0, 50)}...`,
         createdAt: fb.createdAt,
         link: "/admin/feedbacks"
+      })),
+      ...instructorApplications.map((application) => ({
+        id: `instructor-${application.id}`,
+        type: "instructor" as const,
+        title:
+          application.approvalStatus === "rejected"
+            ? `Rejected instructor application: ${application.fullName}`
+            : `New instructor application: ${application.fullName}`,
+        message:
+          application.approvalStatus === "rejected"
+            ? `Needs follow-up. Latest status is rejected (${application.email}).`
+            : `Pending review for ${application.email}.`,
+        createdAt: application.updatedAt,
+        link: "/admin/instructors?filter=attention",
       }))
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    const totalCount = contactMessages.length + feedbacks.length;
+    const totalCount = contactCount + feedbackCount + instructorCount;
 
     return NextResponse.json({ 
       notifications,
       totalCount,
-      contactCount: contactMessages.length,
-      feedbackCount: feedbacks.length
+      contactCount,
+      feedbackCount,
+      instructorCount,
     });
   } catch (error) {
     const authResponse = handleAuthError(error);

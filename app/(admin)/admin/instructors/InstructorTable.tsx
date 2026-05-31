@@ -135,6 +135,8 @@ interface InstructorTableProps {
   instructors: Instructor[];
   allCourses: CourseRow[];
   onRefresh: () => void;
+  emptyStateTitle?: string;
+  emptyStateDescription?: string;
 }
 
 // ── Approval status badge ────────────────────────────────────────────────────
@@ -165,6 +167,8 @@ export default function InstructorTable({
   instructors,
   allCourses,
   onRefresh,
+  emptyStateTitle,
+  emptyStateDescription,
 }: InstructorTableProps) {
   const [editInstructor, setEditInstructor] = useState<Instructor | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -369,9 +373,9 @@ export default function InstructorTable({
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <UserCircle className="h-16 w-16 text-muted-foreground mb-4" />
-        <p className="text-lg font-medium">No instructors yet</p>
+        <p className="text-lg font-medium">{emptyStateTitle || "No instructors yet"}</p>
         <p className="text-sm text-muted-foreground">
-          Create an instructor directly or share the application form.
+          {emptyStateDescription || "Create an instructor directly or share the application form."}
         </p>
       </div>
     );

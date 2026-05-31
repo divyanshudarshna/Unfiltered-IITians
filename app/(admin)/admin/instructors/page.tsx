@@ -1,7 +1,8 @@
 // app/(admin)/admin/instructors/page.tsx
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -70,6 +71,10 @@ interface Instructor {
 }
 
 export default function InstructorsAdminPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [allCourses, setAllCourses] = useState<CourseRow[]>([]);
   const [open, setOpen] = useState(false);
@@ -133,9 +138,48 @@ export default function InstructorsAdminPage() {
     total: instructors.length,
     active: instructors.filter((i) => i.isActive).length,
     pending: instructors.filter((i) => i.approvalStatus === "pending").length,
+    rejected: instructors.filter((i) => i.approvalStatus === "rejected").length,
     totalAssignments: instructors.reduce((s, i) => s + i.courseInstructors.length, 0),
     withCourses: instructors.filter((i) => i.courseInstructors.length > 0).length,
   };
+
+  const attentionCount = stats.pending + stats.rejected;
+
+  const filterFromQuery = searchParams.get("filter");
+  const activeFilter =
+    filterFromQuery === "attention" ||
+    filterFromQuery === "pending" ||
+    filterFromQuery === "rejected" ||
+    filterFromQuery === "approved"
+      ? filterFromQuery
+      : "all";
+
+  const filteredInstructors = useMemo(() => {
+    if (activeFilter === "attention") {
+      return instructors.filter(
+        (inst) => inst.approvalStatus === "pending" || inst.approvalStatus === "rejected"
+      );
+    }
+
+    if (activeFilter === "all") return instructors;
+    return instructors.filter((inst) => inst.approvalStatus === activeFilter);
+  }, [activeFilter, instructors]);
+
+  const handleFilterChange = (filter: "all" | "attention" | "pending" | "rejected" | "approved") => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (filter === "all") {
+      params.delete("filter");
+    } else {
+      params.set("filter", filter);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  };
+
+  const filterLabel =
+    activeFilter === "attention"
+      ? "Pending + Rejected"
+      : activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1);
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-7xl">
@@ -297,18 +341,66 @@ export default function InstructorsAdminPage() {
                     {stats.pending} pending
                   </Badge>
                 )}
+                {stats.rejected > 0 && (
+                  <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200 ml-1">
+                    {stats.rejected} rejected
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription>
                 {instructors.length > 0
-                  ? `${instructors.length} instructor${instructors.length !== 1 ? "s" : ""} — review pending applications and assign courses at approval`
+                  ? `${filteredInstructors.length} shown of ${instructors.length} instructor${instructors.length !== 1 ? "s" : ""} — review pending applications and assign courses at approval`
                   : "No instructors yet. Create one or share the application form."}
               </CardDescription>
             </div>
-            {instructors.length > 0 && (
+            {filteredInstructors.length > 0 && (
               <Badge variant="secondary">
-                {instructors.length} {instructors.length === 1 ? "instructor" : "instructors"}
+                {filterLabel}: {filteredInstructors.length}
               </Badge>
             )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button
+              size="sm"
+              variant={activeFilter === "all" ? "default" : "outline"}
+              onClick={() => handleFilterChange("all")}
+              className="h-8"
+            >
+              All ({stats.total})
+            </Button>
+            <Button
+              size="sm"
+              variant={activeFilter === "attention" ? "default" : "outline"}
+              onClick={() => handleFilterChange("attention")}
+              className="h-8"
+            >
+              Needs Review ({attentionCount})
+            </Button>
+            <Button
+              size="sm"
+              variant={activeFilter === "pending" ? "default" : "outline"}
+              onClick={() => handleFilterChange("pending")}
+              className="h-8"
+            >
+              Pending ({stats.pending})
+            </Button>
+            <Button
+              size="sm"
+              variant={activeFilter === "rejected" ? "default" : "outline"}
+              onClick={() => handleFilterChange("rejected")}
+              className="h-8"
+            >
+              Rejected ({stats.rejected})
+            </Button>
+            <Button
+              size="sm"
+              variant={activeFilter === "approved" ? "default" : "outline"}
+              onClick={() => handleFilterChange("approved")}
+              className="h-8"
+            >
+              Approved ({stats.active})
+            </Button>
           </div>
         </CardHeader>
 
@@ -321,9 +413,17 @@ export default function InstructorsAdminPage() {
             </div>
           ) : (
             <InstructorTable
-              instructors={instructors}
+              instructors={filteredInstructors}
               allCourses={allCourses}
               onRefresh={fetchInstructors}
+              emptyStateTitle={
+                instructors.length > 0 ? "No instructors match this filter" : "No instructors yet"
+              }
+              emptyStateDescription={
+                instructors.length > 0
+                  ? "Try another status filter or clear filters to view all applications."
+                  : "Create an instructor directly or share the application form."
+              }
             />
           )}
         </CardContent>
