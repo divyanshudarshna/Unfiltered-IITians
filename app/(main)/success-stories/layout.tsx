@@ -7,7 +7,15 @@ interface SuccessStoriesLayoutProps {
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const storiesCount = await prisma.studentSuccessStory.count()
+    const storiesCount = await prisma.studentSuccessStory.count({
+      where: {
+        NOT: {
+          approvalStatus: {
+            in: ["pending", "rejected"],
+          },
+        },
+      },
+    })
     
     const description = `Read inspiring success stories from ${storiesCount} students who cracked IIT JEE with Unfiltered IITians. Get motivated and learn from their journey to achieve your IIT dream.`
     

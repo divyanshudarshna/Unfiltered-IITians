@@ -18,7 +18,7 @@ import { formatDistanceToNow } from "date-fns"
 
 interface Notification {
   id: string
-  type: "contact" | "feedback" | "instructor"
+  type: "contact" | "feedback" | "instructor" | "success_story"
   title: string
   message: string
   email?: string
@@ -103,7 +103,9 @@ export function SiteHeader() {
                                 ? "bg-blue-500"
                                 : notif.type === "feedback"
                                   ? "bg-green-500"
-                                  : "bg-amber-500"
+                                  : notif.type === "instructor"
+                                    ? "bg-amber-500"
+                                    : "bg-violet-500"
                             }`}
                           />
                           <span className="font-medium text-sm">{notif.title}</span>
@@ -123,8 +125,8 @@ export function SiteHeader() {
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/admin/instructors?filter=attention" className="w-full text-center text-sm cursor-pointer">
-                      Review Instructor Queue
+                    <Link href="/admin/successStories?filter=attention" className="w-full text-center text-sm cursor-pointer">
+                      Review Story Queue
                     </Link>
                   </DropdownMenuItem>
                 </>

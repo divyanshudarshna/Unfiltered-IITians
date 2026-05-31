@@ -5,7 +5,14 @@ import SuccessStoriesList from "@/components/SuccessStoriesList";
 export const revalidate = 300; // ISR: refresh every 5 min
 
 export default async function SuccessStoriesPage() {
-  const stories = await prisma.StudentSuccessStory.findMany({
+  const stories = await prisma.studentSuccessStory.findMany({
+    where: {
+      NOT: {
+        approvalStatus: {
+          in: ["pending", "rejected"],
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 

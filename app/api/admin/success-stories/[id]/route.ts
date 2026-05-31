@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
+
     const story = await prisma.studentSuccessStory.findUnique({
       where: { id: params.id },
     });
@@ -16,6 +19,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     
     return NextResponse.json(story);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("GET Error:", err);
     return NextResponse.json(
       { error: "Failed to fetch story", details: err instanceof Error ? err.message : "Unknown error" },
@@ -26,6 +31,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
+
     const data = await req.json();
     
     
@@ -51,12 +58,17 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         content: data.content,
         image: data.image,
         rating: data.rating ? parseFloat(data.rating) : undefined,
-        // Don't update createdAt, but update updatedAt automatically
+        ...(data.approvalStatus !== undefined && { approvalStatus: data.approvalStatus }),
+        ...(data.approvalNotes !== undefined && { approvalNotes: data.approvalNotes }),
+        ...(data.isApproved !== undefined && { isApproved: data.isApproved }),
+        ...(data.approvedAt !== undefined && { approvedAt: data.approvedAt }),
       },
     });
     
     return NextResponse.json(story);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("PUT Error:", err);
     
     // More specific error handling
@@ -86,8 +98,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
+
     // Check if the story exists first
     const existingStory = await prisma.studentSuccessStory.findUnique({
       where: { id: params.id },
@@ -106,6 +120,8 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
     
     return NextResponse.json({ success: true });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("DELETE Error:", err);
     
     if (err instanceof Error && err.message.includes("RecordNotFound")) {

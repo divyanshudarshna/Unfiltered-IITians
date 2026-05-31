@@ -94,6 +94,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [contactCount, setContactCount] = React.useState(0);
   const [feedbackCount, setFeedbackCount] = React.useState(0);
   const [instructorUnreadCount, setInstructorUnreadCount] = React.useState(0);
+  const [successStoryUnreadCount, setSuccessStoryUnreadCount] = React.useState(0);
   const { userProfile, clerkUser, getProfileImageUrl, isLoading } = useUserProfileContext();
 
   const toggleMenu = (title: string) => {
@@ -104,10 +105,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   React.useEffect(() => {
     const fetchCounts = async () => {
       try {
-        const [contactRes, feedbackRes, instructorRes] = await Promise.all([
+        const [contactRes, feedbackRes, instructorRes, successStoryRes] = await Promise.all([
           fetch("/api/admin/contact-us/pending-count"),
           fetch("/api/admin/feedback/unread-count"),
           fetch("/api/admin/instructors/unread-count"),
+          fetch("/api/admin/success-stories/unread-count"),
         ]);
 
         if (contactRes.ok) {
@@ -129,6 +131,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           setInstructorUnreadCount(count || 0);
         } else {
           console.warn(`Instructor count API returned ${instructorRes.status}`);
+        }
+
+        if (successStoryRes.ok) {
+          const { count } = await successStoryRes.json();
+          setSuccessStoryUnreadCount(count || 0);
+        } else {
+          console.warn(`Success story count API returned ${successStoryRes.status}`);
         }
       } catch (error) {
         console.error("Error fetching notification counts:", error);
@@ -259,6 +268,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         {item.title === "Contacts" && contactCount > 0 && (
                           <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
                             {contactCount > 99 ? "99+" : contactCount}
+                          </span>
+                        )}
+                        {item.title === "Success Stories" && successStoryUnreadCount > 0 && (
+                          <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
+                            {successStoryUnreadCount > 99 ? "99+" : successStoryUnreadCount}
                           </span>
                         )}
                       </Link>

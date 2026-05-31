@@ -5,6 +5,13 @@ import prisma from "@/lib/prisma";
 export async function GET() {
   try {
     const stories = await prisma.studentSuccessStory.findMany({
+      where: {
+        NOT: {
+          approvalStatus: {
+            in: ["pending", "rejected"],
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
 

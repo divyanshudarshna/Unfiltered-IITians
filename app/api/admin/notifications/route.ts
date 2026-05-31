@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
     await assertAdminApiAccess(req.url, req.method);
 
     const instructorUnreadStatuses = ["pending", "rejected"];
+    const successStoryUnreadStatuses = ["pending", "rejected"];
 
     // Fetch pending contact messages
     const contactMessages = await prisma.contactUs.findMany({
@@ -76,8 +77,29 @@ export async function GET(req: NextRequest) {
       take: 10,
     });
 
+    // Fetch success-story submissions pending attention
+    const successStoryApplications = await prisma.studentSuccessStory.findMany({
+      where: {
+        submittedViaForm: true,
+        approvalStatus: {
+          in: successStoryUnreadStatuses,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        approvalStatus: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 10,
+    });
+
     // Exact unread counters for bell/sidebar badges
-    const [contactCount, feedbackCount, instructorCount] = await Promise.all([
+    const [contactCount, feedbackCount, instructorCount, successStoryCount] = await Promise.all([
       prisma.contactUs.count({
         where: {
           status: "PENDING",
@@ -96,6 +118,14 @@ export async function GET(req: NextRequest) {
           submittedViaForm: true,
           approvalStatus: {
             in: instructorUnreadStatuses,
+          },
+        },
+      }),
+      prisma.studentSuccessStory.count({
+        where: {
+          submittedViaForm: true,
+          approvalStatus: {
+            in: successStoryUnreadStatuses,
           },
         },
       }),
@@ -132,10 +162,24 @@ export async function GET(req: NextRequest) {
             : `Pending review for ${application.email}.`,
         createdAt: application.updatedAt,
         link: "/admin/instructors?filter=attention",
+      })),
+      ...successStoryApplications.map((story) => ({
+        id: `success-story-${story.id}`,
+        type: "success_story" as const,
+        title:
+          story.approvalStatus === "rejected"
+            ? `Rejected success story: ${story.name}`
+            : `New success story: ${story.name}`,
+        message:
+          story.approvalStatus === "rejected"
+            ? `Needs follow-up. Latest status is rejected (${story.role}).`
+            : `Pending review: ${story.role}`,
+        createdAt: story.updatedAt,
+        link: "/admin/successStories?filter=attention",
       }))
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    const totalCount = contactCount + feedbackCount + instructorCount;
+    const totalCount = contactCount + feedbackCount + instructorCount + successStoryCount;
 
     return NextResponse.json({ 
       notifications,
@@ -143,6 +187,7 @@ export async function GET(req: NextRequest) {
       contactCount,
       feedbackCount,
       instructorCount,
+      successStoryCount,
     });
   } catch (error) {
     const authResponse = handleAuthError(error);

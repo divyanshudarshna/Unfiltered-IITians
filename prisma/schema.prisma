@@ -85,6 +85,7 @@ model User {
   generalCouponUsages     GeneralCouponUsage[]     @relation("GeneralCouponUsages") // Track general coupon usages
   certificates            Certificate[] // Certificates earned by this user
   customCertificates      CustomCertificate[] // Custom certificates issued by admin
+  successStories          StudentSuccessStory[]
 
   // ✅ PERFORMANCE: Indexes for frequently queried fields
   @@index([role, createdAt])
@@ -343,13 +344,29 @@ model Testimonial {
 
 model StudentSuccessStory {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String?  @db.ObjectId
   name      String
   role      String
   content   String
   image     String? // Cloudinary image URL
   rating    Float    @default(0)
+
+  // Approval workflow
+  submittedViaForm Boolean  @default(false) // true when submitted from student-facing form
+  approvalStatus   String   @default("approved") // "pending" | "approved" | "rejected"
+  isApproved       Boolean  @default(true)
+  approvedAt       DateTime?
+  approvalNotes    String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([approvalStatus])
+  @@index([isApproved])
+  @@index([submittedViaForm])
+  @@index([userId])
 }
 
 model ContactUs {
