@@ -4,15 +4,19 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const stories = await prisma.studentSuccessStory.findMany({
-      where: {
-        NOT: {
-          approvalStatus: {
-            in: ["pending", "rejected"],
-          },
-        },
-      },
+    const allStories = await prisma.studentSuccessStory.findMany({
       orderBy: { createdAt: "desc" },
+    });
+
+    const stories = allStories.filter((story) => {
+      const status = String((story as { approvalStatus?: string | null }).approvalStatus ?? "").toLowerCase();
+      const isApproved = (story as { isApproved?: boolean | null }).isApproved;
+
+      if (status === "pending" || status === "rejected") return false;
+      if (status === "approved") return true;
+
+      // Legacy fallback: if status is missing/unknown, only hide when explicitly marked unapproved.
+      return isApproved !== false;
     });
 
     return NextResponse.json(stories, { status: 200 });

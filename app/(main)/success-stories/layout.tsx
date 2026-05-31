@@ -7,15 +7,23 @@ interface SuccessStoriesLayoutProps {
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const storiesCount = await prisma.studentSuccessStory.count({
-      where: {
-        NOT: {
-          approvalStatus: {
-            in: ["pending", "rejected"],
-          },
-        },
+    const allStories = await prisma.studentSuccessStory.findMany({
+      select: {
+        approvalStatus: true,
+        isApproved: true,
       },
     })
+
+    const storiesCount = allStories.filter((story) => {
+      const status = String((story as { approvalStatus?: string | null }).approvalStatus ?? "").toLowerCase()
+      const isApproved = (story as { isApproved?: boolean | null }).isApproved
+
+      if (status === "pending" || status === "rejected") return false
+      if (status === "approved") return true
+
+      // Legacy fallback: if status is missing/unknown, only hide when explicitly marked unapproved.
+      return isApproved !== false
+    }).length
     
     const description = `Read inspiring success stories from ${storiesCount} students who cracked IIT JEE with Unfiltered IITians. Get motivated and learn from their journey to achieve your IIT dream.`
     
