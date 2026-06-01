@@ -31,8 +31,10 @@ export type AdminConversation = {
   messages: ConversationMessage[];
 };
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
 export const getConversationKey = (contact: ContactUs) =>
-  contact.threadId ? `thread:${contact.threadId}` : `single:${contact.id}`;
+  contact.threadId ? `thread:${contact.threadId}` : `email:${normalizeEmail(contact.email)}`;
 
 export const stripQuotedHistory = (message: string) =>
   message.split("\n\n-------")[0]?.trim() || "";
@@ -66,7 +68,12 @@ export function groupContactsIntoConversations(
     const rootMessage =
       messagesSorted.find((msg) => msg.conversationType === "NEW_INQUIRY") ||
       messagesSorted[0];
+    const rootUserMessage =
+      messagesSorted.find((msg) => msg.conversationType !== "ADMIN_REPLY") || rootMessage;
     const latestMessage = messagesSorted[messagesSorted.length - 1];
+    const latestThreadMessage = [...messagesSorted]
+      .reverse()
+      .find((msg) => !!msg.threadId);
 
     const hasAdminReply = messagesSorted.some(
       (msg) => msg.conversationType === "ADMIN_REPLY"
@@ -97,18 +104,18 @@ export function groupContactsIntoConversations(
 
     conversations.push({
       id: key,
-      threadId: rootMessage.threadId,
-      rootContactId: rootMessage.id,
-      name: rootMessage.name,
-      email: rootMessage.email,
-      subject: rootMessage.subject,
+      threadId: latestThreadMessage?.threadId || rootMessage.threadId,
+      rootContactId: rootUserMessage.id,
+      name: rootUserMessage.name,
+      email: rootUserMessage.email,
+      subject: latestMessage.subject,
       status,
       hasAdminReply,
       totalMessages: messagesSorted.length,
       unreadUserCount,
       needsReply,
       lastMessageAt: latestMessage.createdAt.toISOString(),
-      createdAt: rootMessage.createdAt.toISOString(),
+      createdAt: rootUserMessage.createdAt.toISOString(),
       messages: messagesSorted.map((msg) => ({
         id: msg.id,
         name: msg.name,

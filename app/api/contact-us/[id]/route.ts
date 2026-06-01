@@ -38,7 +38,7 @@ export async function DELETE(
     // First, find the contact to get its threadId
     const contact = await prisma.contactUs.findUnique({
       where: { id },
-      select: { threadId: true }
+      select: { threadId: true, email: true }
     })
 
     if (!contact) {
@@ -58,14 +58,14 @@ export async function DELETE(
         where: { threadId: contact.threadId }
       })
     } else {
-      // If no threadId, clear parentId first then delete
-      await prisma.contactUs.update({
-        where: { id },
+      // Legacy fallback: one conversation per email when threadId is missing
+      await prisma.contactUs.updateMany({
+        where: { email: contact.email },
         data: { parentId: null }
       })
       
-      await prisma.contactUs.delete({
-        where: { id }
+      await prisma.contactUs.deleteMany({
+        where: { email: contact.email }
       })
     }
 

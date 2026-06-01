@@ -20,7 +20,6 @@ import {
   ChevronRight,
   Calendar,
   CheckCircle2,
-  Eye,
   Mail,
   MessageCircle,
   MessageSquare,
@@ -90,7 +89,6 @@ export default function AdminContactUsPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const [selected, setSelected] = useState<AdminConversation | null>(null);
-  const [viewOpen, setViewOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -183,11 +181,6 @@ export default function AdminContactUsPage() {
     }
   }, [currentPage, totalPages]);
 
-  const openViewDialog = (conversation: AdminConversation) => {
-    setSelected(conversation);
-    setViewOpen(true);
-  };
-
   const openChatDialog = (conversation: AdminConversation) => {
     setSelected(conversation);
     setReplyText("");
@@ -249,7 +242,6 @@ export default function AdminContactUsPage() {
         },
       });
 
-      setViewOpen(false);
       setChatOpen(true);
     } catch (err) {
       console.error(err);
@@ -302,7 +294,7 @@ export default function AdminContactUsPage() {
           <div>
             <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Contact Inbox</h1>
             <p className="text-xs sm:text-sm text-slate-200 mt-1">
-              Grouped by user conversation to prevent reply flood in logs.
+              One unified chat thread per user email to avoid split replies.
             </p>
           </div>
 
@@ -352,7 +344,6 @@ export default function AdminContactUsPage() {
           ) : (
             paginatedConversations.map((conversation) => {
               const latest = conversation.messages[conversation.messages.length - 1];
-              const actionIsChat = conversation.hasAdminReply || conversation.totalMessages > 1;
 
               return (
                 <div
@@ -385,13 +376,9 @@ export default function AdminContactUsPage() {
                         </Badge>
                       )}
 
-                      {conversation.hasAdminReply ? (
-                        <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
-                          Threaded Chat
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">Single Inquiry</Badge>
-                      )}
+                      <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
+                        Email Thread
+                      </Badge>
 
                       <Badge variant="outline">{conversation.totalMessages} messages</Badge>
 
@@ -405,26 +392,19 @@ export default function AdminContactUsPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 lg:justify-end">
-                    {actionIsChat ? (
-                      <Button
-                        size="sm"
-                        className="relative bg-primary text-primary-foreground hover:bg-primary/90"
-                        onClick={() => openChatDialog(conversation)}
-                      >
-                        <MessageCircle className="h-4 w-4 mr-1" />
-                        Chat
-                        {conversation.unreadUserCount > 0 && (
-                          <span className="absolute -top-2 -right-2 min-w-5 h-5 rounded-full bg-red-600 text-white text-[10px] leading-5 px-1 text-center">
-                            {conversation.unreadUserCount}
-                          </span>
-                        )}
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="outline" onClick={() => openViewDialog(conversation)}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      className="relative bg-primary text-primary-foreground hover:bg-primary/90"
+                      onClick={() => openChatDialog(conversation)}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-1" />
+                      Chat
+                      {conversation.unreadUserCount > 0 && (
+                        <span className="absolute -top-2 -right-2 min-w-5 h-5 rounded-full bg-red-600 text-white text-[10px] leading-5 px-1 text-center">
+                          {conversation.unreadUserCount}
+                        </span>
+                      )}
+                    </Button>
 
                     <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(conversation)}>
                       <Trash2 className="h-4 w-4" />
@@ -471,51 +451,6 @@ export default function AdminContactUsPage() {
           </div>
         )}
       </div>
-
-      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Inquiry Details</DialogTitle>
-            <DialogDescription>
-              View the original contact request before starting chat.
-            </DialogDescription>
-          </DialogHeader>
-
-          {selected && (
-            <div className="space-y-3 text-sm">
-              <div className="rounded-lg border p-3">
-                <p className="font-medium">{selected.name}</p>
-                <p className="text-xs text-muted-foreground break-all">{selected.email}</p>
-              </div>
-
-              <div className="rounded-lg border p-3 space-y-2">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Subject</p>
-                <p className="font-medium">{selected.subject}</p>
-              </div>
-
-              <div className="rounded-lg border p-3 space-y-2">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Message</p>
-                <p className="whitespace-pre-wrap">{selected.messages[0]?.cleanMessage || "-"}</p>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewOpen(false)}>
-              Close
-            </Button>
-            <Button
-              onClick={() => {
-                setViewOpen(false);
-                if (selected) openChatDialog(selected);
-              }}
-            >
-              <Send className="h-4 w-4 mr-1" />
-              Reply & Start Chat
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={chatOpen} onOpenChange={setChatOpen}>
         <DialogContent className="w-[96vw] max-w-3xl h-[90vh] p-0 overflow-hidden border-slate-900 bg-[#020617] text-slate-100">

@@ -40,11 +40,24 @@ export async function POST(req: NextRequest) {
 
     if (!finalThreadId) {
       finalThreadId = `thread_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      await prisma.contactUs.update({
-        where: { id: rootContact.id },
-        data: { threadId: finalThreadId },
-      });
     }
+
+    // Enforce one conversation thread per user email, including legacy rows.
+    await prisma.contactUs.updateMany({
+      where: {
+        email: rootContact.email,
+        threadId: { not: finalThreadId },
+      },
+      data: { threadId: finalThreadId },
+    });
+
+    await prisma.contactUs.updateMany({
+      where: {
+        email: rootContact.email,
+        threadId: null,
+      },
+      data: { threadId: finalThreadId },
+    });
 
     const threadMessages = await prisma.contactUs.findMany({
       where: { threadId: finalThreadId },
@@ -52,6 +65,11 @@ export async function POST(req: NextRequest) {
     });
 
     const allMessages = threadMessages.length > 0 ? threadMessages : [rootContact];
+    const latestUserMessage = [...allMessages]
+      .reverse()
+      .find(
+        (msg) => msg.conversationType === "NEW_INQUIRY" || msg.conversationType === "USER_REPLY"
+      ) || rootContact;
 
     let conversationHistory = "\n\n------- Conversation History -------\n";
     for (const msg of allMessages) {
@@ -75,7 +93,7 @@ export async function POST(req: NextRequest) {
         message: fullAdminMessage,
         status: status || "RESOLVED",
         threadId: finalThreadId,
-        parentId: rootContact.id,
+        parentId: latestUserMessage.id,
         conversationType: "ADMIN_REPLY",
       },
     });

@@ -61,20 +61,40 @@ export async function POST(req: Request) {
       );
     }
 
-    // Determine if this is a new inquiry or part of a thread
-    const isThreadReply = !!threadId;
-    let finalThreadId = threadId;
-    
-    // If no threadId provided, generate a new one for this conversation
+    const latestEmailMessage = await prisma.contactUs.findFirst({
+      where: { email: user_email },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Each email should map to one thread; reuse prior thread when available.
+    const hasExistingConversation = !!latestEmailMessage;
+    const isThreadReply = !!threadId || hasExistingConversation;
+    let finalThreadId = threadId || latestEmailMessage?.threadId;
+
+    // Generate a thread for brand new inquiries or legacy rows without threadId.
     if (!finalThreadId) {
       finalThreadId = `thread_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     }
 
+    if (hasExistingConversation) {
+      await prisma.contactUs.updateMany({
+        where: {
+          email: user_email,
+          threadId: null,
+        },
+        data: {
+          threadId: finalThreadId,
+        },
+      });
+    }
+
     // Add quoted message if it's a reply to a thread
     let finalMessage = message;
-    if (isThreadReply && parentId) {
+    const finalParentId = parentId || latestEmailMessage?.id;
+
+    if (isThreadReply && finalParentId) {
       const parentMessage = await prisma.contactUs.findUnique({
-        where: { id: parentId },
+        where: { id: finalParentId },
       });
       if (parentMessage) {
         finalMessage = `${message}\n\n------- Previous Message -------\n${parentMessage.message}`;
@@ -90,7 +110,7 @@ export async function POST(req: Request) {
         message: finalMessage,
         status: "PENDING",
         threadId: finalThreadId,
-        parentId: parentId || undefined,
+        parentId: finalParentId || undefined,
         conversationType: isThreadReply ? "USER_REPLY" : "NEW_INQUIRY",
         dailyMessageCount: messagesToday + 1,
         lastMessageDate: new Date(),
