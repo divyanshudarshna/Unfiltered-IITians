@@ -6,6 +6,7 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
@@ -198,7 +199,12 @@ export default function InstructorTable({
   }, [instructors]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 8 },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -401,7 +407,8 @@ export default function InstructorTable({
           <div
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing flex items-center justify-center p-1.5 hover:bg-muted/50 rounded mx-auto w-fit"
+            className="cursor-grab active:cursor-grabbing touch-none select-none flex items-center justify-center p-3 hover:bg-muted/50 rounded mx-auto w-fit"
+            style={{ touchAction: "none" }}
             title="Drag to reorder"
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
@@ -416,12 +423,12 @@ export default function InstructorTable({
     <>
       {/* ── Unsaved order banner ─────────────────────────────────────────────── */}
       {hasChanges && (
-        <div className="flex items-center justify-between gap-4 px-4 py-3 mb-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 text-sm text-amber-800 dark:text-amber-300">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-4 py-3 mb-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 text-sm text-amber-800 dark:text-amber-300">
           <p className="flex items-center gap-2 font-medium">
             <GripVertical className="h-4 w-4" />
             Drag to reorder instructors, then save to apply.
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               size="sm"
               variant="outline"
@@ -736,10 +743,13 @@ export default function InstructorTable({
                           className="flex items-center gap-3 text-sm bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2.5 border border-gray-100 dark:border-gray-700"
                         >
                           {aff.logoUrl && (
-                            <img
+                            <Image
                               src={aff.logoUrl}
                               alt={aff.name}
+                              width={28}
+                              height={28}
                               className="h-7 w-7 object-contain rounded"
+                              unoptimized
                               onError={(e) => {
                                 (e.target as HTMLImageElement).style.display = "none";
                               }}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ColumnDef,
@@ -17,6 +17,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -110,6 +111,10 @@ interface ContentTableProps {
   refresh: () => void;
 }
 
+interface QuizData {
+  questions?: unknown[];
+}
+
 
   interface QuizStatusCellProps {
   contentId: string;
@@ -117,7 +122,7 @@ interface ContentTableProps {
 
 //component to show quiz status in content table
 export const QuizStatusCell = ({ contentId }: QuizStatusCellProps) => {
-  const [quizData, setQuizData] = useState<any>(null);
+  const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -209,7 +214,6 @@ export default function ContentTable({
     if (Object.keys(initial).length) {
       setLectureCounts((prev) => ({ ...initial, ...prev }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contents]); // only to pick up any _count values coming from server
 
   // Keep localContents synced with prop
@@ -251,8 +255,8 @@ export default function ContentTable({
 
             const lectures = await res.json();
             counts[content.id] = Array.isArray(lectures) ? lectures.length : 0;
-          } catch (err: any) {
-            if (err?.name === "AbortError") {
+          } catch (err: unknown) {
+            if (err instanceof DOMException && err.name === "AbortError") {
               // aborted, ignore
               return;
             }
@@ -267,8 +271,8 @@ export default function ContentTable({
           // merge with any previously-known counts
           setLectureCounts((prev) => ({ ...prev, ...counts }));
         }
-      } catch (err: any) {
-        if (err?.name !== "AbortError") {
+      } catch (err: unknown) {
+        if (!(err instanceof DOMException) || err.name !== "AbortError") {
           console.error("Failed to fetch lecture counts:", err);
         }
       }
@@ -286,7 +290,7 @@ export default function ContentTable({
     contents /* lectureCounts intentionally omitted to avoid refetch loops */,
   ]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     try {
       setDeleting(id);
       const response = await fetch(`/api/admin/contents/${id}`, {
@@ -307,7 +311,7 @@ export default function ContentTable({
     } finally {
       setDeleting(null);
     }
-  };
+  }, [refresh]);
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -524,11 +528,16 @@ const columns = useMemo<ColumnDef<Content>[]>(
     },
   ],
   // re-compute when deleting or lectureCounts change
-  [deleting, lectureCounts]
+  [courseId, deleting, handleDelete, lectureCounts]
 );
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 8 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -541,7 +550,12 @@ const columns = useMemo<ColumnDef<Content>[]>(
     return (
       <TableRow ref={setNodeRef} style={style} className={isDragging ? "bg-muted/50" : ""}>
         <TableCell className="text-center py-4">
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing flex items-center justify-center p-2 hover:bg-muted/50 rounded">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing touch-none select-none flex items-center justify-center p-3 hover:bg-muted/50 rounded"
+            style={{ touchAction: "none" }}
+          >
             <GripVertical className="h-5 w-5 text-muted-foreground" />
           </div>
         </TableCell>
@@ -663,17 +677,17 @@ const columns = useMemo<ColumnDef<Content>[]>(
       {/* Data Table */}
       {hasChanges && (
         <div className="border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/20 rounded-md p-4 mb-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-amber-500 flex items-center justify-center">
                 <GripVertical className="h-5 w-5 text-white" />
               </div>
               <div>
                 <h4 className="font-semibold text-amber-900 dark:text-amber-100">Unsaved Changes</h4>
-                <p className="text-sm text-amber-700 dark:text-amber-300">You have reordered contents. Click "Save Order" to apply changes.</p>
+                <p className="text-sm text-amber-700 dark:text-amber-300">You have reordered contents. Click &quot;Save Order&quot; to apply changes.</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button variant="outline" onClick={handleCancelReorder} disabled={isSaving} className="gap-2">
                 <X className="h-4 w-4" />
                 Cancel
@@ -688,7 +702,7 @@ const columns = useMemo<ColumnDef<Content>[]>(
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <div className="rounded-xl border bg-card">
+      <div className="rounded-xl border bg-card overflow-x-auto">
         <Table>
           <TableHeader className="sticky top-0 bg-muted/40 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
             {table.getHeaderGroups().map((headerGroup) => (
