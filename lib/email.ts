@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import type { Prisma } from '@prisma/client';
 import prisma from './prisma';
 
 let cachedTransporter: nodemailer.Transporter | null = null;
@@ -48,6 +49,7 @@ interface EmailData {
   userName?: string;
   courseName?: string;
   mockName?: string;
+  sessionName?: string;
   sessionDate?: string;
   sessionTime?: string;
   purchaseAmount?: string;
@@ -262,7 +264,7 @@ const getEmailTemplate = (template: EmailTemplate, data: EmailData): { subject: 
 
     case 'guidance_session':
       return {
-        subject: `📅 Guidance Session Booked - ${data.sessionDate || 'Upcoming'}`,
+        subject: `📅 Guidance Session Booked - ${data.sessionName || data.sessionDate || 'Upcoming'}`,
         html: `
           <!DOCTYPE html>
           <html>
@@ -276,7 +278,7 @@ const getEmailTemplate = (template: EmailTemplate, data: EmailData): { subject: 
               .button-secondary { background: #667eea; }
               .session-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #fa709a; }
               .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
-              .important { background: #fff3cd; padding: 10px; border-radius: 5px; margin: 15px 0; }
+              .important { background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; border-radius: 5px; margin: 20px 0; }
               .brand { color: #fa709a; font-weight: bold; }
             </style>
           </head>
@@ -287,18 +289,21 @@ const getEmailTemplate = (template: EmailTemplate, data: EmailData): { subject: 
               </div>
               <div class="content">
                 <h2>Hello ${data.userName || 'Student'}!</h2>
-                <p>Your guidance session has been successfully booked. We look forward to helping you!</p>
+                <p>Welcome to Unfiltered IITians. Your guidance session has been successfully booked, and we look forward to helping you!</p>
                 
                 <div class="session-details">
                   <h3>📅 Session Details</h3>
+                  ${data.sessionName ? `<p><strong>Session:</strong> ${data.sessionName}</p>` : ''}
                   ${data.sessionDate ? `<p><strong>Date:</strong> ${data.sessionDate}</p>` : ''}
                   ${data.sessionTime ? `<p><strong>Time:</strong> ${data.sessionTime}</p>` : ''}
                   ${data.purchaseAmount ? `<p><strong>Amount Paid:</strong> ₹${data.purchaseAmount}</p>` : ''}
                 </div>
                 
                 <div class="important">
-                  <strong>⏰ Important Reminders:</strong>
+                  <strong>⏰ Scheduling Information:</strong>
                   <ul>
+                    <li>Sessions happen during weekends between 12 PM and 5 PM.</li>
+                    <li>Kindly send your preferred timings to <a href="mailto:Support@divyanshudarshna.com" style="color: #fa709a; font-weight: bold;">Support@divyanshudarshna.com</a>.</li>
                     <li>Join the session 5 minutes early</li>
                     <li>Prepare your questions beforehand</li>
                     <li>Keep a notebook handy</li>
@@ -733,7 +738,7 @@ export async function sendEmail({
 
     const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'no-reply@unfilterediitians.com';
 
-    const mailOptions: any = {
+    const mailOptions: nodemailer.SendMailOptions = {
       from: `Unfiltered IITians <${fromAddress}>`,
       to,
       subject,
@@ -758,7 +763,7 @@ export async function sendEmail({
             recipientCount: Array.isArray(to) ? to.length : 1,
             sentBy: sentBy || 'Unknown',
             source,
-            metadata: metadata as any || {},
+            metadata: (metadata ?? {}) as Prisma.InputJsonObject,
           },
         });
       } catch (logError) {

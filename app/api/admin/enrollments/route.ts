@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { calculateAverageModuleQuizScore } from '@/lib/admin-enrollment-metrics';
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,12 +26,13 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || '';
     const sortBy = searchParams.get('sortBy') || 'enrolledAt';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
+    const sortDirection = sortOrder === 'asc' ? 'asc' : 'desc';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: any = {};
+    const where: Prisma.EnrollmentWhereInput = {};
 
     if (courseId && courseId !== 'all') {
       where.courseId = courseId;
@@ -47,15 +50,15 @@ export async function GET(req: NextRequest) {
     const total = await prisma.enrollment.count({ where });
 
     // Build orderBy
-    let orderBy: any = {};
+    let orderBy: Prisma.EnrollmentOrderByWithRelationInput = {};
     if (sortBy === 'enrolledAt') {
-      orderBy = { enrolledAt: sortOrder };
+      orderBy = { enrolledAt: sortDirection };
     } else if (sortBy === 'userName') {
-      orderBy = { user: { name: sortOrder } };
+      orderBy = { user: { name: sortDirection } };
     } else if (sortBy === 'courseName') {
-      orderBy = { course: { title: sortOrder } };
+      orderBy = { course: { title: sortDirection } };
     } else if (sortBy === 'expiresAt') {
-      orderBy = { expiresAt: sortOrder };
+      orderBy = { expiresAt: sortDirection };
     }
 
     // ✅ OPTIMIZED: Fetch all data in minimal queries instead of N+1
@@ -126,7 +129,14 @@ export async function GET(req: NextRequest) {
         courseId: true,
         completed: true,
         quizScore: true,
-        totalQuizQuestions: true
+        totalQuizQuestions: true,
+        content: {
+          select: {
+            quiz: {
+              select: { questions: true }
+            }
+          }
+        }
       }
     });
 
@@ -157,14 +167,7 @@ export async function GET(req: NextRequest) {
         ? Math.round((completedContents / totalContents) * 100) 
         : 0;
 
-      // Calculate average quiz score
-      const quizScores = courseProgressData
-        .filter(cp => cp.quizScore !== null && cp.totalQuizQuestions !== null && cp.totalQuizQuestions > 0)
-        .map(cp => (cp.quizScore! / cp.totalQuizQuestions!) * 100);
-      
-      const avgQuizScore = quizScores.length > 0
-        ? Math.round(quizScores.reduce((sum, score) => sum + score, 0) / quizScores.length)
-        : null;
+      const avgQuizScore = calculateAverageModuleQuizScore(courseProgressData);
 
       return {
         ...enrollment,

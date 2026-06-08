@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   DndContext,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -68,20 +69,12 @@ import {
   File,
   Eye,
   X,
-  Download,
-  ExternalLink,
   Save,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface Lecture {
   id: string;
@@ -122,7 +115,8 @@ function SortableRow({ lecture, children }: { lecture: Lecture; children: React.
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing flex items-center justify-center p-2 hover:bg-muted/50 rounded"
+          className="cursor-grab active:cursor-grabbing touch-none select-none flex items-center justify-center p-3 hover:bg-muted/50 rounded"
+          style={{ touchAction: "none" }}
         >
           <GripVertical className="h-5 w-5 text-muted-foreground" />
         </div>
@@ -154,7 +148,12 @@ export default function LectureTable({
   }, [lectures]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 8 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -451,7 +450,7 @@ export default function LectureTable({
                     Unsaved Changes
                   </h4>
                   <p className="text-sm text-amber-700 dark:text-amber-300">
-                    You have reordered lectures. Click "Save Order" to apply changes.
+                    You have reordered lectures. Click &quot;Save Order&quot; to apply changes.
                   </p>
                 </div>
               </div>
@@ -644,7 +643,7 @@ export default function LectureTable({
       </AlertDialog>
 
       {/* Table */}
-      <Card className="border shadow-sm overflow-hidden">
+      <Card className="border shadow-sm overflow-x-auto">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

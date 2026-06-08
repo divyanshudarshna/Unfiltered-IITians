@@ -1,6 +1,7 @@
 // app/api/payment/verify/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendEmail } from "@/lib/email";
 import crypto from "crypto";
 
 export async function POST(req: Request) {
@@ -39,6 +40,15 @@ export async function POST(req: Request) {
       );
     }
 
+    const pendingSessionEnrollments = await prisma.sessionEnrollment.findMany({
+      where: {
+        razorpayOrderId: razorpay_order_id,
+        paymentStatus: { not: "SUCCESS" },
+      },
+      select: { id: true },
+    });
+    const pendingSessionEnrollmentIds = pendingSessionEnrollments.map((enrollment) => enrollment.id);
+
     // --- Update Mock Subscriptions (if linked to order) ---
     const updatedSubscriptions = await prisma.subscription.updateMany({
       where: { razorpayOrderId: razorpay_order_id },
@@ -58,6 +68,34 @@ export async function POST(req: Request) {
         // If you want payment timestamp, add paymentCompletedAt in schema
       },
     });
+
+    if (pendingSessionEnrollmentIds.length > 0) {
+      const sessionEnrollments = await prisma.sessionEnrollment.findMany({
+        where: { id: { in: pendingSessionEnrollmentIds } },
+        include: {
+          session: { select: { title: true } },
+          user: { select: { name: true, email: true } },
+        },
+      });
+
+      await Promise.all(
+        sessionEnrollments.map(async (enrollment) => {
+          const emailResult = await sendEmail({
+            to: enrollment.studentEmail || enrollment.user.email,
+            template: "guidance_session",
+            data: {
+              userName: enrollment.studentName || enrollment.user.name || "Student",
+              sessionName: enrollment.session.title,
+              purchaseAmount: enrollment.amountPaid?.toString(),
+            },
+          });
+
+          if (!emailResult.success) {
+            console.error("❌ Failed to send session booking email:", emailResult.error);
+          }
+        })
+      );
+    }
 
     return NextResponse.json({
       success: true,

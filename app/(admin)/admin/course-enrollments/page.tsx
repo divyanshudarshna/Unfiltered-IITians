@@ -773,9 +773,9 @@ export default function CourseEnrollmentsPage() {
                           <TableHead className="font-semibold min-w-[180px]">Student</TableHead>
                           {visibleColumns.contact && <TableHead className="font-semibold hidden lg:table-cell">Contact</TableHead>}
                           {visibleColumns.amountPaid && <TableHead className="font-semibold">Amount Paid</TableHead>}
-                          {visibleColumns.duration && <TableHead className="font-semibold hidden xl:table-cell">Duration</TableHead>}
+                          {visibleColumns.duration && <TableHead className="font-semibold">Duration</TableHead>}
                           {visibleColumns.progress && <TableHead className="font-semibold min-w-[140px]">Progress</TableHead>}
-                          {visibleColumns.quizScore && <TableHead className="font-semibold hidden 2xl:table-cell">Avg Quiz Score</TableHead>}
+                          {visibleColumns.quizScore && <TableHead className="font-semibold">Avg Quiz Score</TableHead>}
                           {visibleColumns.enrolledDate && <TableHead className="font-semibold hidden md:table-cell">Enrolled Date</TableHead>}
                           {visibleColumns.expiresAt && <TableHead className="font-semibold hidden xl:table-cell">Expires At</TableHead>}
                           <TableHead className="font-semibold text-center sticky right-0 ">Actions</TableHead>
@@ -833,7 +833,7 @@ export default function CourseEnrollmentsPage() {
                               </TableCell>
                             )}
                             {visibleColumns.duration && (
-                              <TableCell className="hidden xl:table-cell">
+                              <TableCell>
                                 <Badge variant="outline">
                                   {enrollment.course.durationMonths} months
                                 </Badge>
@@ -857,7 +857,7 @@ export default function CourseEnrollmentsPage() {
                               </TableCell>
                             )}
                             {visibleColumns.quizScore && (
-                              <TableCell className="hidden 2xl:table-cell">
+                              <TableCell>
                                 {enrollment.avgQuizScore !== null ? (
                                   <Badge 
                                     variant="secondary" 
