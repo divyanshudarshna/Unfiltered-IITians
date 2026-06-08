@@ -267,63 +267,228 @@ const getEmailTemplate = (template: EmailTemplate, data: EmailData): { subject: 
         subject: `📅 Guidance Session Booked - ${data.sessionName || data.sessionDate || 'Upcoming'}`,
         html: `
           <!DOCTYPE html>
-          <html>
+          <html lang="en">
           <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .button { display: inline-block; padding: 12px 30px; background: #fa709a; color: white; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
-              .button-secondary { background: #667eea; }
-              .session-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #fa709a; }
-              .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
-              .important { background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; border-radius: 5px; margin: 20px 0; }
-              .brand { color: #fa709a; font-weight: bold; }
+              body {
+                margin: 0;
+                padding: 0;
+                background-color: #070b12;
+                color: #d8f7f4;
+                font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+                line-height: 1.6;
+              }
+              .email-shell {
+                background-color: #070b12;
+                background-image:
+                  linear-gradient(90deg, rgba(0, 210, 200, 0.12) 1px, transparent 1px),
+                  linear-gradient(0deg, rgba(0, 210, 200, 0.12) 1px, transparent 1px),
+                  radial-gradient(circle at 20% 30%, rgba(0, 230, 210, 0.08) 1px, transparent 1px),
+                  radial-gradient(ellipse at 50% 100%, rgba(0, 170, 190, 0.18) 0%, transparent 70%);
+                background-size: 48px 48px, 48px 48px, 16px 16px, 100% 100%;
+                padding: 34px 14px;
+              }
+              .container {
+                max-width: 640px;
+                margin: 0 auto;
+                background: #08121a;
+                border: 1px solid rgba(64, 224, 208, 0.42);
+                border-radius: 34px;
+                overflow: hidden;
+                box-shadow: 0 30px 50px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 255, 210, 0.14);
+              }
+              .content { padding: 32px; }
+              .confirm-header { margin-bottom: 24px; }
+              .check-icon {
+                display: inline-block;
+                width: 58px;
+                height: 58px;
+                line-height: 58px;
+                text-align: center;
+                border-radius: 60px;
+                background: linear-gradient(145deg, #1fd1b0, #0e9a8b);
+                color: #ffffff;
+                font-size: 30px;
+                font-weight: 700;
+                box-shadow: 0 10px 22px rgba(0, 210, 190, 0.35);
+                border: 1px solid rgba(255, 255, 240, 0.35);
+                vertical-align: middle;
+              }
+              .title-group {
+                display: inline-block;
+                vertical-align: middle;
+                margin-left: 14px;
+              }
+              .title-group h1 {
+                margin: 0;
+                color: #ffffff;
+                font-size: 30px;
+                line-height: 1.18;
+                letter-spacing: -0.4px;
+              }
+              .title-group p {
+                margin: 5px 0 0;
+                color: #9acfdd;
+                font-size: 14px;
+                font-weight: 600;
+              }
+              .intro { color: #c2e4f2; margin: 0 0 18px; }
+              .student-name { color: #ffffff; font-weight: 700; }
+              .session-details {
+                background: rgba(0, 8, 15, 0.72);
+                border: 1px solid rgba(0, 220, 200, 0.3);
+                border-radius: 28px;
+                padding: 24px;
+                margin: 22px 0;
+                box-shadow: 0 10px 18px rgba(0, 0, 0, 0.3);
+              }
+              .session-details h3 {
+                margin: 0 0 16px;
+                color: #edf8ff;
+                font-size: 20px;
+              }
+              .detail-row {
+                padding: 13px 0;
+                border-bottom: 1px solid rgba(0, 255, 210, 0.16);
+              }
+              .detail-row:last-child { border-bottom: 0; }
+              .label {
+                color: #4ed4d0;
+                display: block;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+              }
+              .value {
+                color: #edf8ff;
+                display: block;
+                font-size: 17px;
+                font-weight: 700;
+                margin-top: 3px;
+              }
+              .dashboard-instruction {
+                background: rgba(2, 25, 35, 0.82);
+                border: 1px solid rgba(64, 224, 200, 0.45);
+                border-radius: 24px;
+                margin: 20px 0 14px;
+                padding: 20px;
+              }
+              .dashboard-instruction h4 {
+                margin: 0 0 10px;
+                color: #d3f5f0;
+                font-size: 18px;
+              }
+              .dashboard-instruction p,
+              .dashboard-instruction li { color: #c2e4f2; font-size: 14px; }
+              .dashboard-instruction ul { margin: 12px 0 0; padding-left: 20px; }
+              .dashboard-instruction li { margin: 8px 0; }
+              .privacy-note {
+                background: rgba(0, 0, 0, 0.28);
+                border-left: 3px solid #27e0ca;
+                border-radius: 18px;
+                color: #b7eee6;
+                font-size: 13px;
+                margin-top: 14px;
+                padding: 10px 12px;
+              }
+              .button {
+                display: inline-block;
+                padding: 14px 28px;
+                background: linear-gradient(105deg, #19bfaa, #0f9b8a);
+                color: #07141e !important;
+                text-decoration: none;
+                border-radius: 999px;
+                font-weight: 800;
+                margin: 12px 6px 0;
+                box-shadow: 0 6px 14px rgba(0, 180, 170, 0.3);
+              }
+              .button-secondary {
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(0, 210, 200, 0.6);
+                color: #c9f3ee !important;
+                box-shadow: none;
+              }
+              .signature { color: #c2e4f2; margin: 24px 0 0; }
+              .brand { color: #4ed4d0; font-weight: 800; }
+              .footer {
+                border-top: 1px dashed rgba(64, 224, 208, 0.3);
+                color: #559faf;
+                font-size: 12px;
+                margin-top: 26px;
+                padding-top: 18px;
+                text-align: center;
+              }
+              .footer a { color: #55f0df; text-decoration: none; }
+              @media (max-width: 550px) {
+                .email-shell { padding: 18px 10px; }
+                .content { padding: 24px 18px; }
+                .container { border-radius: 26px; }
+                .title-group { display: block; margin: 12px 0 0; }
+                .title-group h1 { font-size: 24px; }
+                .button { display: block; text-align: center; margin-left: 0; margin-right: 0; }
+              }
             </style>
           </head>
           <body>
-            <div class="container">
-              <div class="header">
-                <h1>🎓 Guidance Session Confirmed!</h1>
-              </div>
-              <div class="content">
-                <h2>Hello ${data.userName || 'Student'}!</h2>
-                <p>Welcome to Unfiltered IITians. Your guidance session has been successfully booked, and we look forward to helping you!</p>
-                
-                <div class="session-details">
-                  <h3>📅 Session Details</h3>
-                  ${data.sessionName ? `<p><strong>Session:</strong> ${data.sessionName}</p>` : ''}
-                  ${data.sessionDate ? `<p><strong>Date:</strong> ${data.sessionDate}</p>` : ''}
-                  ${data.sessionTime ? `<p><strong>Time:</strong> ${data.sessionTime}</p>` : ''}
-                  ${data.purchaseAmount ? `<p><strong>Amount Paid:</strong> ₹${data.purchaseAmount}</p>` : ''}
+            <div class="email-shell">
+              <div class="container">
+                <div class="content">
+                  <div class="confirm-header">
+                    <span class="check-icon">✓</span>
+                    <div class="title-group">
+                      <h1>Session Booked</h1>
+                      <p>Your guidance session is confirmed and secured</p>
+                    </div>
+                  </div>
+
+                  <p class="intro">Hello <span class="student-name">${data.userName || 'Student'}</span>,</p>
+                  <p class="intro">Welcome to Unfiltered IITians. Your guidance session has been successfully booked, and we look forward to helping you with focused mentorship.</p>
+                  
+                  <div class="session-details">
+                    <h3>📅 Session Details</h3>
+                    ${data.sessionName ? `<div class="detail-row"><span class="label">Session</span><span class="value">${data.sessionName}</span></div>` : ''}
+                    ${data.sessionDate ? `<div class="detail-row"><span class="label">Date</span><span class="value">${data.sessionDate}</span></div>` : ''}
+                    ${data.sessionTime ? `<div class="detail-row"><span class="label">Time</span><span class="value">${data.sessionTime}</span></div>` : ''}
+                    ${data.purchaseAmount ? `<div class="detail-row"><span class="label">Amount Paid</span><span class="value">₹${data.purchaseAmount}</span></div>` : ''}
+                  </div>
+                  
+                  <div class="dashboard-instruction">
+                    <h4>🎛️ Access your session via Dashboard</h4>
+                    <p>Your secure meeting room will be available inside your dashboard. Follow these steps:</p>
+                    <ul>
+                      <li>Go to your dashboard using the button below.</li>
+                      <li>Log in with the email used for booking.</li>
+                      <li>Open your upcoming session and join when it is time.</li>
+                      <li>Join 5 minutes early, prepare your questions, and keep a notebook handy.</li>
+                    </ul>
+                    <div class="privacy-note">The direct meeting link is not shared in this email. Dashboard access keeps your session private and secure.</div>
+                  </div>
+                  
+                  <center>
+                    <a href="${dashboardUrl}" class="button">Go to Dashboard →</a>
+                    <a href="${baseUrl}/guidance" class="button button-secondary">Browse More Sessions</a>
+                  </center>
+
+                  <div class="dashboard-instruction">
+                    <h4>⏰ Scheduling Information</h4>
+                    <ul>
+                      <li>Sessions happen during weekends between 12 PM and 5 PM.</li>
+                      <li>Send your preferred timings to <a href="mailto:Support@divyanshudarshna.com" style="color: #55f0df; font-weight: 800;">Support@divyanshudarshna.com</a>.</li>
+                    </ul>
+                  </div>
+                  
+                  <p class="signature">Best regards,<br>
+                  <strong class="brand">Unfiltered IITians</strong><br>
+                  <em>by Divyanshu Darshna</em></p>
+
+                  <div class="footer">
+                    <p>© ${new Date().getFullYear()} Unfiltered IITians by Divyanshu Darshna. All rights reserved.</p>
+                    <p><a href="${baseUrl}">Visit Website</a> | <a href="${baseUrl}/courses">Browse Courses</a></p>
+                  </div>
                 </div>
-                
-                <div class="important">
-                  <strong>⏰ Scheduling Information:</strong>
-                  <ul>
-                    <li>Sessions happen during weekends between 12 PM and 5 PM.</li>
-                    <li>Kindly send your preferred timings to <a href="mailto:Support@divyanshudarshna.com" style="color: #fa709a; font-weight: bold;">Support@divyanshudarshna.com</a>.</li>
-                    <li>Join the session 5 minutes early</li>
-                    <li>Prepare your questions beforehand</li>
-                    <li>Keep a notebook handy</li>
-                  </ul>
-                </div>
-                
-                <p>You'll receive the meeting link closer to the session date.</p>
-                
-                <center>
-                  <a href="${dashboardUrl}" class="button">View Dashboard</a>
-                  <a href="${baseUrl}/guidance" class="button button-secondary">Browse More Sessions</a>
-                </center>
-                
-                <p>Best regards,<br>
-                <strong class="brand">Unfiltered IITians</strong><br>
-                <em>by Divyanshu Darshna</em></p>
-              </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Unfiltered IITians by Divyanshu Darshna. All rights reserved.</p>
-                <p><a href="${baseUrl}" style="color: #fa709a; text-decoration: none;">Visit Website</a> | <a href="${baseUrl}/courses" style="color: #fa709a; text-decoration: none;">Browse Courses</a></p>
               </div>
             </div>
           </body>
