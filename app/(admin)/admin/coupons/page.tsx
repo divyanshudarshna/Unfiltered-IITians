@@ -45,6 +45,7 @@ interface GeneralCoupon {
   validFrom: string;
   validTill: string;
   isActive: boolean;
+  isPublic: boolean;
   createdAt: string;
   _count?: {
     usages: number;
@@ -155,6 +156,7 @@ export default function GeneralCouponsPage() {
   const activeCoupons = coupons.filter(c => c.isEffectivelyActive);
   const expiredCoupons = coupons.filter(c => c.isExpired);
   const inactiveCoupons = coupons.filter(c => !c.isActive);
+  const publicCoupons = coupons.filter(c => c.isPublic);
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-7xl">
@@ -252,7 +254,7 @@ export default function GeneralCouponsPage() {
 
       {/* Stats Cards */}
       {coupons.length > 0 && !loading && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
@@ -297,6 +299,18 @@ export default function GeneralCouponsPage() {
               </div>
               <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/40">
                 <Tag className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-purple-950/30 dark:to-fuchsia-950/30 border-purple-200 dark:border-purple-800">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-700 dark:text-purple-300">Public</p>
+                <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">{publicCoupons.length}</p>
+              </div>
+              <div className="p-3 rounded-full bg-purple-100 dark:bg-purple-900/40">
+                <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
             </CardContent>
           </Card>

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, Users, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatSessionExpiryDate } from '@/lib/guidance-session-expiry';
 
 interface SessionWithEnrollments extends Omit<Session, 'order'> {
   _count: {
@@ -99,10 +100,7 @@ export default function SessionsDatatable({ sessions, onEdit, onDelete, loading,
     }).format(price);
   };
 
-  const formatDate = (date: Date | null) => {
-    if (!date) return 'No expiry';
-    return new Date(date).toLocaleDateString('en-IN');
-  };
+  const formatDate = (date: Date | string | null) => formatSessionExpiryDate(date);
 
   if (loading) {
     return (

@@ -43,6 +43,7 @@ interface GeneralCoupon {
   validFrom: string;
   validTill: string;
   isActive: boolean;
+  isPublic: boolean;
   createdAt: string;
 }
 
@@ -70,6 +71,7 @@ export default function GeneralCouponForm({ coupon, open, onClose, onSuccess }: 
     validFrom: '',
     validTill: '',
     isActive: true,
+    isPublic: false,
   });
 
   useEffect(() => {
@@ -90,6 +92,7 @@ export default function GeneralCouponForm({ coupon, open, onClose, onSuccess }: 
           validFrom: coupon.validFrom ? new Date(coupon.validFrom).toISOString().split('T')[0] : '',
           validTill: coupon.validTill ? new Date(coupon.validTill).toISOString().split('T')[0] : '',
           isActive: coupon.isActive,
+          isPublic: coupon.isPublic ?? false,
         });
       } else {
         // Creating new coupon
@@ -112,6 +115,7 @@ export default function GeneralCouponForm({ coupon, open, onClose, onSuccess }: 
           validFrom: tomorrow.toISOString().split('T')[0],
           validTill: nextMonth.toISOString().split('T')[0],
           isActive: true,
+          isPublic: false,
         });
       }
       setError(null);
@@ -187,6 +191,7 @@ export default function GeneralCouponForm({ coupon, open, onClose, onSuccess }: 
         validFrom: formData.validFrom || undefined,
         validTill: formData.validTill,
         isActive: formData.isActive,
+        isPublic: formData.isPublic,
       };
 
       const url = coupon 
@@ -452,18 +457,36 @@ export default function GeneralCouponForm({ coupon, open, onClose, onSuccess }: 
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="isActive"
-                  checked={formData.isActive}
-                  onCheckedChange={(checked) => handleInputChange('isActive', checked)}
-                  disabled={loading}
-                />
-                <Label htmlFor="isActive">Active</Label>
-                <Badge variant={formData.isActive ? "default" : "secondary"} className="ml-2">
-                  {formData.isActive ? 'Active' : 'Inactive'}
-                </Badge>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="isActive"
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) => handleInputChange('isActive', checked)}
+                    disabled={loading}
+                  />
+                  <Label htmlFor="isActive">Active</Label>
+                  <Badge variant={formData.isActive ? "default" : "secondary"} className="ml-2">
+                    {formData.isActive ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="isPublic"
+                    checked={formData.isPublic}
+                    onCheckedChange={(checked) => handleInputChange('isPublic', checked)}
+                    disabled={loading}
+                  />
+                  <Label htmlFor="isPublic">Public</Label>
+                  <Badge variant={formData.isPublic ? "default" : "secondary"} className="ml-2">
+                    {formData.isPublic ? 'Public' : 'Private'}
+                  </Badge>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Private coupons only work when users enter the code. Public coupons are shown on matching checkout pages.
+              </p>
             </CardContent>
           </Card>
 

@@ -7,19 +7,34 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { BuyButton } from "@/components/BuyButton";
 import { useUser } from "@clerk/nextjs";
+import { formatSessionExpiryDate, hasSessionExpiry } from "@/lib/guidance-session-expiry";
 import {
   Clock,
   Users,
+  User,
   Calendar,
   Tag,
   Star,
-  Zap,
   Shield,
   BookOpen,
+  PlayCircle,
+  Quote,
 } from "lucide-react";
+
+interface GuidanceTestimonial {
+  id: string;
+  type: "YOUTUBE" | "TESTIMONIAL";
+  youtubeUrl?: string | null;
+  youtubeVideoId?: string | null;
+  name?: string | null;
+  sessionAttended?: string | null;
+  description?: string | null;
+  rating: number;
+}
 
 interface Session {
   id: string;
@@ -33,9 +48,10 @@ interface Session {
   maxEnrollment: number | null;
   type: string;
   duration: number;
-  expiryDate: string;
+  expiryDate: string | null;
   createdAt: string;
   updatedAt: string;
+  testimonials?: GuidanceTestimonial[];
 }
 
 interface EnrollmentStatus {
@@ -62,6 +78,17 @@ interface CouponValidation {
   error?: string;
 }
 
+interface PublicGeneralCoupon {
+  id: string;
+  code: string;
+  name?: string | null;
+  description?: string | null;
+  discountLabel: string;
+  discountType: string;
+  discountValue: number;
+  minOrderValue?: number | null;
+}
+
 export default function SessionPage() {
   const { id } = useParams<{ id: string }>();
   const [session, setSession] = useState<Session | null>(null);
@@ -75,6 +102,9 @@ export default function SessionPage() {
   const [couponValidation, setCouponValidation] = useState<CouponValidation | null>(null);
   const [isCouponLoading, setIsCouponLoading] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
+  const [publicCoupons, setPublicCoupons] = useState<PublicGeneralCoupon[]>([]);
+  const [isPublicCouponsLoading, setIsPublicCouponsLoading] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<GuidanceTestimonial | null>(null);
   
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -101,7 +131,12 @@ export default function SessionPage() {
 
   // Coupon validation function
   const validateCoupon = async (code: string) => {
-    if (!code.trim() || !session || !user?.id) return;
+    if (!code.trim() || !session) return;
+
+    if (!user?.id) {
+      toast.error('Please sign in to apply a coupon');
+      return;
+    }
 
     setIsCouponLoading(true);
     setCouponValidation(null);
@@ -154,6 +189,12 @@ export default function SessionPage() {
     setCouponCode('');
     setCouponValidation(null);
     toast.info('Coupon removed');
+  };
+
+  const usePublicCoupon = (code: string) => {
+    const normalizedCode = code.trim().toUpperCase();
+    setCouponCode(normalizedCode);
+    validateCoupon(normalizedCode);
   };
 
   // Calculate final price with coupon
@@ -210,6 +251,33 @@ export default function SessionPage() {
 
     fetchSession();
   }, [id]);
+
+  useEffect(() => {
+    if (!session) return;
+
+    const fetchPublicCoupons = async () => {
+      try {
+        setIsPublicCouponsLoading(true);
+        const params = new URLSearchParams({
+          productType: 'GUIDANCE_SESSION',
+          productId: session.id,
+          orderValue: String(session.discountedPrice),
+        });
+        const response = await fetch(`/api/general-coupons/public?${params.toString()}`);
+
+        if (!response.ok) throw new Error('Failed to fetch public coupons');
+
+        const data = await response.json();
+        setPublicCoupons(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Public coupons error:', error);
+      } finally {
+        setIsPublicCouponsLoading(false);
+      }
+    };
+
+    fetchPublicCoupons();
+  }, [session]);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -318,6 +386,11 @@ export default function SessionPage() {
         ((session.price - session.discountedPrice) / session.price) * 100
       )
     : 0;
+  const sessionHasExpiry = hasSessionExpiry(session.expiryDate);
+  const sessionExpiryLabel = formatSessionExpiryDate(session.expiryDate);
+  const SessionTypeIcon = session.type === "ONE_ON_ONE" ? User : Users;
+  const sessionTypeLabel = session.type === "ONE_ON_ONE" ? "One on One Session" : "Group Session";
+  const testimonials = session.testimonials || [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br py-4 sm:py-6 lg:py-8 px-3 sm:px-4 lg:px-6 xl:px-8">
@@ -328,8 +401,8 @@ export default function SessionPage() {
             variant="secondary"
             className="px-3 sm:px-4 py-1.5 sm:py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700 text-sm sm:text-base"
           >
-            <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-            {session.type.toUpperCase()} SESSION
+            <SessionTypeIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            {sessionTypeLabel}
           </Badge>
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 bg-clip-text text-transparent">
             {session.title}
@@ -438,7 +511,9 @@ export default function SessionPage() {
                     </div>
                   )}
                   <p className="text-purple-100 text-sm">
-                    One-time payment • Lifetime access
+                    {sessionHasExpiry
+                      ? `One-time payment • Valid until ${sessionExpiryLabel}`
+                      : "One time session"}
                   </p>
                 </div>
 
@@ -535,6 +610,43 @@ export default function SessionPage() {
                               </div>
                             </div>
                           )}
+
+                          <div className="mt-4 border-t border-blue-300/20 pt-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Tag className="h-4 w-4 text-yellow-300" />
+                              <p className="text-sm font-semibold text-purple-100">Available Coupons</p>
+                            </div>
+
+                            {isPublicCouponsLoading ? (
+                              <p className="text-xs text-purple-200">Checking available coupons...</p>
+                            ) : publicCoupons.length > 0 ? (
+                              <div className="grid gap-2">
+                                {publicCoupons.map((coupon) => (
+                                  <button
+                                    key={coupon.id}
+                                    type="button"
+                                    onClick={() => usePublicCoupon(coupon.code)}
+                                    disabled={isCouponLoading}
+                                    className="flex items-center justify-between rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-left transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    <span>
+                                      <span className="block text-sm font-semibold text-white">
+                                        {coupon.name || coupon.code}
+                                      </span>
+                                      <span className="block text-xs text-emerald-200">
+                                        {coupon.discountLabel}
+                                      </span>
+                                    </span>
+                                    <span className="rounded-full bg-white/15 px-2 py-1 text-xs font-semibold text-white">
+                                      {coupon.code}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-purple-200">No public coupons available for this session.</p>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -636,10 +748,10 @@ export default function SessionPage() {
                 <div className="flex items-center gap-3 text-sm">
                   <Calendar className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                   <span className="text-gray-600 dark:text-gray-300">
-                    Expires:
+                    {sessionHasExpiry ? "Expires:" : "Access:"}
                   </span>
                   <span className="font-medium text-gray-900 dark:text-white ml-auto">
-                    {new Date(session.expiryDate).toLocaleDateString()}
+                    {sessionHasExpiry ? sessionExpiryLabel : "One time session"}
                   </span>
                 </div>
               </CardContent>
@@ -659,6 +771,102 @@ export default function SessionPage() {
             </Card> */}
           </div>
         </div>
+
+        {testimonials.length > 0 && (
+          <section className="space-y-4">
+            <div className="text-center space-y-2">
+              <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/40 dark:text-purple-200">
+                Student Stories
+              </Badge>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                What learners say about this session
+              </h2>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {testimonials.map((testimonial) => {
+                const isVideo = testimonial.type === "YOUTUBE" && testimonial.youtubeVideoId;
+
+                if (isVideo) {
+                  return (
+                    <button
+                      key={testimonial.id}
+                      type="button"
+                      onClick={() => setSelectedVideo(testimonial)}
+                      className="group overflow-hidden rounded-3xl border border-white/20 bg-white/80 text-left shadow-xl backdrop-blur-sm transition hover:-translate-y-1 hover:shadow-2xl dark:border-gray-700/50 dark:bg-gray-800/80"
+                    >
+                      <div className="relative aspect-video bg-gray-900">
+                        <img
+                          src={`https://img.youtube.com/vi/${testimonial.youtubeVideoId}/hqdefault.jpg`}
+                          alt="Guidance session video testimonial"
+                          className="h-full w-full object-cover opacity-90 transition group-hover:scale-105 group-hover:opacity-100"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+                          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-purple-700 shadow-lg transition group-hover:scale-110">
+                            <PlayCircle className="h-8 w-8" />
+                          </span>
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <p className="text-sm font-semibold text-purple-700 dark:text-purple-300">Video Testimonial</p>
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                          Click to watch the student experience for this guidance session.
+                        </p>
+                      </div>
+                    </button>
+                  );
+                }
+
+                return (
+                  <Card
+                    key={testimonial.id}
+                    className="rounded-3xl border border-white/20 bg-white/80 shadow-xl backdrop-blur-sm dark:border-gray-700/50 dark:bg-gray-800/80"
+                  >
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-white">{testimonial.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {testimonial.sessionAttended || session.title}
+                          </p>
+                        </div>
+                        <Quote className="h-6 w-6 text-purple-300" />
+                      </div>
+                      <div className="flex items-center gap-1 text-amber-500">
+                        {Array.from({ length: 5 }).map((_, index) => (
+                          <Star
+                            key={index}
+                            className={`h-4 w-4 ${index < Math.round(testimonial.rating || 5) ? "fill-amber-400" : "text-gray-300"}`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-300">
+                        {testimonial.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        <Dialog open={!!selectedVideo} onOpenChange={(open) => !open && setSelectedVideo(null)}>
+          <DialogContent className="max-w-4xl border-0 bg-black p-0 text-white">
+            <DialogHeader className="px-4 pt-4">
+              <DialogTitle>Video Testimonial</DialogTitle>
+            </DialogHeader>
+            {selectedVideo?.youtubeVideoId && (
+              <iframe
+                src={`https://www.youtube.com/embed/${selectedVideo.youtubeVideoId}?autoplay=1&rel=0`}
+                title="Guidance session video testimonial"
+                className="aspect-video w-full rounded-b-lg"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Bottom CTA */}
         <div className="text-center pt-8">

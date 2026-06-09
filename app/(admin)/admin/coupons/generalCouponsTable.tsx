@@ -17,6 +17,7 @@ import {
   Eye, 
   Calendar,
   Users,
+  EyeOff,
   Percent,
   DollarSign,
   Package,
@@ -60,6 +61,7 @@ interface GeneralCoupon {
   validFrom: string;
   validTill: string;
   isActive: boolean;
+  isPublic: boolean;
   createdAt: string;
   _count?: {
     usages: number;
@@ -168,6 +170,7 @@ export default function GeneralCouponsTable({ coupons, onEdit, onDelete }: Gener
             <TableHead className="font-semibold">Usage</TableHead>
             <TableHead className="font-semibold">Validity</TableHead>
             <TableHead className="font-semibold">Status</TableHead>
+            <TableHead className="font-semibold">Visibility</TableHead>
             <TableHead className="text-right font-semibold">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -233,6 +236,16 @@ export default function GeneralCouponsTable({ coupons, onEdit, onDelete }: Gener
               <TableCell>
                 {getStatusBadge(coupon)}
               </TableCell>
+
+              <TableCell>
+                <Badge
+                  variant={coupon.isPublic ? "default" : "secondary"}
+                  className="gap-1"
+                >
+                  {coupon.isPublic ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                  {coupon.isPublic ? 'Public' : 'Private'}
+                </Badge>
+              </TableCell>
               
               <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2">
@@ -276,6 +289,10 @@ export default function GeneralCouponsTable({ coupons, onEdit, onDelete }: Gener
                             <div>
                               <label className="text-sm font-medium text-muted-foreground">Valid Till</label>
                               <p className="text-sm">{formatDate(coupon.validTill)}</p>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">Visibility</label>
+                              <p className="text-sm">{coupon.isPublic ? 'Public' : 'Private'}</p>
                             </div>
                           </div>
                           

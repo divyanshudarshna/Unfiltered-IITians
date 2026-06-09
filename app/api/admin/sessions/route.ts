@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
+import { getSessionExpiryDate } from '@/lib/guidance-session-expiry';
 
 export async function GET(req: NextRequest) {
   try {
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
         maxEnrollment: body.maxEnrollment ? parseInt(body.maxEnrollment) : null,
         type: body.type,
         duration: parseInt(body.duration),
-        expiryDate: body.expiryDate ? new Date(body.expiryDate) : null,
+        expiryDate: getSessionExpiryDate(body.expiryDate),
       },
       include: {
         _count: {

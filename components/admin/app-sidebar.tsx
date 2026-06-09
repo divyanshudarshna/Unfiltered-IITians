@@ -68,6 +68,7 @@ const data = {
       submenu: [
         { title: "Manage Sessions", url: "/admin/sessions" },
         { title: "Session Enrollments", url: "/admin/session-enrollments" },
+        { title: "Testimonials", url: "/admin/sessions/testimonials" },
       ],
     },
     { title: "Manage YouTube", url: "/admin/youtube", icon: Video },

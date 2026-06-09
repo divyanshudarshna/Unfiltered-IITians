@@ -38,6 +38,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
     const couponWithStats = {
       ...coupon,
+      isPublic: coupon.isPublic === true,
       isExpired,
       isUsageLimitReached,
       isEffectivelyActive: coupon.isActive && !isExpired && !isUsageLimitReached,
@@ -69,7 +70,8 @@ export async function PUT(req: Request, { params }: Params) {
       productIds,
       validFrom,
       validTill,
-      isActive
+      isActive,
+      isPublic
     } = body;
 
     // Check if coupon exists
@@ -129,6 +131,7 @@ export async function PUT(req: Request, { params }: Params) {
         ...(validFrom && { validFrom: new Date(validFrom) }),
         ...(validTill && { validTill: new Date(validTill) }),
         ...(isActive !== undefined && { isActive }),
+        ...(isPublic !== undefined && { isPublic: isPublic === true }),
       },
       include: {
         _count: {

@@ -11,6 +11,22 @@ export async function GET(
 
     const session = await prisma.session.findUnique({
       where: { id },
+      include: {
+        testimonials: {
+          where: { status: "ACTIVE" },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            type: true,
+            youtubeUrl: true,
+            youtubeVideoId: true,
+            name: true,
+            sessionAttended: true,
+            description: true,
+            rating: true,
+          },
+        },
+      },
     });
 
     if (!session) {

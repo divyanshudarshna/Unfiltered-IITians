@@ -564,6 +564,17 @@ enum SessionStatus {
   ARCHIVED
 }
 
+enum GuidanceTestimonialType {
+  YOUTUBE
+  TESTIMONIAL
+}
+
+enum GuidanceTestimonialStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+}
+
 enum PaymentStatus {
   PENDING
   SUCCESS
@@ -590,10 +601,33 @@ model Session {
   updatedAt       DateTime      @updatedAt
 
   // Relations
-  enrollments SessionEnrollment[]
+  enrollments   SessionEnrollment[]
+  testimonials GuidanceSessionTestimonial[]
 
   @@index([status])
   @@index([expiryDate])
+}
+
+model GuidanceSessionTestimonial {
+  id              String                    @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId       String                    @db.ObjectId
+  type            GuidanceTestimonialType   @default(YOUTUBE)
+  status          GuidanceTestimonialStatus @default(ACTIVE)
+  youtubeUrl      String?
+  youtubeVideoId  String?
+  name            String?
+  sessionAttended String?
+  description     String?
+  rating          Float                     @default(5)
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([status])
+  @@index([type])
+  @@index([sessionId, status])
 }
 
 model SessionEnrollment {
@@ -705,6 +739,7 @@ model GeneralCoupon {
   validFrom DateTime @default(now())
   validTill DateTime
   isActive  Boolean  @default(true)
+  isPublic  Boolean? @default(false) // Whether coupon is visible on frontend checkout pages
 
   // Metadata
   createdBy String?  @db.ObjectId // Admin who created this coupon
@@ -717,6 +752,7 @@ model GeneralCoupon {
   @@index([productType])
   @@index([validTill])
   @@index([isActive])
+  @@index([isPublic])
 }
 
 model GeneralCouponUsage {

@@ -70,6 +70,7 @@ export async function GET(req: NextRequest) {
       
       return {
         ...coupon,
+        isPublic: coupon.isPublic === true,
         isExpired,
         isUsageLimitReached,
         isEffectivelyActive: coupon.isActive && !isExpired && !isUsageLimitReached,
@@ -102,6 +103,7 @@ export async function POST(req: Request) {
       productIds,
       validFrom,
       validTill,
+      isPublic,
       createdBy
     } = body;
 
@@ -154,6 +156,7 @@ export async function POST(req: Request) {
         productIds: productIds || [],
         validFrom: validFrom ? new Date(validFrom) : new Date(),
         validTill: new Date(validTill),
+        isPublic: isPublic === true,
         createdBy,
       },
       include: {
