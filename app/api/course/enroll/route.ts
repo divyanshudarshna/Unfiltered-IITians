@@ -1,6 +1,7 @@
 // app/api/course/enroll/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getCourseExpiryDate } from '@/lib/course-expiry'
 
 export async function POST(req: Request) {
   try {
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
     }
 
     // Calculate expiry date based on course duration
-    const expiresAt = new Date(Date.now() + (course.durationMonths * 30 * 24 * 60 * 60 * 1000)); // months to milliseconds
+    const expiresAt = getCourseExpiryDate(new Date(), course.durationMonths);
 
     const enrollment = await prisma.enrollment.create({
       data: {

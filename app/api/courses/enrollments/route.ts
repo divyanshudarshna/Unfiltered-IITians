@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { currentUser } from "@clerk/nextjs/server";
+import { getCourseExpiryDate } from "@/lib/course-expiry";
 
 export async function GET() {
   try {
@@ -68,10 +69,9 @@ export async function GET() {
 
       const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-      // ✅ Valid till calculation
-      const validTillDate = new Date(enroll.enrolledAt);
-      validTillDate.setMonth(
-        validTillDate.getMonth() + (enroll.course.durationMonths || 0)
+      const validTillDate = enroll.expiresAt ?? getCourseExpiryDate(
+        enroll.enrolledAt,
+        enroll.course.durationMonths || 0
       );
 
       return {

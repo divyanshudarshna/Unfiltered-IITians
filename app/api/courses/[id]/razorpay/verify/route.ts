@@ -1,6 +1,7 @@
 // app/api/courses/[id]/razorpay/verify/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCourseExpiryDate } from "@/lib/course-expiry";
 import crypto from "crypto";
 import * as Email from "@/lib/email";
 
@@ -36,13 +37,26 @@ export async function POST(req: Request) {
       );
     }
 
+    // Get course with inclusions for enrollment creation and inclusion processing
+    const course = await prisma.course.findUnique({
+      where: { id: sub.courseId! },
+      select: { 
+        durationMonths: true,
+        inclusions: true 
+      }
+    });
+
+    const paidAt = new Date();
+    const courseExpiresAt = getCourseExpiryDate(paidAt, course?.durationMonths ?? 12);
+
     // ✅ Mark subscription as paid
     await prisma.subscription.updateMany({
       where: { razorpayOrderId: razorpay_order_id },
       data: { 
         paid: true,
         razorpayPaymentId: razorpay_payment_id,
-        paidAt: new Date(),
+        paidAt,
+        expiresAt: courseExpiresAt,
       },
     });
 
@@ -80,28 +94,20 @@ export async function POST(req: Request) {
       where: { userId: sub.userId, courseId: sub.courseId! },
     });
 
-    // Get course with inclusions for both enrollment creation and inclusion processing
-    const course = await prisma.course.findUnique({
-      where: { id: sub.courseId! },
-      select: { 
-        durationMonths: true,
-        inclusions: true 
-      }
-    });
-
     if (!existing) {
-      // Calculate expiry date based on course duration
-      const enrollmentExpiresAt = course ? 
-        new Date(Date.now() + (course.durationMonths * 30 * 24 * 60 * 60 * 1000)) : // months to milliseconds
-        new Date(Date.now() + (12 * 30 * 24 * 60 * 60 * 1000)); // default 12 months
-
       // Create main course enrollment
       await prisma.enrollment.create({
         data: {
           userId: sub.userId,
           courseId: sub.courseId!,
-          expiresAt: enrollmentExpiresAt,
+          enrolledAt: paidAt,
+          expiresAt: courseExpiresAt,
         },
+      });
+    } else if (!existing.expiresAt || existing.expiresAt < courseExpiresAt) {
+      await prisma.enrollment.update({
+        where: { id: existing.id },
+        data: { expiresAt: courseExpiresAt },
       });
     }
 
@@ -304,9 +310,7 @@ export async function POST(req: Request) {
         // Convert amount from paise to rupees
         const amountInRupees = ((sub.actualAmountPaid || sub.course.price) / 100).toFixed(2);
         
-        // Calculate expiry date based on course duration
-        const enrollmentExpiresAt = new Date(Date.now() + (sub.course.durationMonths * 30 * 24 * 60 * 60 * 1000));
-        const expiryDateString = enrollmentExpiresAt.toLocaleDateString('en-IN', { 
+        const expiryDateString = courseExpiresAt.toLocaleDateString('en-IN', { 
           day: 'numeric', 
           month: 'long', 
           year: 'numeric' 

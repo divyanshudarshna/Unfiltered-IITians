@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { adminAuth } from "@/lib/adminAuth"
+import { getCourseExpiryDate } from "@/lib/course-expiry"
 
 interface UpdateResult {
   id: string
@@ -87,8 +88,7 @@ export async function POST(request: NextRequest) {
             })
 
             if (!existingEnrollment) {
-              const expiryDate = new Date()
-              expiryDate.setMonth(expiryDate.getMonth() + (subscription.course.durationMonths || 12))
+              const expiryDate = getCourseExpiryDate(new Date(), subscription.course.durationMonths || 12)
 
               await prisma.enrollment.create({
                 data: {

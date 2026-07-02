@@ -1,6 +1,7 @@
 // app/api/subscription/confirm/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getCourseExpiryDate } from '@/lib/course-expiry'
 
 export async function POST(req: Request) {
   try {
@@ -21,11 +22,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
 
+    const paidAt = new Date();
+    const expiresAt = subscription.course
+      ? getCourseExpiryDate(paidAt, subscription.course.durationMonths)
+      : subscription.expiresAt;
+
     // Update subscription to paid
     const updatedSubscription = await prisma.subscription.updateMany({
       where: { razorpayOrderId },
-      data: { paid: true },
+      data: { paid: true, paidAt, expiresAt },
     })
+
+    if (subscription.courseId && subscription.course && expiresAt) {
+      const existingEnrollment = await prisma.enrollment.findFirst({
+        where: { userId: subscription.userId, courseId: subscription.courseId },
+      });
+
+      if (!existingEnrollment) {
+        await prisma.enrollment.create({
+          data: {
+            userId: subscription.userId,
+            courseId: subscription.courseId,
+            enrolledAt: paidAt,
+            expiresAt,
+          },
+        });
+      } else if (!existingEnrollment.expiresAt || existingEnrollment.expiresAt < expiresAt) {
+        await prisma.enrollment.update({
+          where: { id: existingEnrollment.id },
+          data: { expiresAt },
+        });
+      }
+    }
 
     // If coupon was used, track the usage
     if (couponData && couponData.couponId) {

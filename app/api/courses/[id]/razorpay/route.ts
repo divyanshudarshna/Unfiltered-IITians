@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { razorpay } from "@/lib/razorpay";
+import { getCourseExpiryDate } from "@/lib/course-expiry";
 import crypto from "crypto";
 
 interface Params {
@@ -80,7 +81,7 @@ export async function POST(req: Request, { params }: Params) {
     });
 
     // ✅ Create a pending subscription entry
-    const subscriptionExpiresAt = new Date(Date.now() + (course.durationMonths * 30 * 24 * 60 * 60 * 1000)); // months to milliseconds
+    const subscriptionExpiresAt = getCourseExpiryDate(new Date(), course.durationMonths);
     
     const subscription = await prisma.subscription.create({
       data: {
