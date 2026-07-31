@@ -298,6 +298,7 @@ model Lecture {
   summary         String?
   order           Int
   studyTips       Json? // Array of tip strings
+  isFreePreview   Boolean @default(false)
   contentId       String  @db.ObjectId
 
   content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)

@@ -1,118 +1,24 @@
 // app/api/courses/[id]/contents/route.ts
 import { NextResponse } from "next/server";
-import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getCourseEntitlement } from "@/lib/courseAccess";
+import { resolveCourseDeliveryMode, shapeLectureForAccess } from "@/lib/courseAccessPolicy";
 
 interface Params {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     const { userId: clerkUserId } = await auth();
-    if (!clerkUserId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Map Clerk user → DB user
-    let user = await prisma.user.findUnique({
-      where: { clerkUserId },
-      select: { id: true, role: true }
-    });
-
-    // Auto-sync: webhook may have been missed (common in local dev)
-    if (!user) {
-      console.warn(`[contents] No DB user for clerkUserId ${clerkUserId} — attempting auto-sync`)
-      const clerkUser = await currentUser()
-      if (clerkUser) {
-        const email = clerkUser.emailAddresses[0]?.emailAddress ?? ''
-        const name = `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim() || null
-        const role = (clerkUser.publicMetadata?.role as 'ADMIN' | 'INSTRUCTOR' | 'STUDENT') || 'STUDENT'
-        await prisma.user.upsert({
-          where: { clerkUserId },
-          create: { clerkUserId, email, name, profileImageUrl: clerkUser.imageUrl, role },
-          update: { email, name, profileImageUrl: clerkUser.imageUrl },
-        })
-        
-        user = await prisma.user.findUnique({
-          where: { clerkUserId },
-          select: { id: true, role: true }
-        })
-      }
-    }
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Check if user is admin (from database role)
-    const isAdminFromDB = user.role === 'ADMIN';
-    
-    // Check if user is admin (from Clerk metadata)
-    let isAdminFromClerk = false;
-    try {
-      const client = await clerkClient()
-      const clerkUser = await client.users.getUser(clerkUserId)
-      isAdminFromClerk = clerkUser.publicMetadata?.role === 'ADMIN';
-    } catch {
-      
-    }
-
-    const isAdmin = isAdminFromDB || isAdminFromClerk;
-
-    // Skip enrollment/subscription checks for admins
-    let enrollment = null;
-    let subscription = null;
-
-    if (!isAdmin) {
-      // Check if user is enrolled in the course
-      enrollment = await prisma.enrollment.findFirst({
-        where: { 
-          userId: user.id, 
-          courseId: params.id 
-        }
-      });
-
-      if (!enrollment) {
-        return NextResponse.json({ 
-          error: "Access denied. You are not enrolled in this course.",
-          redirectTo: "/courses",
-          code: "NOT_ENROLLED"
-        }, { status: 403 });
-      }
-
-      // Check if enrollment has expired
-      if (enrollment.expiresAt && enrollment.expiresAt < new Date()) {
-        return NextResponse.json({ 
-          error: "Your course access has expired.",
-          redirectTo: "/courses",
-          code: "EXPIRED"
-        }, { status: 403 });
-      }
-
-      // Check if user has an active subscription for the course
-      subscription = await prisma.subscription.findFirst({
-        where: { 
-          userId: user.id, 
-          courseId: params.id,
-          paid: true
-        }
-      });
-
-      if (subscription && subscription.expiresAt && subscription.expiresAt < new Date()) {
-        return NextResponse.json({ 
-          error: "Your course subscription has expired.",
-          redirectTo: "/courses",
-          code: "SUBSCRIPTION_EXPIRED"
-        }, { status: 403 });
-      }
-    } else {
-      
-    }
+    const previewRequested = new URL(req.url).searchParams.get("preview") === "1";
+    const entitlement = await getCourseEntitlement(clerkUserId, id);
 
     // Fetch course with contents + lectures + quiz
     const course = await prisma.course.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         contents: {
           orderBy: { order: "asc" },
@@ -128,6 +34,23 @@ export async function GET(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
+    const hasFreePreview = course.contents.some((content) =>
+      content.lectures.some((lecture) => lecture.isFreePreview),
+    );
+    const deliveryMode = resolveCourseDeliveryMode({
+      previewRequested,
+      hasFullAccess: entitlement.hasFullAccess,
+      courseStatus: course.status,
+      hasFreePreview,
+    });
+    if (deliveryMode === "DENIED") {
+      return NextResponse.json({
+        error: "Access denied. Enroll in this course or start its free preview.",
+        redirectTo: `/courses/${id}`,
+        code: "NOT_ENROLLED",
+      }, { status: 403 });
+    }
+
     // Shape response
     const shaped = {
       id: course.id,
@@ -135,25 +58,19 @@ export async function GET(req: Request, { params }: Params) {
       description: course.description,
       courseType: course.courseType,
       durationMonths: course.durationMonths,
-      isAdmin,
-      enrollmentExpiresAt: enrollment?.expiresAt || null,
-      subscriptionExpiresAt: subscription?.expiresAt || null,
+      accessMode: deliveryMode,
+      enrollmentExpiresAt: deliveryMode === "FULL" ? entitlement.enrollmentExpiresAt || null : null,
       contents: course.contents.map((c) => ({
         id: c.id,
         title: c.title,
         order: c.order,
-        lectures: c.lectures.map((l) => ({
-          id: l.id,
-          title: l.title,
-          summary: l.summary ?? "",
-          videoUrl: l.videoUrl ?? "",
-          youtubeEmbedUrl: l.youtubeEmbedUrl ?? "",
-          pdfUrl: l.pdfUrl ?? "",
-          order: l.order,
-          studyTips: ((l as any).studyTips as string[] | null) ?? [],
-        })),
-        hasQuiz: !!c.quiz,
-        quizId: c.quiz?.id ?? null,
+        lectures: c.lectures.map((l) => shapeLectureForAccess({
+          ...l,
+          studyTips: (l.studyTips as string[] | null) ?? [],
+        }, deliveryMode === "FULL")),
+        hasQuiz: deliveryMode === "FULL" && !!c.quiz,
+        quizId: deliveryMode === "FULL" ? c.quiz?.id ?? null : null,
+        quizLocked: deliveryMode !== "FULL" && !!c.quiz,
       })),
     };
 

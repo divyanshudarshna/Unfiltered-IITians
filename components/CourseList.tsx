@@ -27,6 +27,7 @@ import {
   Rocket,
   Search,
   UserCheck,
+  PlayCircle,
 } from "lucide-react";
 import { useCoursesQuery, useBatchStatusQuery } from "@/hooks/useCoursesQuery";
 

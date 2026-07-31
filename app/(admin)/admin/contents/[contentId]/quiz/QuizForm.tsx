@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { ImageIcon, Loader2, Plus, Trash2, X } from "lucide-react";
 
 export type QuestionType = "MCQ" | "MSQ" | "NAT";
 
@@ -23,6 +24,7 @@ export interface Question {
   options: string[];
   answer: string | string[] | number;
   explanation?: string;
+  imageUrl?: string;
 }
 
 interface QuizFormProps {
@@ -42,6 +44,7 @@ export default function QuizForm({ question, onSave, onCancel }: QuizFormProps) 
 
   const [answerOption, setAnswerOption] = useState("0");
   const [msqAnswers, setMsqAnswers] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (question) {
@@ -67,6 +70,38 @@ export default function QuizForm({ question, onSave, onCancel }: QuizFormProps) 
     }
   }, [question]);
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const upload = new FormData();
+      upload.append("file", file);
+      const response = await fetch("/api/upload", { method: "POST", body: upload });
+      if (!response.ok) throw new Error("Upload failed");
+
+      const result = await response.json();
+      setFormData((current) => ({ ...current, imageUrl: result.url }));
+      toast.success("Question image uploaded");
+    } catch (error) {
+      console.error("Question image upload failed:", error);
+      toast.error("Failed to upload image");
+    } finally {
+      setIsUploading(false);
+      event.target.value = "";
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -80,7 +115,11 @@ export default function QuizForm({ question, onSave, onCancel }: QuizFormProps) 
       finalAnswer = Number(formData.answer) || 0;
     }
 
-    onSave({ ...formData, answer: finalAnswer });
+    onSave({
+      ...formData,
+      answer: finalAnswer,
+      imageUrl: formData.imageUrl?.trim() || undefined,
+    });
   };
 
   const handleOptionChange = (index: number, value: string) => {
@@ -132,6 +171,48 @@ export default function QuizForm({ question, onSave, onCancel }: QuizFormProps) 
           required
           className="min-h-[100px]"
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="quiz-question-image">Question Image (Optional)</Label>
+        {formData.imageUrl ? (
+          <div className="relative overflow-hidden rounded-lg border bg-muted/30 p-3">
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              className="absolute right-5 top-5 z-10 h-8 w-8"
+              onClick={() => setFormData((current) => ({ ...current, imageUrl: undefined }))}
+              aria-label="Remove question image"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <Image
+              src={formData.imageUrl}
+              alt="Question preview"
+              width={720}
+              height={420}
+              className="max-h-72 w-full rounded-md object-contain"
+            />
+          </div>
+        ) : (
+          <label
+            htmlFor="quiz-question-image"
+            className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors hover:border-primary/60 hover:bg-muted/40"
+          >
+            {isUploading ? <Loader2 className="h-9 w-9 animate-spin text-primary" /> : <ImageIcon className="h-9 w-9 text-muted-foreground" />}
+            <span className="mt-2 text-sm font-medium">{isUploading ? "Uploading image..." : "Upload question image"}</span>
+            <span className="mt-1 text-xs text-muted-foreground">PNG, JPG, GIF or WebP up to 5MB</span>
+            <Input
+              id="quiz-question-image"
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={handleImageUpload}
+              disabled={isUploading}
+            />
+          </label>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -222,7 +303,7 @@ export default function QuizForm({ question, onSave, onCancel }: QuizFormProps) 
                 )}
               </div>
             ))}
-            {formData.options.length < 6 && formData.type !== "NAT" && (
+            {formData.options.length < 6 && (
               <Button type="button" variant="outline" size="sm" onClick={addOption}>
                 <Plus className="w-4 h-4 mr-2" /> Add Option
               </Button>
@@ -244,7 +325,7 @@ export default function QuizForm({ question, onSave, onCancel }: QuizFormProps) 
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit">
+        <Button type="submit" disabled={isUploading}>
           {question ? "Update" : "Add"} Question
         </Button>
       </div>

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
+import { hasFullContentAccess } from "@/lib/courseAccess";
 
 export async function GET(
   req: Request,
@@ -7,6 +9,14 @@ export async function GET(
 ) {
   try {
     const { contentId } = await context.params;
+    const { userId } = await auth();
+    const access = await hasFullContentAccess(contentId, userId);
+    if (!access) {
+      return NextResponse.json({ error: "Course content not found" }, { status: 404 });
+    }
+    if (!access.entitlement.hasFullAccess) {
+      return NextResponse.json({ error: "Course enrollment required" }, { status: 403 });
+    }
 
     const quiz = await prisma.quiz.findFirst({
       where: { contentId },

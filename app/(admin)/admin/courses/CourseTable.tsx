@@ -55,6 +55,7 @@ import {
   ChevronUp,
   ChevronDown,
   Eye,
+  Loader2,
 } from "lucide-react";
 
 enum PublishStatus {
@@ -97,6 +98,9 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
   const [rowSelection, setRowSelection] = useState({});
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [isReordering, setIsReordering] = useState(false);
+  const [deleteCourseId, setDeleteCourseId] = useState<string | null>(null);
+  const [securityPassword, setSecurityPassword] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [contentCounts, setContentCounts] = useState<Record<string, number>>({});
   const [enrollCounts, setEnrollCounts] = useState<Record<string, number>>({});
@@ -137,9 +141,14 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
   }, [courses]);
 
   const handleDelete = async (id: string) => {
+    if (!securityPassword.trim()) return;
+
+    setIsDeleting(true);
     try {
       const response = await fetch(`/api/admin/courses/${id}`, {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ securityPassword }),
       });
 
       if (!response.ok) {
@@ -148,10 +157,14 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
       }
 
       toast.success("Course deleted successfully");
+      setDeleteCourseId(null);
+      setSecurityPassword("");
       refresh();
     } catch (error: any) {
       console.error("Error deleting course:", error);
       toast.error(error.message || "Failed to delete course");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -410,7 +423,14 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
               </Tooltip>
 
               {/* Delete with confirmation */}
-              <AlertDialog>
+              <AlertDialog
+                open={deleteCourseId === course.id}
+                onOpenChange={(open) => {
+                  if (isDeleting) return;
+                  setDeleteCourseId(open ? course.id : null);
+                  if (!open) setSecurityPassword("");
+                }}
+              >
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <AlertDialogTrigger asChild>
@@ -433,16 +453,39 @@ export default function CourseTable({ courses, refresh }: CourseTableProps) {
                     <AlertDialogDescription>
                       This action cannot be undone. This will permanently delete the
                       course <span className="font-semibold">{course.title}</span> and
-                      all its data.
+                      all lectures, enrollments, progress, and related data.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
+                  <div className="space-y-2 py-2">
+                    <label htmlFor={`delete-course-password-${course.id}`} className="text-sm font-medium">
+                      Security password
+                    </label>
+                    <Input
+                      id={`delete-course-password-${course.id}`}
+                      type="password"
+                      value={securityPassword}
+                      onChange={(event) => setSecurityPassword(event.target.value)}
+                      placeholder="Enter SECURITY_PASSWORD"
+                      autoComplete="current-password"
+                      disabled={isDeleting}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Required for every course deletion, including full administrators.
+                    </p>
+                  </div>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={() => handleDelete(course.id)}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        handleDelete(course.id);
+                      }}
                       className="bg-red-600 hover:bg-red-700 text-white"
+                      disabled={!securityPassword.trim() || isDeleting}
                     >
-                      Yes, Delete
+                      {isDeleting ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</>
+                      ) : "Delete permanently"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

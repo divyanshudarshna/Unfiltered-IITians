@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ interface Question {
   options?: string[];
   answer: string | string[];
   explanation?: string;
+  imageUrl?: string;
 }
 
 interface AttemptedQuestion {
@@ -80,7 +82,7 @@ useEffect(() => {
                 setAttemptedQuestions(parsedQuestions);
 
                 // Map previously attempted answers
-                const resumedAnswers = parsedQuestions.map(q => q.userAnswer);
+                const resumedAnswers = parsedQuestions.map((q: { userAnswer: string | string[] | number }) => q.userAnswer);
                 setAnswers(resumedAnswers);
               } catch (e) {
                 console.error("Failed to parse attempted questions:", e);
@@ -474,6 +476,18 @@ const handleFinishQuiz = async () => {
           <CardTitle className="text-lg">{q.question}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {q.imageUrl && (
+            <div className="overflow-hidden rounded-xl border bg-muted/30 p-2">
+              <Image
+                src={q.imageUrl}
+                alt={`Illustration for question ${currentIdx + 1}`}
+                width={900}
+                height={540}
+                className="max-h-[420px] w-full rounded-lg object-contain"
+                priority
+              />
+            </div>
+          )}
           {q.type === "MCQ" && q.options?.map((opt, idx) => {
             const isSelected = ans === opt;
             const isCorrectAnswer = opt === q.answer;

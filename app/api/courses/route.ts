@@ -27,6 +27,15 @@ export async function GET() {
             durationMonths: true,
             order: true,
             courseType: true,
+            contents: {
+              select: {
+                lectures: {
+                  where: { isFreePreview: true },
+                  take: 1,
+                  select: { id: true },
+                },
+              },
+            },
             // ✅ Instructor badges
             courseInstructors: {
               orderBy: { order: "asc" },
@@ -46,9 +55,11 @@ export async function GET() {
         });
 
         // Flatten instructor badge data
-        return rows.map(({ courseInstructors, ...rest }) => ({
+        return rows.map(({ courseInstructors, contents, ...rest }) => ({
           ...rest,
           instructors: courseInstructors.map((ci) => ci.instructor),
+          hasFreePreview: contents.some((content) => content.lectures.length > 0),
+          firstFreeLectureId: contents.flatMap((content) => content.lectures)[0]?.id ?? null,
         }));
       },
       60 // ✅ Cache for 60 seconds

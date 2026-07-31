@@ -84,6 +84,7 @@ interface Lecture {
   pdfUrl?: string;
   summary?: string;
   order: number;
+  isFreePreview?: boolean;
 }
 
 interface LectureTableProps {
@@ -264,8 +265,11 @@ export default function LectureTable({
       accessorKey: "title",
       header: "Lecture Title",
       cell: ({ row }) => (
-        <div className="font-medium line-clamp-1 max-w-[200px]">
-          {row.getValue("title")}
+        <div className="flex items-center justify-center gap-2 font-medium max-w-[220px]">
+          <span className="line-clamp-1">{row.getValue("title")}</span>
+          {row.original.isFreePreview && (
+            <Badge className="shrink-0 bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/15">Free</Badge>
+          )}
         </div>
       ),
     },

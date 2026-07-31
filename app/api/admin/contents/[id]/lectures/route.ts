@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 interface Params {
   params: { id: string }; // contentId
@@ -8,8 +9,9 @@ interface Params {
 // ➕ Create lecture
 export async function POST(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id: contentId } = await params;
-    const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order, studyTips } = await req.json();
+    const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order, studyTips, isFreePreview } = await req.json();
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -62,11 +64,14 @@ export async function POST(req: Request, { params }: Params) {
         order: finalOrder,
         contentId,
         studyTips: (studyTips ?? []) as any,
+        isFreePreview: isFreePreview === true,
       },
     });
 
     return NextResponse.json(lecture, { status: 201 });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Create Lecture Error:", err);
     return NextResponse.json({ error: "Failed to create lecture" }, { status: 500 });
   }
@@ -75,6 +80,7 @@ export async function POST(req: Request, { params }: Params) {
 // 📖 List lectures for content
 export async function GET(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
     const lectures = await prisma.lecture.findMany({
       where: { contentId: id },
@@ -83,6 +89,8 @@ export async function GET(req: Request, { params }: Params) {
 
     return NextResponse.json(lectures);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Get Lectures Error:", err);
     return NextResponse.json({ error: "Failed to fetch lectures" }, { status: 500 });
   }

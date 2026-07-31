@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -72,6 +73,7 @@ export default function LectureFormPage({ params }: LectureFormPageProps) {
   const [order, setOrder] = useState<number | null>(null);
   const [maxOrder, setMaxOrder] = useState<number>(0);
   const [studyTips, setStudyTips] = useState<string[]>([]);
+  const [isFreePreview, setIsFreePreview] = useState(false);
   const [newTip, setNewTip] = useState<string>("");
   const [saving, setSaving] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(action === "edit");
@@ -148,6 +150,7 @@ const [showPdfPreview, setShowPdfPreview] = useState(false);
           setPdfUrl(data.pdfUrl || "");
           setOrder(data.order);
           setStudyTips(Array.isArray(data.studyTips) ? data.studyTips : []);
+          setIsFreePreview(data.isFreePreview === true);
           if (editor && data.summary) {
             editor.commands.setContent(data.summary);
           }
@@ -308,6 +311,7 @@ const handlePreviewPdf = () => {
         summary: editor?.getHTML() || "",
         order: order ?? undefined,
         studyTips,
+        isFreePreview,
       };
 
       const url = action === "edit" && lectureId
@@ -456,6 +460,18 @@ const handlePreviewPdf = () => {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-emerald-500/30 bg-emerald-500/5">
+          <CardContent className="flex items-center justify-between gap-6 pt-6">
+            <div className="space-y-1">
+              <Label htmlFor="free-preview" className="text-base font-semibold">Allow free preview</Label>
+              <p className="text-sm text-muted-foreground">
+                Anyone can watch this lecture without enrollment. Other lectures and module quizzes stay locked.
+              </p>
+            </div>
+            <Switch id="free-preview" checked={isFreePreview} onCheckedChange={setIsFreePreview} />
           </CardContent>
         </Card>
 

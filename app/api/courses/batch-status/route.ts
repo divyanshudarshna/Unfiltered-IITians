@@ -19,12 +19,12 @@ export async function POST(req: Request) {
 
     // ✅ If no user, return all courses as not enrolled
     if (!clerkUserId) {
-      const result = courseIds.map(courseId => ({
+      const result = Object.fromEntries(courseIds.map(courseId => [courseId, {
         courseId,
         isEnrolled: false,
         hasAccess: false,
         expiresAt: null,
-      }));
+      }]));
       return NextResponse.json(result);
     }
 
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     }
 
     // ✅ Map results for requested courses
-    const result = courseIds.map(courseId => ({
+    const result = Object.fromEntries(courseIds.map(courseId => [courseId, {
       courseId,
       ...(enrollmentMap![courseId] || {
         isEnrolled: false,
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
         expiresAt: null,
         enrolledAt: null
       })
-    }));
+    }]));
 
     return NextResponse.json(result, {
       headers: {

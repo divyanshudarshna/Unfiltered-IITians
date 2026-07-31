@@ -31,7 +31,7 @@ export async function GET(req: Request, { params }: Params) {
 export async function PUT(req: Request, { params }: Params) {
   try {
     await assertAdminApiAccess(req.url, req.method);
-    const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order, studyTips } = await req.json();
+    const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order, studyTips, isFreePreview } = await req.json();
 
     // Get the current lecture to check if order is changing
     const currentLecture = await prisma.lecture.findUnique({
@@ -93,6 +93,7 @@ export async function PUT(req: Request, { params }: Params) {
         summary, 
         order: finalOrder,
         studyTips: (studyTips ?? []) as any,
+        isFreePreview: isFreePreview === true,
       },
     });
 

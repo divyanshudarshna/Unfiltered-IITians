@@ -36,6 +36,7 @@ import {
   Award,
   ZoomIn,
   X,
+  PlayCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -91,6 +92,7 @@ interface Course {
   actualPrice?: number;
   durationMonths: number;
   details: CourseDetail[];
+  hasFreePreview?: boolean;
 }
 
 export default function CourseDetailsPage() {
@@ -121,6 +123,7 @@ export default function CourseDetailsPage() {
         if (courseRes.ok) {
           const courseData = await courseRes.json();
           setInstructors(courseData.instructors || []);
+          setCourse((current) => current ? { ...current, hasFreePreview: courseData.hasFreePreview } : current);
         }
       } catch (err: any) {
         console.error("Error fetching course:", err);
@@ -329,6 +332,16 @@ export default function CourseDetailsPage() {
   >
     Enroll Now <ArrowRight className="ml-3 w-5 h-5" />
   </Button>
+
+  {course.hasFreePreview && (
+    <Button
+      onClick={() => router.push(`/courses/${course.id}/preview`)}
+      variant="outline"
+      className="border-emerald-500/60 text-emerald-600 hover:bg-emerald-500/10 text-lg px-10 py-5 rounded-full"
+    >
+      Start free preview <PlayCircle className="ml-3 w-5 h-5" />
+    </Button>
+  )}
 
   <Button
     onClick={() => router.push("/mocks")}

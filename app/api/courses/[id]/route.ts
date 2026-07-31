@@ -2,19 +2,23 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 interface Params {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     const course = await prisma.course.findUnique({
-      where: { id: params.id },
+      where: { id, status: "PUBLISHED" },
       include: {
         contents: {
           orderBy: { order: "asc" },
           include: {
-            lectures: { orderBy: { order: "asc" } },
-            quiz: true,
+            lectures: {
+              orderBy: { order: "asc" },
+              select: { id: true, title: true, order: true, isFreePreview: true },
+            },
+            quiz: { select: { id: true } },
           },
         },
         coupons: true,
@@ -58,7 +62,8 @@ export async function GET(req: Request, { params }: Params) {
           switch (inclusion.inclusionType) {
             case 'MOCK_TEST':
               relatedData = await prisma.mockTest.findUnique({
-                where: { id: inclusion.inclusionId }
+                where: { id: inclusion.inclusionId },
+                select: { id: true, title: true, description: true, difficulty: true, price: true },
               });
               return {
                 ...inclusion,
@@ -67,7 +72,8 @@ export async function GET(req: Request, { params }: Params) {
               
             case 'MOCK_BUNDLE':
               relatedData = await prisma.mockBundle.findUnique({
-                where: { id: inclusion.inclusionId }
+                where: { id: inclusion.inclusionId },
+                select: { id: true, title: true, description: true, basePrice: true, discountedPrice: true, mockIds: true },
               });
               return {
                 ...inclusion,
@@ -76,7 +82,8 @@ export async function GET(req: Request, { params }: Params) {
               
             case 'SESSION':
               relatedData = await prisma.session.findUnique({
-                where: { id: inclusion.inclusionId }
+                where: { id: inclusion.inclusionId },
+                select: { id: true, title: true, description: true, type: true, duration: true, price: true, discountedPrice: true },
               });
               return {
                 ...inclusion,
@@ -105,6 +112,12 @@ export async function GET(req: Request, { params }: Params) {
       price: course.price,
       inclusions: inclusionsWithData, // Replace with enriched inclusions
       instructors, // ✅ Flattened instructor profiles
+      hasFreePreview: course.contents.some((content) =>
+        content.lectures.some((lecture) => lecture.isFreePreview),
+      ),
+      firstFreeLectureId: course.contents
+        .flatMap((content) => content.lectures)
+        .find((lecture) => lecture.isFreePreview)?.id ?? null,
     };
 
     return NextResponse.json(responseData);

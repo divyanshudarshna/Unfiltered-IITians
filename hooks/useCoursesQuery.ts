@@ -22,6 +22,8 @@ interface Course {
   courseType?: string;
   thumbnail?: string;
   order?: number;
+  hasFreePreview?: boolean;
+  firstFreeLectureId?: string | null;
   createdAt?: string;
   instructors?: Array<{
     id: string;

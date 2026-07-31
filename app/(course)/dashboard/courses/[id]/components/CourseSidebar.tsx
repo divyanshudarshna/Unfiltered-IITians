@@ -33,12 +33,14 @@ import {
   Award,
   Clock,
   Loader2,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { CertificateButton } from "@/components/certificate";
 import { CertificateData } from "@/types/certificate";
+import { getPreviewContentState } from "@/lib/courseAccessPolicy";
 
 // Types
 interface CourseSidebarProps {
@@ -48,6 +50,7 @@ interface CourseSidebarProps {
   activeContent: string | null;
   setActiveContent: (contentId: string) => void;
   onStartQuiz: (contentId: string) => void;
+  onLockedContent: (title: string) => void;
   isLoadingLecture: boolean;
 }
 
@@ -58,6 +61,7 @@ export default function CourseSidebar({
   activeContent,
   setActiveContent,
   onStartQuiz,
+  onLockedContent,
   isLoadingLecture,
 }: CourseSidebarProps) {
   const [user, setUser] = useState<any>(null);
@@ -114,7 +118,7 @@ export default function CourseSidebar({
   const toggleSection = (contentId: string) => {
     setOpenSections((prev) => ({
       ...prev,
-      [contentId]: !prev[contentId],
+      [contentId]: !(prev[contentId] ?? true),
     }));
   };
 
@@ -156,7 +160,11 @@ export default function CourseSidebar({
   };
 
   const handleLectureClick = (lecture: any, content: any) => {
-    if (isLoadingLecture) return; // Prevent clicks during loading
+    if (isLoadingLecture) return;
+    if (lecture.locked) {
+      onLockedContent(lecture.title);
+      return;
+    }
     
     setSelectedLecture(lecture);
     setActiveContent(content.id);
@@ -289,6 +297,9 @@ export default function CourseSidebar({
                     return orderA - orderB;
                   })
                   .map((content: any, idx: number) => {
+                  const previewState = getPreviewContentState(content);
+                  const contentLocked = previewState === "LOCKED";
+                  const hasLockedItems = previewState !== "OPEN";
                   const contentCompleted =
                     content.lectures.every((l: any) => l.completed) &&
                     (!content.hasQuiz || content.quizCompleted)
@@ -297,8 +308,19 @@ export default function CourseSidebar({
                     <Collapsible
                       key={content.id}
                       open={openSections[content.id] ?? true}
-                      onOpenChange={() => toggleSection(content.id)}
-                      className="w-full rounded-xl border border-border bg-primary/5 shadow-sm hover:shadow-primary/20 transition-all duration-300"
+                      onOpenChange={() => {
+                        if (contentLocked) {
+                          onLockedContent(content.title);
+                          return;
+                        }
+                        toggleSection(content.id);
+                      }}
+                      className={cn(
+                        "w-full rounded-xl border bg-primary/5 shadow-sm transition-all duration-300",
+                        contentLocked
+                          ? "border-red-500/40 bg-red-500/5"
+                          : "border-border hover:shadow-primary/20",
+                      )}
                     >
                       <CollapsibleTrigger asChild>
                         <Button
@@ -332,11 +354,14 @@ export default function CourseSidebar({
                               </div>
                             </div>
                           </div>
-                          {openSections[content.id] ?? true ? (
-                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          )}
+                          <div className="flex shrink-0 items-center gap-2">
+                            {hasLockedItems && <Lock className="h-4 w-4 text-red-500" />}
+                            {openSections[content.id] ?? true ? (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
                         </Button>
                       </CollapsibleTrigger>
 
@@ -357,13 +382,18 @@ export default function CourseSidebar({
                                 "w-full justify-start h-auto p-3 rounded-lg transition-all hover:bg-primary/10 relative",
                                 selectedLecture?.id === lecture.id &&
                                   "bg-primary/10 font-medium ring-1 ring-primary/40",
+                                lecture.locked &&
+                                  "border border-red-500/30 bg-red-500/5 text-muted-foreground hover:bg-red-500/10 hover:text-foreground",
                                 isLoadingLecture && selectedLecture?.id === lecture.id && "opacity-70"
                               )}
                               onClick={() => handleLectureClick(lecture, content)}
                               disabled={isLoadingLecture && selectedLecture?.id === lecture.id}
+                              aria-disabled={lecture.locked}
                             >
                               {isLoadingLecture && selectedLecture?.id === lecture.id ? (
                                 <Loader2 className="h-4 w-4 mr-3 shrink-0 animate-spin" />
+                              ) : lecture.locked ? (
+                                <Lock className="h-4 w-4 text-red-500 mr-3 shrink-0" />
                               ) : lecture.completed ? (
                                 <CheckCircle className="h-4 w-4 text-emerald-400 mr-3 shrink-0" />
                               ) : (
@@ -372,6 +402,9 @@ export default function CourseSidebar({
                               <span className="text-sm flex-1 text-left truncate">
                                 {lecture.title}
                               </span>
+                              {lecture.isFreePreview && (
+                                <Badge className="ml-2 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">Free</Badge>
+                              )}
                             </Button>
                           ))}
 
@@ -402,6 +435,18 @@ export default function CourseSidebar({
                                   Completed
                                 </Badge>
                               )}
+                            </Button>
+                          )}
+                          {content.quizLocked && (
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm text-muted-foreground hover:bg-red-500/10 hover:text-foreground"
+                              onClick={() => onLockedContent(`${content.title} module quiz`)}
+                              aria-disabled="true"
+                            >
+                              <Lock className="mr-3 h-4 w-4 shrink-0 text-red-500" />
+                              <span className="flex-1 text-left">Module Quiz</span>
+                              <span className="text-xs text-red-500">Purchase to unlock</span>
                             </Button>
                           )}
                         </div>

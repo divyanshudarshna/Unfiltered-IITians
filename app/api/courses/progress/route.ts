@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { ObjectId } from 'mongodb';
+import { getCourseEntitlement } from '@/lib/courseAccess';
 
 // Helper: map Clerk ID → Mongo ID
 async function getMongoUserId(clerkUserId: string) {
@@ -26,6 +27,11 @@ export async function GET(request: NextRequest) {
 
     const mongoUserId = await getMongoUserId(clerkUserId);
     if (!mongoUserId) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const entitlement = await getCourseEntitlement(clerkUserId, courseId);
+    if (!entitlement.hasFullAccess) {
+      return NextResponse.json({ error: 'Active course access required' }, { status: 403 });
+    }
 
     const whereClause: any = { userId: mongoUserId, courseId };
     if (contentId) whereClause.contentId = contentId;
@@ -64,6 +70,17 @@ export async function POST(request: NextRequest) {
     // ✅ Validate ObjectId format
     if (!ObjectId.isValid(courseId) || !ObjectId.isValid(contentId)) {
       return NextResponse.json({ error: 'Invalid courseId or contentId' }, { status: 400 });
+    }
+
+    const [entitlement, content] = await Promise.all([
+      getCourseEntitlement(clerkUserId, courseId),
+      prisma.content.findFirst({ where: { id: contentId, courseId }, select: { id: true } }),
+    ]);
+    if (!entitlement.hasFullAccess) {
+      return NextResponse.json({ error: 'Active course access required' }, { status: 403 });
+    }
+    if (!content) {
+      return NextResponse.json({ error: 'Content does not belong to this course' }, { status: 400 });
     }
 
     const courseProgress = await prisma.courseProgress.upsert({

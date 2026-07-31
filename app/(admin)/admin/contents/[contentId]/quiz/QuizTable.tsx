@@ -18,7 +18,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Edit, Trash2, Search } from "lucide-react";
+import { Edit, ImageIcon, Trash2, Search } from "lucide-react";
 import { Question } from "./QuizForm";
 
 interface QuizTableProps {
@@ -156,7 +156,10 @@ export default function QuizTable({ questions, onEdit, onDelete }: QuizTableProp
                   <TableRow key={globalIndex}>
                     <TableCell>{globalIndex + 1}</TableCell>
                     <TableCell>
-                      <TruncatedText text={question.question} maxLength={40} />
+                      <div className="flex items-start gap-2">
+                        {question.imageUrl && <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-label="Has image" />}
+                        <TruncatedText text={question.question} maxLength={40} />
+                      </div>
                     </TableCell>
                     <TableCell>{question.type}</TableCell>
                     <TableCell>

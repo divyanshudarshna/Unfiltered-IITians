@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
+import { verifySecurityPassword } from "@/lib/securityPassword";
 
 interface Params {
   params: { id: string };
@@ -179,14 +180,36 @@ export async function DELETE(req: Request, { params }: Params) {
     // Enforce role based access: instructors cannot delete courses
     await assertAdminApiAccess(req.url, req.method);
 
+    const body = await req.json().catch(() => ({}));
+    const passwordResult = verifySecurityPassword(
+      process.env.SECURITY_PASSWORD,
+      body.securityPassword,
+    );
+    if (!passwordResult.allowed) {
+      return NextResponse.json(
+        { error: passwordResult.error },
+        { status: passwordResult.status },
+      );
+    }
+
+    if (!/^[0-9a-fA-F]{24}$/.test(params.id)) {
+      return NextResponse.json({ error: "Invalid course ID format" }, { status: 400 });
+    }
+
+    const course = await prisma.course.findUnique({
+      where: { id: params.id },
+      select: { id: true },
+    });
+    if (!course) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
+
     await prisma.course.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });
   } catch (err: any) {
     const authResponse = handleAuthError(err);
     if (authResponse) return authResponse;
     console.error("Delete Course Error:", err);
-    return NextResponse.json({ 
-      error: err.message || "Failed to delete course" 
-    }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete course" }, { status: 500 });
   }
 }

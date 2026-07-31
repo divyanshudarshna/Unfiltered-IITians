@@ -9,6 +9,8 @@ export interface Lecture {
   duration?: number;
   completed?: boolean;
   studyTips?: string[];
+  isFreePreview?: boolean;
+  locked?: boolean;
 }
 
 export interface Content {
@@ -19,6 +21,7 @@ export interface Content {
   hasQuiz: boolean;
   quizId: string | null;
   quizCompleted?: boolean;
+  quizLocked?: boolean;
 }
 
 export interface CourseResponse {
@@ -27,4 +30,5 @@ export interface CourseResponse {
   description: string;
   contents: Content[];
   progress?: number;
+  accessMode?: "FULL" | "PREVIEW";
 }

@@ -6,6 +6,14 @@ interface Lecture {
   id: string;
   title: string;
   completed: boolean;
+  locked?: boolean;
+  isFreePreview?: boolean;
+  summary?: string;
+  videoUrl?: string;
+  youtubeEmbedUrl?: string;
+  pdfUrl?: string;
+  order: number;
+  studyTips?: string[];
 }
 
 interface CourseContent {
@@ -27,6 +35,7 @@ interface Course {
   durationMonths?: number;
   enrollmentExpiresAt?: Date | string | null;
   subscriptionExpiresAt?: Date | string | null;
+  accessMode?: "FULL" | "PREVIEW";
 }
 
 interface CourseContextType {
@@ -40,6 +49,7 @@ interface CourseContextType {
   refreshCourse: () => void;
   markLectureComplete: (lectureId: string) => void;
   saveProgress: (contentId: string, completed: boolean, quizScore?: number, totalQuizQuestions?: number) => void;
+  isPreview: boolean;
 }
 
 const CourseContext = createContext<CourseContextType | undefined>(undefined);
@@ -53,9 +63,10 @@ export const useCourse = () => {
 interface Props {
   courseId: string;
   children: ReactNode;
+  preview?: boolean;
 }
 
-export const CourseProvider = ({ courseId, children }: Props) => {
+export const CourseProvider = ({ courseId, children, preview = false }: Props) => {
   const [course, setCourse] = useState<Course | null>(null);
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [activeContent, setActiveContent] = useState<string>("");
@@ -68,7 +79,7 @@ export const CourseProvider = ({ courseId, children }: Props) => {
     try {
       setLoading(true);
 
-      const res = await fetch(`/api/courses/${courseId}/contents`, { credentials: "include" });
+      const res = await fetch(`/api/courses/${courseId}/contents${preview ? "?preview=1" : ""}`, { credentials: "include" });
       const courseJson = await res.json();
 
       if (!res.ok) {
@@ -81,8 +92,8 @@ export const CourseProvider = ({ courseId, children }: Props) => {
         return;
       }
 
-      const progressRes = await fetch(`/api/courses/progress?courseId=${courseId}`, { credentials: "include" });
-      const progressJson = progressRes.ok ? await progressRes.json() : [];
+      const progressRes = preview ? null : await fetch(`/api/courses/progress?courseId=${courseId}`, { credentials: "include" });
+      const progressJson = progressRes?.ok ? await progressRes.json() : [];
 
       // Sort contents and lectures by order before merging progress
       // Ensure proper numeric sorting
@@ -113,9 +124,12 @@ export const CourseProvider = ({ courseId, children }: Props) => {
       });
 
       setCourse(courseJson);
-      if (courseJson.contents?.[0]?.lectures?.[0]) {
-        setSelectedLecture(courseJson.contents[0].lectures[0]);
-        setActiveContent(courseJson.contents[0].id);
+      const firstAvailable = courseJson.contents
+        .flatMap((content: CourseContent) => content.lectures.map((lecture) => ({ content, lecture })))
+        .find(({ lecture }: { lecture: Lecture }) => !lecture.locked);
+      if (firstAvailable) {
+        setSelectedLecture(firstAvailable.lecture);
+        setActiveContent(firstAvailable.content.id);
       }
       setError(null);
     } catch (err) {
@@ -128,7 +142,7 @@ export const CourseProvider = ({ courseId, children }: Props) => {
 
   // Save progress
   const saveProgress = async (contentId: string, completed: boolean, quizScore?: number, totalQuizQuestions?: number) => {
-    if (!course) return;
+    if (!course || preview) return;
     try {
       await fetch(`/api/courses/progress`, {
         method: "POST",
@@ -149,7 +163,7 @@ export const CourseProvider = ({ courseId, children }: Props) => {
 
   // Mark lecture complete and optimistically update UI
   const markLectureComplete = async (lectureId: string) => {
-    if (!course) return;
+    if (!course || preview) return;
     try {
       await fetch(`/api/courses/progress`, {
         method: "POST",
@@ -181,7 +195,7 @@ export const CourseProvider = ({ courseId, children }: Props) => {
 
   useEffect(() => {
     fetchCourse();
-  }, [courseId]);
+  }, [courseId, preview]);
 
   return (
     <CourseContext.Provider
@@ -196,6 +210,7 @@ export const CourseProvider = ({ courseId, children }: Props) => {
         refreshCourse: fetchCourse,
         markLectureComplete,
         saveProgress,
+        isPreview: preview,
       }}
     >
       {children}

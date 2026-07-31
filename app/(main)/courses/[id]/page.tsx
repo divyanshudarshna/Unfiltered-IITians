@@ -92,6 +92,8 @@ interface Course {
     };
   }[];
   instructors?: Instructor[];
+  hasFreePreview?: boolean;
+  firstFreeLectureId?: string | null;
 }
 
 interface AppliedCoupon {
@@ -650,13 +652,24 @@ export default function CourseDetailPage() {
               </div>
             </CardContent>
             <CardFooter className="pt-0">
-              <Button
-                onClick={handleCheckout}
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-3 text-base font-semibold"
-              >
-                {loading ? "Processing..." : `Pay ₹${finalPrice}`}
-              </Button>
+              <div className="grid w-full gap-3">
+                {course.hasFreePreview && (
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push(`/courses/${course.id}/preview`)}
+                    className="w-full border-emerald-500/60 text-emerald-600 hover:bg-emerald-500/10"
+                  >
+                    <Video className="mr-2 h-4 w-4" /> Start free preview
+                  </Button>
+                )}
+                <Button
+                  onClick={handleCheckout}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-3 text-base font-semibold"
+                >
+                  {loading ? "Processing..." : `Pay ₹${finalPrice}`}
+                </Button>
+              </div>
             </CardFooter>
           </Card>
 

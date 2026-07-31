@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, BookOpen, PlayCircle, Bell, Loader2 } from "lucide-react";
+import { AlertCircle, BookOpen, PlayCircle, Bell, Loader2, Lock, ShoppingCart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -17,9 +17,20 @@ import { useAuth } from "@clerk/nextjs";
 import { FeedbackModal } from "./components/FeedbackModal";
 import { useCourseAccess } from "@/hooks/useCourseAccess";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function CourseDetailPageContent() {
-  const { course, selectedLecture, activeContent, setSelectedLecture, setActiveContent, loading, error, saveProgress, markLectureComplete } = useCourse();
+  const { course, selectedLecture, activeContent, setSelectedLecture, setActiveContent, loading, error, saveProgress, markLectureComplete, isPreview } = useCourse();
   const { getToken } = useAuth();
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -30,6 +41,7 @@ export default function CourseDetailPageContent() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [isLoadingLecture, setIsLoadingLecture] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [lockedContentTitle, setLockedContentTitle] = useState<string | null>(null);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -209,10 +221,11 @@ export default function CourseDetailPageContent() {
       const { ci, li } = pos;
       const currentContent = course.contents[ci];
 
-      if (li + 1 < currentContent.lectures.length) {
+      const nextLecture = currentContent.lectures.slice(li + 1).find((lecture: any) => !lecture.locked);
+      if (nextLecture) {
         // Mark current lecture as complete before moving to next
         await markLectureComplete(selectedLecture.id);
-        setSelectedLecture(currentContent.lectures[li + 1]);
+        setSelectedLecture(nextLecture);
         return;
       }
 
@@ -225,12 +238,19 @@ export default function CourseDetailPageContent() {
       }
 
       if (ci + 1 < course.contents.length) {
-        // Mark current lecture as complete before moving to next module
         await markLectureComplete(selectedLecture.id);
-        const nextContent = course.contents[ci + 1];
-        if (nextContent.lectures.length > 0) {
-          setSelectedLecture(nextContent.lectures[0]);
-          setActiveContent(nextContent.id);
+        for (const content of course.contents.slice(ci + 1)) {
+          const lecture = content.lectures.find((item: any) => !item.locked);
+          if (lecture) {
+            setSelectedLecture(lecture);
+            setActiveContent(content.id);
+            return;
+          }
+          if (content.hasQuiz && !content.quizCompleted) {
+            setCurrentQuizContentId(content.id);
+            setShowQuiz(true);
+            return;
+          }
         }
       }
     } catch (error) {
@@ -255,20 +275,29 @@ export default function CourseDetailPageContent() {
       const { ci, li } = pos;
 
       if (li > 0) {
-        setSelectedLecture(course.contents[ci].lectures[li - 1]);
-        return;
+        const previousLecture = course.contents[ci].lectures
+          .slice(0, li)
+          .reverse()
+          .find((lecture: any) => !lecture.locked);
+        if (previousLecture) {
+          setSelectedLecture(previousLecture);
+          return;
+        }
       }
 
       if (ci > 0) {
-        const prevContent = course.contents[ci - 1];
-        if (prevContent.hasQuiz && !prevContent.quizCompleted) {
-          setCurrentQuizContentId(prevContent.id);
-          setShowQuiz(true);
-          return;
-        }
-        if (prevContent.lectures.length > 0) {
-          setSelectedLecture(prevContent.lectures[prevContent.lectures.length - 1]);
-          setActiveContent(prevContent.id);
+        for (const content of course.contents.slice(0, ci).reverse()) {
+          if (content.hasQuiz && !content.quizCompleted) {
+            setCurrentQuizContentId(content.id);
+            setShowQuiz(true);
+            return;
+          }
+          const lecture = [...content.lectures].reverse().find((item: any) => !item.locked);
+          if (lecture) {
+            setSelectedLecture(lecture);
+            setActiveContent(content.id);
+            return;
+          }
         }
       }
     } catch (error) {
@@ -293,7 +322,7 @@ export default function CourseDetailPageContent() {
   };
 
   const handleLectureSelect = async (lecture: any, contentId: string) => {
-    if (isLoadingLecture) return;
+    if (isLoadingLecture || lecture.locked) return;
     
     // Smooth scroll to top of the page
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -403,6 +432,7 @@ export default function CourseDetailPageContent() {
               setIsMobileSidebarOpen(false);
             }
           }}
+          onLockedContent={setLockedContentTitle}
           isLoadingLecture={isLoadingLecture}
         />
       </div>
@@ -421,11 +451,12 @@ export default function CourseDetailPageContent() {
               }} 
             />
             <h1 className="text-lg md:text-xl font-semibold truncate">{course.title}</h1>
+            {isPreview && <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">Free preview</Badge>}
           </div>
 
           <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
             {/* Announcements */}
-            <Button
+            {!isPreview && <Button
               variant="ghost"
               onClick={() => setShowAnnouncements(true)}
               className="relative flex items-center gap-1 md:gap-2 px-2 md:px-4 py-2 rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm hover:shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 ease-in-out text-xs md:text-sm"
@@ -438,17 +469,17 @@ export default function CourseDetailPageContent() {
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </Badge>
               )}
-            </Button>
+            </Button>}
 
             {/* Feedback */}
-            <Button
+            {!isPreview && <Button
               variant="ghost"
               onClick={() => setShowFeedback(true)}
               className="relative p-2 hover:bg-blue-500/10 transition-all rounded-md text-xs md:text-sm"
             >
               <span className="hidden sm:inline">Submit Question</span>
               <span className="sm:hidden">Help</span>
-            </Button>
+            </Button>}
           </div>
         </header>
 
@@ -522,6 +553,34 @@ export default function CourseDetailPageContent() {
           fetchNotifications(); // refresh badge after new feedback
         }}
       />
+
+      <AlertDialog
+        open={lockedContentTitle !== null}
+        onOpenChange={(open) => {
+          if (!open) setLockedContentTitle(null);
+        }}
+      >
+        <AlertDialogContent className="border-red-500/30">
+          <AlertDialogHeader>
+            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+              <Lock className="h-6 w-6 text-red-500" />
+            </div>
+            <AlertDialogTitle>Purchase this course to unlock</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-medium text-foreground">{lockedContentTitle}</span> is not included in the free preview. Purchase {course.title} for all lectures, module quizzes, resources, and progress tracking.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continue free preview</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Link href={`/courses/${course.id}`} className="gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                Purchase course
+              </Link>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 
@@ -534,18 +593,18 @@ export default function CourseDetailPageContent() {
     const { ci, li } = pos;
     const currentContent = course.contents[ci];
 
-    if (li + 1 < currentContent.lectures.length) {
-      return currentContent.lectures[li + 1];
-    }
+    const nextLecture = currentContent.lectures.slice(li + 1).find((lecture: any) => !lecture.locked);
+    if (nextLecture) return nextLecture;
 
     if (currentContent.hasQuiz && !currentContent.quizCompleted) {
       return { isQuiz: true, contentId: currentContent.id };
     }
 
-    if (ci + 1 < course.contents.length) {
-      const nextContent = course.contents[ci + 1];
-      if (nextContent.lectures.length > 0) {
-        return nextContent.lectures[0];
+    for (const content of course.contents.slice(ci + 1)) {
+      const lecture = content.lectures.find((item: any) => !item.locked);
+      if (lecture) return lecture;
+      if (content.hasQuiz && !content.quizCompleted) {
+        return { isQuiz: true, contentId: content.id };
       }
     }
 
@@ -559,18 +618,15 @@ export default function CourseDetailPageContent() {
     if (!pos) return null;
     const { ci, li } = pos;
 
-    if (li > 0) {
-      return course.contents[ci].lectures[li - 1];
-    }
+    const previousLecture = course.contents[ci].lectures.slice(0, li).reverse().find((lecture: any) => !lecture.locked);
+    if (previousLecture) return previousLecture;
 
-    if (ci > 0) {
-      const prevContent = course.contents[ci - 1];
-      if (prevContent.hasQuiz && !prevContent.quizCompleted) {
-        return { isQuiz: true, contentId: prevContent.id };
+    for (const content of course.contents.slice(0, ci).reverse()) {
+      if (content.hasQuiz && !content.quizCompleted) {
+        return { isQuiz: true, contentId: content.id };
       }
-      if (prevContent.lectures.length > 0) {
-        return prevContent.lectures[prevContent.lectures.length - 1];
-      }
+      const lecture = [...content.lectures].reverse().find((item: any) => !item.locked);
+      if (lecture) return lecture;
     }
 
     return null;
