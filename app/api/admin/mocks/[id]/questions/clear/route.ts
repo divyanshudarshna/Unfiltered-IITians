@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 export async function DELETE(
   req: NextRequest, 
   { params }: { params: { id: string } }
 ) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = params;
 
     // Find the mock
@@ -36,6 +38,8 @@ export async function DELETE(
     });
 
   } catch (err: any) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("Clear questions error:", err);
     return NextResponse.json(
       { error: "Internal server error" }, 

@@ -1,6 +1,7 @@
 // app/api/admin/faq/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { assertAdminApiAccess, handleAuthError } from '@/lib/roleAuth'
 
 type CreateFAQBody = {
   question: string
@@ -17,6 +18,7 @@ const FAQ_CLIENT = (prisma as any).fAQ as any
 // GET: list all FAQs (with optional filters)
 export async function GET(request: Request) {
   try {
+    await assertAdminApiAccess(request.url, request.method)
     const url = new URL(request.url)
     const category = url.searchParams.get('category')
     const visibleParam = url.searchParams.get('visible')
@@ -33,6 +35,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json(faqs)
   } catch (err) {
+    const authResponse = handleAuthError(err)
+    if (authResponse) return authResponse
     console.error('admin/faq GET error', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
@@ -41,6 +45,7 @@ export async function GET(request: Request) {
 // POST: create a new FAQ
 export async function POST(request: Request) {
   try {
+    await assertAdminApiAccess(request.url, request.method)
     const body = (await request.json()) as CreateFAQBody
     if (!body?.question || !body?.answer) {
       return NextResponse.json({ error: 'question and answer are required' }, { status: 400 })
@@ -57,6 +62,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json(created, { status: 201 })
   } catch (err) {
+    const authResponse = handleAuthError(err)
+    if (authResponse) return authResponse
     console.error('admin/faq POST error', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
@@ -65,6 +72,7 @@ export async function POST(request: Request) {
 // PUT: update an existing FAQ
 export async function PUT(request: Request) {
   try {
+    await assertAdminApiAccess(request.url, request.method)
     const body = await request.json()
     const { id, question, answer, category, visible } = body
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
@@ -82,6 +90,8 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(updated)
   } catch (err) {
+    const authResponse = handleAuthError(err)
+    if (authResponse) return authResponse
     console.error('admin/faq PUT error', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
@@ -90,6 +100,7 @@ export async function PUT(request: Request) {
 // DELETE: delete an FAQ by id
 export async function DELETE(request: Request) {
   try {
+    await assertAdminApiAccess(request.url, request.method)
     const url = new URL(request.url)
     const id = url.searchParams.get('id')
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
@@ -97,6 +108,8 @@ export async function DELETE(request: Request) {
     await FAQ_CLIENT.delete({ where: { id } })
     return NextResponse.json({ ok: true })
   } catch (err) {
+    const authResponse = handleAuthError(err)
+    if (authResponse) return authResponse
     console.error('admin/faq DELETE error', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { assertAdminApiAccess, handleAuthError } from '@/lib/roleAuth';
 
 
 const prisma = new PrismaClient();
@@ -7,6 +8,7 @@ const prisma = new PrismaClient();
 // GET all newsletter subscriptions
 export async function GET(request: NextRequest) {
   try {
+    await assertAdminApiAccess(request.url, request.method);
    
     
    
@@ -35,6 +37,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error('Get newsletter subscriptions error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -46,6 +50,7 @@ export async function GET(request: NextRequest) {
 // DELETE a subscription
 export async function DELETE(request: NextRequest) {
   try {
+    await assertAdminApiAccess(request.url, request.method);
     
     
     
@@ -65,6 +70,8 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ message: 'Subscription deleted successfully' });
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error('Delete newsletter subscription error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

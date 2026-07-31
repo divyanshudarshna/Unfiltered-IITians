@@ -1,6 +1,7 @@
 // app/api/admin/courses/reorder/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 interface CourseOrderUpdate {
   id: string;
@@ -10,6 +11,7 @@ interface CourseOrderUpdate {
 // ================== BULK UPDATE COURSE ORDER ==================
 export async function PUT(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const body = await req.json();
     const { courseOrders }: { courseOrders: CourseOrderUpdate[] } = body;
 
@@ -29,6 +31,8 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ message: "Course orders updated successfully" });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Bulk Update Course Order Error:", err);
     return NextResponse.json({ error: "Failed to update course orders" }, { status: 500 });
   }

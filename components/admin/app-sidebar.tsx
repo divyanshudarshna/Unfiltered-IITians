@@ -32,55 +32,56 @@ import { NavSecondary } from "@/components/admin/nav-secondary";
 import { NavUser } from "@/components/admin/nav-user";
 import { GraduationCap, MailOpen, MessageSquare, Video, UserCheck } from "lucide-react";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
-import { INSTRUCTOR_ALLOWED_ADMIN_PREFIXES } from "@/lib/roleConfig";
+import { hasPermission, type PermissionKey } from "@/lib/roleConfig";
 
 const data = {
   navMain: [
-    { title: "Dashboard", url: "/admin/dashboard", icon: IconDashboard },
-    { title: "Users", url: "/admin/users", icon: IconUsers },
-    { title: "Transaction Stats", url: "/admin/stats", icon: IconChartBar },
+    { title: "Dashboard", url: "/admin/dashboard", permission: "dashboard", icon: IconDashboard },
+    { title: "Users", url: "/admin/users", permission: "users", icon: IconUsers },
+    { title: "Transaction Stats", url: "/admin/stats", permission: "transaction_stats", icon: IconChartBar },
     {
       title: "Mocks",
       icon: IconTestPipe,
       submenu: [
-        { title: "Manage Mocks", url: "/admin/mocks" },
-        { title: "Manage Mock Bundles", url: "/admin/mockBundles" },
+        { title: "Manage Mocks", url: "/admin/mocks", permission: "mocks" },
+        { title: "Manage Mock Bundles", url: "/admin/mockBundles", permission: "mock_bundles" },
       ],
     },
     {
       title: "Courses",
       icon: IconBook,
       submenu: [
-        { title: "Manage Courses", url: "/admin/courses" },
-        { title: "Manage Details", url: "/admin/course-details" },
-        { title: "Course Enrollments", url: "/admin/course-enrollments" },
-        { title: "Manage Announcements", url: "/admin/announcement" },
-        { title: "Feedbacks", url: "/admin/feedbacks"},
+        { title: "Manage Courses", url: "/admin/courses", permission: "courses" },
+        { title: "Manage Details", url: "/admin/course-details", permission: "course_details" },
+        { title: "Course Enrollments", url: "/admin/course-enrollments", permission: "course_enrollments" },
+        { title: "Manage Announcements", url: "/admin/announcement", permission: "announcements" },
+        { title: "Feedbacks", url: "/admin/feedbacks", permission: "feedbacks"},
       ],
     },
-    { title: "Manage Instructors", url: "/admin/instructors", icon: UserCheck },
-    { title: "Coupons", url: "/admin/coupons", icon: IconTicket },
-    { title: "Free Materials", url: "/admin/materials", icon: IconFolder },
-    { title: "Success Stories", url: "/admin/successStories", icon: IconStar },
+    { title: "Manage Instructors", url: "/admin/instructors", permission: "instructors", icon: UserCheck },
+    { title: "Coupons", url: "/admin/coupons", permission: "coupons", icon: IconTicket },
+    { title: "Free Materials", url: "/admin/materials", permission: "materials", icon: IconFolder },
+    { title: "Success Stories", url: "/admin/successStories", permission: "success_stories", icon: IconStar },
     {
       title: "Sessions",
       icon: GraduationCap,
       submenu: [
-        { title: "Manage Sessions", url: "/admin/sessions" },
-        { title: "Session Enrollments", url: "/admin/session-enrollments" },
-        { title: "Testimonials", url: "/admin/sessions/testimonials" },
+        { title: "Manage Sessions", url: "/admin/sessions", permission: "sessions" },
+        { title: "Session Enrollments", url: "/admin/session-enrollments", permission: "session_enrollments" },
+        { title: "Testimonials", url: "/admin/sessions/testimonials", permission: "session_testimonials" },
       ],
     },
-    { title: "Manage YouTube", url: "/admin/youtube", icon: Video },
-    { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquare },
-    { title: "Contacts", url: "/admin/contact-us", icon: IconAddressBook },
-    { title: "Newsletter", url: "/admin/newsletter", icon: MailOpen },
-    { title: "FAQ", url: "/admin/faq", icon: IconHelpCircle },
+    { title: "Manage YouTube", url: "/admin/youtube", permission: "youtube", icon: Video },
+    { title: "Testimonials", url: "/admin/testimonials", permission: "testimonials", icon: MessageSquare },
+    { title: "Contacts", url: "/admin/contact-us", permission: "contacts", icon: IconAddressBook },
+    { title: "Newsletter", url: "/admin/newsletter", permission: "newsletter", icon: MailOpen },
+    { title: "FAQ", url: "/admin/faq", permission: "faq", icon: IconHelpCircle },
   ],
   navSecondary: [
     {
       title: "Settings",
       url: "/admin/settings",
+      permission: "settings",
       icon: IconSettings,
       actions: [
         { title: "Email Logs", url: "/admin/settings/emails" },
@@ -96,11 +97,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [feedbackCount, setFeedbackCount] = React.useState(0);
   const [instructorUnreadCount, setInstructorUnreadCount] = React.useState(0);
   const [successStoryUnreadCount, setSuccessStoryUnreadCount] = React.useState(0);
+  const [permissions, setPermissions] = React.useState<string[] | null>(null);
   const { userProfile, clerkUser, getProfileImageUrl, isLoading } = useUserProfileContext();
 
   const toggleMenu = (title: string) => {
     setOpenMenus((prev) => ({ ...prev, [title]: !prev[title] }));
   };
+
+  React.useEffect(() => {
+    fetch("/api/admin/roles/me")
+      .then((response) => response.ok ? response.json() : null)
+      .then((access) => setPermissions(access?.permissions ?? []))
+      .catch(() => setPermissions([]))
+  }, [])
 
   // Fetch notification counts
   React.useEffect(() => {
@@ -167,12 +176,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     };
   }, [userProfile, clerkUser, getProfileImageUrl, isLoading]);
 
-  const isInstructor = (userProfile?.role || clerkUser?.publicMetadata?.role) === "INSTRUCTOR";
-
-  const isAllowedForInstructor = (path?: string) => {
-    if (!path) return false
-    return INSTRUCTOR_ALLOWED_ADMIN_PREFIXES.some((p) => path.startsWith(p))
-  }
+  const currentRole = userProfile?.role || clerkUser?.publicMetadata?.role;
+  const isAdmin = currentRole === "ADMIN";
+  const isAllowed = (permission?: string) => isAdmin || (permissions !== null && permission !== undefined && hasPermission(permissions, permission as PermissionKey));
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -223,7 +229,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </SidebarMenuItem>
                   {openMenus[item.title] &&
                     item.submenu.map((sub, i) => {
-                      const allowed = !isInstructor ? true : isAllowedForInstructor(sub.url)
+                      const allowed = isAllowed(sub.permission)
                       return (
                         <SidebarMenuItem key={i}>
                           {allowed ? (
@@ -253,7 +259,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </>
               ) : (
                 <SidebarMenuItem>
-                  {(!isInstructor || isAllowedForInstructor(item.url || "")) ? (
+                  {isAllowed(item.permission) ? (
                     <SidebarMenuButton asChild>
                       <Link href={item.url || "#"} className="flex items-center gap-2 justify-between w-full">
                         <div className="flex items-center gap-2">
@@ -295,7 +301,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           ))}
         </SidebarMenu>
 
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavSecondary items={data.navSecondary.filter((item) => isAllowed(item.permission))} className="mt-auto" />
       </SidebarContent>
 
       <SidebarFooter>

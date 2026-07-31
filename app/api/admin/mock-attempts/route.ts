@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-// import { currentUser } from "@clerk/nextjs/server";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
-// async function adminAuth() {
-//   const clerkUser = await currentUser();
-//   if (!clerkUser || clerkUser.publicMetadata.role !== "ADMIN") {
-//     throw new Error("Unauthorized");
-//   }
-//   return clerkUser;
-// }
-
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    // await adminAuth();
+    await assertAdminApiAccess(req.url, req.method);
 
     const attempts = await prisma.mockAttempt.findMany({
       include: {
@@ -24,6 +16,8 @@ export async function GET() {
 
     return NextResponse.json({ attempts });
   } catch (error: any) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error("Error fetching mock attempts:", error);
     return NextResponse.json(
       { error: error.message || "Internal Server Error" },

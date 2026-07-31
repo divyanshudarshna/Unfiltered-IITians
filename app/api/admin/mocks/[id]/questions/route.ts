@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = params;
     const body = await req.json();
     const { question } = body;
@@ -39,6 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     return NextResponse.json({ question: newQuestion, mock: updatedMock });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error(err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

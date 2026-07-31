@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 export async function POST(
   req: NextRequest, 
   { params }: { params: { id: string } }
 ) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = params;
     const body = await req.json();
     const { questions } = body;
@@ -93,6 +95,8 @@ export async function POST(
     });
 
   } catch (err: any) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("Bulk upload error:", err);
     
     if (err.message.includes("Question") && err.message.includes("Invalid") || 

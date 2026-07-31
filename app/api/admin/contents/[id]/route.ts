@@ -1,6 +1,7 @@
 // app/api/admin/contents/[id]/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 interface Params {
   params: { id: string }; // contentId
@@ -9,6 +10,7 @@ interface Params {
 // ✅ Get single content
 export async function GET(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
     const content = await prisma.content.findUnique({
       where: { id },
@@ -33,6 +35,8 @@ export async function GET(req: Request, { params }: Params) {
 
     return NextResponse.json(content);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Get Content Error:", err);
     return NextResponse.json({ error: "Failed to fetch content" }, { status: 500 });
   }
@@ -41,6 +45,7 @@ export async function GET(req: Request, { params }: Params) {
 // ✏️ Update content
 export async function PUT(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
     const { title, description, order } = await req.json();
 
@@ -51,6 +56,8 @@ export async function PUT(req: Request, { params }: Params) {
 
     return NextResponse.json(updated);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Update Content Error:", err);
     return NextResponse.json({ error: "Failed to update content" }, { status: 500 });
   }
@@ -59,6 +66,7 @@ export async function PUT(req: Request, { params }: Params) {
 // ❌ Delete content
 export async function DELETE(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
     await prisma.content.delete({
       where: { id },
@@ -66,6 +74,8 @@ export async function DELETE(req: Request, { params }: Params) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Delete Content Error:", err);
     return NextResponse.json({ error: "Failed to delete content" }, { status: 500 });
   }

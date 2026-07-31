@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@clerk/nextjs/server"
+import { adminAuth } from "@/lib/adminAuth"
+import { handleAuthError } from "@/lib/roleAuth"
 
 export async function GET(req: Request) {
   try {
+    await adminAuth()
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
@@ -33,6 +35,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ user });
   } catch (error) {
+    const authResponse = handleAuthError(error)
+    if (authResponse) return authResponse
     console.error("Error fetching user details:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
@@ -46,25 +50,14 @@ export async function PATCH(
   context: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId: clerkUserId } = await auth()
-    
-    if (!clerkUserId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    // Check if the current user is an admin
-    const currentUser = await prisma.user.findUnique({
-      where: { clerkUserId },
-      select: { role: true }
-    })
-
-    if (!currentUser || currentUser.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
-    }
+    await adminAuth()
 
     const { role } = await request.json()
     
-    if (!role || !["STUDENT", "INSTRUCTOR", "ADMIN"].includes(role)) {
+    const roleDefinition = typeof role === "string"
+      ? await prisma.roleDefinition.findUnique({ where: { key: role } })
+      : null
+    if (!role || (!["STUDENT", "INSTRUCTOR", "ADMIN"].includes(role) && !roleDefinition)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 })
     }
 
@@ -119,6 +112,8 @@ export async function PATCH(
 
     return NextResponse.json(updatedUser)
   } catch (error) {
+    const authResponse = handleAuthError(error)
+    if (authResponse) return authResponse
     console.error("Error updating user role:", error)
     return NextResponse.json(
       { error: "Internal server error" },
@@ -129,28 +124,14 @@ export async function PATCH(
 
 export async function PUT(req: Request, context: { params: Promise<{ userId: string }> }) {
   try {
-    const { userId: clerkUserId } = await auth()
-    
-    if (!clerkUserId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    // Check if the current user is an admin
-    const currentUser = await prisma.user.findUnique({
-      where: { clerkUserId },
-      select: { role: true }
-    })
-
-    if (!currentUser || currentUser.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
-    }
+    await adminAuth()
 
     const { userId: targetUserId } = await context.params
     const data = await req.json();
 
     // Only allow updating specific fields:
     const updateData: {
-      role?: "STUDENT" | "INSTRUCTOR" | "ADMIN";
+      role?: string;
       isSubscribed?: boolean;
       name?: string;
       phoneNumber?: string;
@@ -158,8 +139,12 @@ export async function PUT(req: Request, context: { params: Promise<{ userId: str
       fieldOfStudy?: string;
     } = {};
 
-    if (data.role && ["STUDENT", "INSTRUCTOR", "ADMIN"].includes(data.role)) {
-      updateData.role = data.role as "STUDENT" | "INSTRUCTOR" | "ADMIN";
+    if (data.role) {
+      const roleDefinition = await prisma.roleDefinition.findUnique({ where: { key: data.role } })
+      if (!["STUDENT", "INSTRUCTOR", "ADMIN"].includes(data.role) && !roleDefinition) {
+        return NextResponse.json({ error: "Invalid role" }, { status: 400 })
+      }
+      updateData.role = data.role
     }
     if (typeof data.isSubscribed === "boolean") updateData.isSubscribed = data.isSubscribed;
     if (data.name !== undefined) updateData.name = data.name;
@@ -208,6 +193,8 @@ export async function PUT(req: Request, context: { params: Promise<{ userId: str
 
     return NextResponse.json({ user: updatedUser });
   } catch (error) {
+    const authResponse = handleAuthError(error)
+    if (authResponse) return authResponse
     console.error("Error updating user:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
@@ -218,21 +205,7 @@ export async function PUT(req: Request, context: { params: Promise<{ userId: str
 
 export async function DELETE(req: Request, context: { params: Promise<{ userId: string }> }) {
   try {
-    const { userId: clerkUserId } = await auth()
-    
-    if (!clerkUserId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    // Check if the current user is an admin
-    const currentUser = await prisma.user.findUnique({
-      where: { clerkUserId },
-      select: { role: true }
-    })
-
-    if (!currentUser || currentUser.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
-    }
+    await adminAuth()
 
     // ✅ Next.js 15: params is a Promise — must be awaited
     const { userId } = await context.params;
@@ -320,6 +293,8 @@ export async function DELETE(req: Request, context: { params: Promise<{ userId: 
 
     return NextResponse.json({ message: "User deleted successfully" });
   } catch (error) {
+    const authResponse = handleAuthError(error)
+    if (authResponse) return authResponse
     console.error("Error deleting user:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },

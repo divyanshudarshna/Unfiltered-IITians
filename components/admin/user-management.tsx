@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { DataTable } from "@/app/(admin)/admin/users/components/data-table"
-import { RoleUpdateDialog } from "@/components/admin/role-update-dialog"
+import { RolePermissionDialog } from "@/components/admin/role-permission-dialog"
 import { UserData } from "@/app/(admin)/admin/users/components/types"
 import { Users, Shield, CreditCard, RefreshCw, TrendingUp, AlertTriangle } from "lucide-react"
 
@@ -305,7 +305,7 @@ export function UserManagement({ showEnrollmentStats = false, containerClassName
 
       {/* Role Update Dialog */}
       {selectedUser && (
-        <RoleUpdateDialog
+        <RolePermissionDialog
           open={roleDialogOpen}
           onOpenChange={setRoleDialogOpen}
           user={{

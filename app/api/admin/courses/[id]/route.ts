@@ -1,7 +1,7 @@
 // app/api/admin/courses/[id]/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { assertAdminApiAccess } from "@/lib/roleAuth";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 interface Params {
   params: { id: string };
@@ -10,6 +10,7 @@ interface Params {
 // ================== GET SINGLE COURSE ==================
 export async function GET(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const course = await prisma.course.findUnique({
       where: { id: params.id },
       include: {
@@ -25,6 +26,8 @@ export async function GET(req: Request, { params }: Params) {
 
     return NextResponse.json(course);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Fetch Course Error:", err);
     return NextResponse.json({ error: "Failed to fetch course" }, { status: 500 });
   }
@@ -33,6 +36,7 @@ export async function GET(req: Request, { params }: Params) {
 // ================== UPDATE COURSE ==================
 export async function PUT(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     // Validate ObjectId format first
     if (!/^[0-9a-fA-F]{24}$/.test(params.id)) {
       return NextResponse.json({ error: "Invalid course ID format" }, { status: 400 });
@@ -158,6 +162,8 @@ export async function PUT(req: Request, { params }: Params) {
 
     return NextResponse.json(result);
   } catch (err: any) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("Update Course Error:", err);
     
     return NextResponse.json({ 
@@ -176,21 +182,9 @@ export async function DELETE(req: Request, { params }: Params) {
     await prisma.course.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });
   } catch (err: any) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("Delete Course Error:", err);
-    
-    // Check if it's a role-based access error
-    if (err instanceof Response) {
-      const status = err.status;
-      if (status === 403) {
-        return NextResponse.json({ 
-          error: "You don't have permission to delete courses. Only admins can delete courses." 
-        }, { status: 403 });
-      }
-      if (status === 401) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-    }
-    
     return NextResponse.json({ 
       error: err.message || "Failed to delete course" 
     }, { status: 500 });

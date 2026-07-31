@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 interface Params {
   params: { id: string };
@@ -8,6 +9,7 @@ interface Params {
 // GET One Category
 export async function GET(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const category = await prisma.youtubeCategory.findUnique({
       where: { id: params.id },
       include: { videos: true },
@@ -19,6 +21,8 @@ export async function GET(req: Request, { params }: Params) {
 
     return NextResponse.json(category);
   } catch (err: any) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -26,6 +30,7 @@ export async function GET(req: Request, { params }: Params) {
 // UPDATE Category
 export async function PUT(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const body = await req.json();
     const { name, desc } = body;
 
@@ -36,6 +41,8 @@ export async function PUT(req: Request, { params }: Params) {
 
     return NextResponse.json(category);
   } catch (err: any) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -43,12 +50,15 @@ export async function PUT(req: Request, { params }: Params) {
 // DELETE Category
 export async function DELETE(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     await prisma.youtubeCategory.delete({
       where: { id: params.id },
     });
 
     return NextResponse.json({ message: "Category deleted" });
   } catch (err: any) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

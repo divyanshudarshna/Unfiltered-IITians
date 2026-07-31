@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { assertAdminApiAccess, handleAuthError } from '@/lib/roleAuth';
 
 export async function POST(request: NextRequest) {
   try {
+    await assertAdminApiAccess(request.url, request.method);
     const body = await request.json();
     const { enrollmentIds, mockIds } = body;
 
@@ -60,6 +62,8 @@ export async function POST(request: NextRequest) {
       count: successCount,
     });
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error('Error adding mocks:', error);
     return NextResponse.json(
       { error: 'Failed to add mocks' },

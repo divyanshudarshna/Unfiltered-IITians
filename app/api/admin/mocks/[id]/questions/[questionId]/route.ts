@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string; questionId: string } }) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id, questionId } = params;
     const updatedQuestion = await req.json();
 
@@ -36,6 +38,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
     const question = questions.find((q: any) => q.id === questionId);
     return NextResponse.json({ question, mock: updatedMock });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error(err);
     return NextResponse.json({ error: "Failed to update question" }, { status: 500 });
   }
@@ -43,6 +47,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string; questionId: string } }) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id, questionId } = params;
     const mock = await prisma.mockTest.findUnique({ where: { id } });
     if (!mock) return NextResponse.json({ error: "Mock not found" }, { status: 404 });
@@ -56,6 +61,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
     return NextResponse.json({ message: "Question deleted" });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error(err);
     return NextResponse.json({ error: "Failed to delete question" }, { status: 500 });
   }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 interface Params {
   params: { id: string }; // lectureId
@@ -8,6 +9,7 @@ interface Params {
 // ✅ Get single lecture
 export async function GET(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const lecture = await prisma.lecture.findUnique({
       where: { id: params.id },
     });
@@ -18,6 +20,8 @@ export async function GET(req: Request, { params }: Params) {
 
     return NextResponse.json(lecture);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Get Lecture Error:", err);
     return NextResponse.json({ error: "Failed to fetch lecture" }, { status: 500 });
   }
@@ -26,6 +30,7 @@ export async function GET(req: Request, { params }: Params) {
 // ✏️ Update lecture
 export async function PUT(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { title, videoUrl, youtubeEmbedUrl, pdfUrl, summary, order, studyTips } = await req.json();
 
     // Get the current lecture to check if order is changing
@@ -93,6 +98,8 @@ export async function PUT(req: Request, { params }: Params) {
 
     return NextResponse.json(updated);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Update Lecture Error:", err);
     return NextResponse.json({ error: "Failed to update lecture" }, { status: 500 });
   }
@@ -101,12 +108,15 @@ export async function PUT(req: Request, { params }: Params) {
 // ❌ Delete lecture
 export async function DELETE(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     await prisma.lecture.delete({
       where: { id: params.id },
     });
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Delete Lecture Error:", err);
     return NextResponse.json({ error: "Failed to delete lecture" }, { status: 500 });
   }

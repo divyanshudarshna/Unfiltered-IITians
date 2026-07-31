@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getYouTubeEmbedUrl } from "@/lib/youtube";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 // CREATE Video
 export async function POST(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const body = await req.json();
     const { title, description, link, categoryId } = body;
 
@@ -24,13 +26,16 @@ export async function POST(req: Request) {
 
     return NextResponse.json(video, { status: 201 });
   } catch (err: any) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 // GET All Videos
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const videos = await prisma.youtubeVideo.findMany({
       include: { category: true },
     });

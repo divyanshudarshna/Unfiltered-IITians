@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { assertAdminApiAccess, handleAuthError } from '@/lib/roleAuth';
 
 export async function GET(request: NextRequest) {
   try {
+    await assertAdminApiAccess(request.url, request.method);
     const searchParams = request.nextUrl.searchParams;
     const sessionId = searchParams.get('sessionId');
     const page = Number.parseInt(searchParams.get('page') || '1');
@@ -72,6 +74,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error('Error fetching session enrollments:', error);
     return NextResponse.json(
       { error: 'Failed to fetch session enrollments' },

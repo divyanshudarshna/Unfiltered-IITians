@@ -1,6 +1,7 @@
 // app/api/admin/courses/[id]/coupons/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 interface Params {
   params: { id: string }; // courseId
@@ -9,6 +10,7 @@ interface Params {
 // ➕ Create coupon
 export async function POST(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
   const { code, discountPct, validTill, isPublic } = await req.json();
 
     if (!code || !discountPct || !validTill) {
@@ -28,6 +30,8 @@ export async function POST(req: Request, { params }: Params) {
 
     return NextResponse.json(coupon, { status: 201 });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Create Coupon Error:", err);
     return NextResponse.json({ error: "Failed to create coupon" }, { status: 500 });
   }
@@ -36,6 +40,7 @@ export async function POST(req: Request, { params }: Params) {
 // 📖 Get all coupons for a course
 export async function GET(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const coupons = await prisma.coupon.findMany({
       where: { courseId: params.id },
       include: {
@@ -56,6 +61,8 @@ export async function GET(req: Request, { params }: Params) {
 
     return NextResponse.json(coupons);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Get Coupons Error:", err);
     return NextResponse.json({ error: "Failed to fetch coupons" }, { status: 500 });
   }
@@ -64,6 +71,7 @@ export async function GET(req: Request, { params }: Params) {
 // ✏️ Update coupon
 export async function PUT(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
   const { id, code, discountPct, validTill, isPublic } = await req.json();
 
     if (!id) {
@@ -87,6 +95,8 @@ export async function PUT(req: Request) {
 
     return NextResponse.json(updated);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Update Coupon Error:", err);
     return NextResponse.json({ error: "Failed to update coupon" }, { status: 500 });
   }
@@ -95,6 +105,7 @@ export async function PUT(req: Request) {
 // ❌ Delete coupon
 export async function DELETE(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = await req.json();
 
     if (!id) {
@@ -107,6 +118,8 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Delete Coupon Error:", err);
     return NextResponse.json({ error: "Failed to delete coupon" }, { status: 500 });
   }

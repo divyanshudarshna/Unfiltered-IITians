@@ -1,34 +1,13 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 export async function DELETE(
   req: Request,
   context: { params: Promise<{ userId: string }> }
 ) {
   try {
-    // Check authentication
-    const { userId: clerkUserId } = await auth();
-    
-    if (!clerkUserId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    // Check if user is admin
-    const currentUser = await prisma.user.findUnique({
-      where: { clerkUserId },
-      select: { role: true }
-    });
-
-    if (!currentUser || currentUser.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Forbidden - Admin access required" },
-        { status: 403 }
-      );
-    }
+    await assertAdminApiAccess(req.url, req.method);
 
     // Get userId from params
     const { userId } = await context.params;
@@ -78,6 +57,8 @@ export async function DELETE(
       userEmail: user.email
     });
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error("Error clearing mock attempts:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal server error" },

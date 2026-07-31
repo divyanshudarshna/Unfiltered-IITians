@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { assertAdminApiAccess, handleAuthError } from '@/lib/roleAuth';
 
 
 // GET a specific material
@@ -8,6 +9,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    await assertAdminApiAccess(request.url, request.method);
     
     const material = await prisma.material.findUnique({
       where: { id: params.id },
@@ -22,6 +24,8 @@ export async function GET(
 
     return NextResponse.json(material);
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error('Error fetching material:', error);
     return NextResponse.json(
       { error: 'Failed to fetch material' },
@@ -36,6 +40,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    await assertAdminApiAccess(request.url, request.method);
   
     const body = await request.json();
     const {
@@ -92,6 +97,8 @@ export async function PUT(
 
     return NextResponse.json(material);
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error('Error updating material:', error);
     return NextResponse.json(
       { error: 'Failed to update material' },
@@ -106,6 +113,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    await assertAdminApiAccess(request.url, request.method);
   
 
     // Check if material exists
@@ -123,6 +131,8 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Material deleted successfully' });
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error('Error deleting material:', error);
     return NextResponse.json(
       { error: 'Failed to delete material' },

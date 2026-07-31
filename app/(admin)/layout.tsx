@@ -10,7 +10,7 @@ import { AppSidebar } from "@/components/admin/app-sidebar";
 import { SiteHeader } from "@/components/admin/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { UserProfileProvider } from "@/contexts/UserProfileContext";
-import { INSTRUCTOR_ALLOWED_ADMIN_PREFIXES } from "@/lib/roleConfig";
+import { getPermissionForPath } from "@/lib/roleConfig";
 
 // Configure Geist fonts specifically for admin
 const geistSans = Geist({
@@ -27,6 +27,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { isLoaded, user } = useUser();
   const router = useRouter();
   const pathname = usePathname();
+  const [access, setAccess] = React.useState<{ role: string; permissions: string[] } | null>(null);
 
   useEffect(() => {
     if (isLoaded && !user) {
@@ -34,23 +35,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [isLoaded, user, router]);
 
-  // Check if instructor is trying to access unauthorized route
   useEffect(() => {
-    if (isLoaded && user) {
-      const role = user.publicMetadata?.role as string | undefined;
-      
-      if (role === "INSTRUCTOR") {
-        const isAllowed = INSTRUCTOR_ALLOWED_ADMIN_PREFIXES.some((prefix) => 
-          pathname?.startsWith(prefix)
-        );
+    if (!isLoaded || !user) return;
+    fetch("/api/admin/roles/me")
+      .then((response) => response.ok ? response.json() : null)
+      .then((roleAccess) => setAccess(roleAccess))
+      .catch(() => setAccess({ role: "STUDENT", permissions: [] }));
+  }, [isLoaded, user]);
 
-        if (!isAllowed && pathname) {
-          toast.error("You don't have permission to access this page. Contact admin for access.");
-          router.replace("/");
-        }
-      }
+  useEffect(() => {
+    if (!access || !pathname) return;
+    const permission = getPermissionForPath(pathname);
+    const allowed = access.role === "ADMIN" || (permission !== null && access.permissions.includes(permission));
+    if (!allowed) {
+      toast.error("You don't have permission to access this page.");
+      router.replace("/");
     }
-  }, [isLoaded, user, pathname, router]);
+  }, [access, pathname, router]);
 
   if (!isLoaded || !user) {
     return (

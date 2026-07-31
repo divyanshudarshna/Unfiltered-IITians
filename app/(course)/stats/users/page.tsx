@@ -8,7 +8,7 @@ import { DataTable } from "./components/data-table"
 import { EnrollmentStats } from "@/components/admin/enrollment-stats"
 import { PasswordProtection } from "@/components/auth/password-protection"
 
-import { RoleUpdateDialog } from "@/components/admin/role-update-dialog"
+import { RolePermissionDialog } from "@/components/admin/role-permission-dialog"
 import { UserData } from "./components/types"
 import { Users, Shield, CreditCard, RefreshCw, TrendingUp } from "lucide-react"
 
@@ -267,7 +267,7 @@ export default function StatsUsersPage() {
 
         {/* Role Update Dialog */}
         {selectedUser && (
-          <RoleUpdateDialog
+          <RolePermissionDialog
             open={roleDialogOpen}
             onOpenChange={setRoleDialogOpen}
             user={{

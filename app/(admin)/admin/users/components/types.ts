@@ -2,7 +2,7 @@ export interface UserData {
   id: string
   name: string | null
   email: string
-  role: "STUDENT" | "INSTRUCTOR" | "ADMIN"
+  role: string
   phoneNumber?: string | null
   fieldOfStudy?: string | null
   isSubscribed: boolean

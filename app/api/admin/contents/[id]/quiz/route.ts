@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 interface Params {
   params: { id: string }; // contentId
@@ -8,6 +9,7 @@ interface Params {
 // ➕ Create quiz
 export async function POST(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
     const { questions } = await req.json();
 
@@ -33,6 +35,8 @@ export async function POST(req: Request, { params }: Params) {
 
     return NextResponse.json(quiz, { status: 201 });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Create Quiz Error:", err);
     return NextResponse.json({ error: "Failed to create quiz" }, { status: 500 });
   }
@@ -41,6 +45,7 @@ export async function POST(req: Request, { params }: Params) {
 // 📖 Get quiz
 export async function GET(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
     const quiz = await prisma.quiz.findUnique({
       where: { contentId: id },
@@ -53,6 +58,8 @@ export async function GET(req: Request, { params }: Params) {
 
     return NextResponse.json(quiz);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Get Quiz Error:", err);
     return NextResponse.json({ error: "Failed to fetch quiz" }, { status: 500 });
   }
@@ -61,6 +68,7 @@ export async function GET(req: Request, { params }: Params) {
 // ✏️ Update quiz
 export async function PUT(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
     const { questions } = await req.json();
 
@@ -71,6 +79,8 @@ export async function PUT(req: Request, { params }: Params) {
 
     return NextResponse.json(updated);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Update Quiz Error:", err);
     return NextResponse.json({ error: "Failed to update quiz" }, { status: 500 });
   }

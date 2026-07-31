@@ -1,6 +1,7 @@
 // api/admin/courses/[id]/contents/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 interface Params {
   params: { id: string }; // courseId
@@ -9,6 +10,7 @@ interface Params {
 // ➕ Create content for a course
 export async function POST(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { title, description, order } = await req.json();
 
     if (!title) {
@@ -26,6 +28,8 @@ export async function POST(req: Request, { params }: Params) {
 
     return NextResponse.json(content, { status: 201 });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Create Content Error:", err);
     return NextResponse.json({ error: "Failed to create content" }, { status: 500 });
   }
@@ -34,6 +38,7 @@ export async function POST(req: Request, { params }: Params) {
 // 📖 List contents of a course
 export async function GET(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const contents = await prisma.content.findMany({
       where: { courseId: params.id },
       include: {
@@ -45,6 +50,8 @@ export async function GET(req: Request, { params }: Params) {
 
     return NextResponse.json(contents);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Get Contents Error:", err);
     return NextResponse.json({ error: "Failed to fetch contents" }, { status: 500 });
   }

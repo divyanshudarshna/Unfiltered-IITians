@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-// import { currentUser } from "@clerk/nextjs/server";
-
-// async function adminAuth() {
-//   const clerkUser = await currentUser();
-//   if (!clerkUser || clerkUser.publicMetadata.role !== "ADMIN") {
-//     throw new Error("Unauthorized");
-//   }
-//   return clerkUser;
-// }
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
-    // await adminAuth();
+    await assertAdminApiAccess(req.url, req.method);
 
     const subscriptionId = params.id;
     const data = await req.json();
@@ -30,6 +22,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
     return NextResponse.json({ subscription: updatedSubscription });
   } catch (error: any) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error("Error updating subscription:", error);
     return NextResponse.json(
       { error: error.message || "Internal Server Error" },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getYouTubeEmbedUrl } from "@/lib/youtube";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 interface Params {
   params: { id: string };
@@ -9,6 +10,7 @@ interface Params {
 // GET One Video
 export async function GET(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const video = await prisma.youtubeVideo.findUnique({
       where: { id: params.id },
       include: { category: true },
@@ -20,6 +22,8 @@ export async function GET(req: Request, { params }: Params) {
 
     return NextResponse.json(video);
   } catch (err: any) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -27,6 +31,7 @@ export async function GET(req: Request, { params }: Params) {
 // UPDATE Video
 export async function PUT(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const body = await req.json();
     const { title, description, link, categoryId } = body;
 
@@ -47,6 +52,8 @@ export async function PUT(req: Request, { params }: Params) {
 
     return NextResponse.json(video);
   } catch (err: any) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -54,12 +61,15 @@ export async function PUT(req: Request, { params }: Params) {
 // DELETE Video
 export async function DELETE(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     await prisma.youtubeVideo.delete({
       where: { id: params.id },
     });
 
     return NextResponse.json({ message: "Video deleted" });
   } catch (err: any) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
