@@ -1,16 +1,18 @@
 import { prisma } from "@/lib/prisma"
 import { evaluateLectureAccess } from "@/lib/courseAccessPolicy"
+import { getRoleAccess } from "@/lib/rolePermissions"
 
 export async function getCourseEntitlement(clerkUserId: string | null, courseId: string) {
-  if (!clerkUserId) return { hasFullAccess: false, userId: null, role: null }
+  if (!clerkUserId) return { hasFullAccess: false, userId: null, role: null, accessSource: null, enrollmentExpiresAt: null }
 
   const user = await prisma.user.findUnique({
     where: { clerkUserId },
     select: { id: true, role: true },
   })
-  if (!user) return { hasFullAccess: false, userId: null, role: null }
-  if (user.role === "ADMIN") {
-    return { hasFullAccess: true, userId: user.id, role: user.role }
+  if (!user) return { hasFullAccess: false, userId: null, role: null, accessSource: null, enrollmentExpiresAt: null }
+  const roleAccess = await getRoleAccess(user.role)
+  if (user.role === "ADMIN" || roleAccess.permissions.includes("courses")) {
+    return { hasFullAccess: true, userId: user.id, role: user.role, accessSource: "role" as const, enrollmentExpiresAt: null }
   }
 
   const enrollment = await prisma.enrollment.findFirst({
@@ -27,6 +29,7 @@ export async function getCourseEntitlement(clerkUserId: string | null, courseId:
     hasFullAccess: Boolean(enrollment),
     userId: user.id,
     role: user.role,
+    accessSource: enrollment ? "enrollment" as const : null,
     enrollmentExpiresAt: enrollment?.expiresAt ?? null,
   }
 }

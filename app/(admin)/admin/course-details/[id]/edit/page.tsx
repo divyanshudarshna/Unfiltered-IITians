@@ -48,7 +48,7 @@ export default function EditCoursePage() {
     setLoading(true);
     try {
       const [courseRes, detailsRes] = await Promise.all([
-        fetch(`/api/courses/${id}`),
+        fetch(`/api/admin/courses/${id}`),
         fetch(`/api/admin/course-details?courseId=${id}`),
       ]);
 

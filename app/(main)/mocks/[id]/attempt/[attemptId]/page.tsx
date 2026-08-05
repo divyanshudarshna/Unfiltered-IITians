@@ -50,6 +50,7 @@ export default function MockAttemptPage() {
         const res = await fetch(`/api/mock/${id}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to load mock");
+        if (!data.hasAccess) throw new Error("You do not have access to this mock test");
 
         setMock(data.mock);
 

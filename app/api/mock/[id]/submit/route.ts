@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 // Enhanced MSQ answer comparison function
@@ -30,21 +31,38 @@ const areMSQAnswersEqual = (correctAnswer: string, userAnswer: string, questionO
   return correctArray.length === userArray.length && 
          correctArray.every((item, index) => item === userArray[index]);
 };
-export async function POST(req: Request) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { userId: clerkUserId } = await auth();
+    if (!clerkUserId) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
     const { attemptId, answers } = await req.json();
 
     if (!attemptId || !answers) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Fetch attempt and related mock test
+    const { id: mockTestId } = await params;
+    const user = await prisma.user.findUnique({
+      where: { clerkUserId },
+      select: { id: true },
+    });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // An attempt can only be submitted by its owner for the requested mock.
     const attempt = await prisma.mockAttempt.findUnique({
       where: { id: attemptId },
-      include: { mockTest: { select: { questions: true } } },
+      include: { mockTest: { select: { id: true, questions: true } } },
     });
 
     if (!attempt) {
+      return NextResponse.json({ error: "Attempt not found" }, { status: 404 });
+    }
+    if (attempt.userId !== user.id || attempt.mockTest.id !== mockTestId) {
       return NextResponse.json({ error: "Attempt not found" }, { status: 404 });
     }
 

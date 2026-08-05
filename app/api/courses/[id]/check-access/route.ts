@@ -1,15 +1,16 @@
 // app/api/courses/[id]/check-access/route.ts
 import { NextResponse } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
+import { getCourseEntitlement } from "@/lib/courseAccess";
 
 interface Params {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(req: Request, { params }: Params) {
   try {
-    const { userId: clerkUserId } = auth();
+    const { userId: clerkUserId } = await auth();
+    const { id: courseId } = await params;
     if (!clerkUserId) {
       return NextResponse.json({ 
         hasAccess: false, 
@@ -18,12 +19,8 @@ export async function GET(req: Request, { params }: Params) {
       }, { status: 401 });
     }
 
-    // Map Clerk user → DB user
-    const user = await prisma.user.findUnique({
-      where: { clerkUserId },
-      select: { id: true, role: true }
-    });
-    if (!user) {
+    const entitlement = await getCourseEntitlement(clerkUserId, courseId)
+    if (!entitlement.userId) {
       return NextResponse.json({ 
         hasAccess: false, 
         reason: "User not found",
@@ -31,39 +28,7 @@ export async function GET(req: Request, { params }: Params) {
       }, { status: 404 });
     }
 
-    // Check if user is admin (from database role)
-    if (user.role === 'ADMIN') {
-      return NextResponse.json({ 
-        hasAccess: true,
-        isAdmin: true,
-        reason: "Admin access granted"
-      });
-    }
-
-    // Check if user is admin (from Clerk metadata)
-    try {
-      const client = await clerkClient()
-      const clerkUser = await client.users.getUser(clerkUserId)
-      if (clerkUser.publicMetadata?.role === 'ADMIN') {
-        return NextResponse.json({ 
-          hasAccess: true,
-          isAdmin: true,
-          reason: "Admin access granted"
-        });
-      }
-    } catch (clerkError) {
-      
-    }
-
-    // Check if user is enrolled in the course
-    const enrollment = await prisma.enrollment.findFirst({
-      where: { 
-        userId: user.id, 
-        courseId: params.id 
-      }
-    });
-
-    if (!enrollment) {
+    if (!entitlement.hasFullAccess) {
       return NextResponse.json({ 
         hasAccess: false, 
         reason: "Not enrolled in this course",
@@ -71,39 +36,11 @@ export async function GET(req: Request, { params }: Params) {
       }, { status: 403 });
     }
 
-    // Check if enrollment has expired
-    if (enrollment.expiresAt && enrollment.expiresAt < new Date()) {
-      return NextResponse.json({ 
-        hasAccess: false, 
-        reason: "Course access has expired",
-        redirectTo: "/courses",
-        expiresAt: enrollment.expiresAt
-      }, { status: 403 });
-    }
-
-    // Check subscription status
-    const subscription = await prisma.subscription.findFirst({
-      where: { 
-        userId: user.id, 
-        courseId: params.id,
-        paid: true
-      }
-    });
-
-    if (subscription && subscription.expiresAt && subscription.expiresAt < new Date()) {
-      return NextResponse.json({ 
-        hasAccess: false, 
-        reason: "Subscription has expired",
-        redirectTo: "/courses",
-        expiresAt: subscription.expiresAt
-      }, { status: 403 });
-    }
-
     return NextResponse.json({ 
       hasAccess: true,
-      isAdmin: false,
-      enrollmentExpiresAt: enrollment.expiresAt,
-      subscriptionExpiresAt: subscription?.expiresAt
+      isAdmin: entitlement.role === "ADMIN",
+      isStaff: entitlement.accessSource === "role",
+      enrollmentExpiresAt: entitlement.enrollmentExpiresAt,
     });
 
   } catch (error) {

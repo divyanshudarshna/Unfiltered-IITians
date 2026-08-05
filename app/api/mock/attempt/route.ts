@@ -1,63 +1,38 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { clerkClient } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
+import { getMockEntitlement } from '@/lib/mockAccess'
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
-    // console.log("🪵 Request Body:", body)
-    const { clerkUserId, mockTestId } = body
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    const { mockTestId } = await req.json()
 
-    if (!clerkUserId || !mockTestId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (!mockTestId) {
+      return NextResponse.json({ error: 'Missing mock test ID' }, { status: 400 })
     }
 
-    // ✅ Find user by clerkUserId
-    const user = await prisma.user.findUnique({
-      where: { clerkUserId },
-      select: { id: true, role: true }
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    const entitlement = await getMockEntitlement(clerkUserId, mockTestId)
+    if (!entitlement.allowed || !entitlement.userId) {
+      return NextResponse.json({
+        error: 'You do not have access to this mock test.',
+        code: 'ACCESS_DENIED',
+        reason: entitlement.reason,
+      }, { status: 403 })
     }
 
-    // ✅ Validate mock test
     const mockTest = await prisma.mockTest.findUnique({
       where: { id: mockTestId },
+      select: { price: true },
     })
-
-    if (!mockTest) {
-      return NextResponse.json({ error: 'Mock test not found' }, { status: 404 })
-    }
-
-    // ✅ Check access control for paid mocks (skip for admins)
-    if (mockTest.price > 0) {
-      const hasAccess = await checkMockAccess(user.id, mockTestId, user.role, clerkUserId)
-      
-      if (!hasAccess.allowed) {
-        let errorMessage = 'You need to purchase this mock test to attempt it.'
-        
-        switch (hasAccess.reason) {
-          case 'no_subscription':
-            errorMessage = 'You need to purchase this mock test or a bundle containing it to attempt.'
-            break
-          case 'access_check_error':
-            errorMessage = 'Unable to verify your subscription. Please try again.'
-            break
-        }
-        
-        return NextResponse.json({ 
-          error: errorMessage,
-          code: 'ACCESS_DENIED',
-          reason: hasAccess.reason
-        }, { status: 403 })
-      }
-    }
+    if (!mockTest) return NextResponse.json({ error: 'Mock test not found' }, { status: 404 })
 
      const attemptCount = await prisma.mockAttempt.count({
       where: {
-        userId: user.id,
+        userId: entitlement.userId,
         mockTestId: mockTestId,
       },
     })
@@ -75,7 +50,7 @@ export async function POST(req: Request) {
     // ✅ Create attempt with user.id
     const attempt = await prisma.mockAttempt.create({
       data: {
-        userId: user.id,
+        userId: entitlement.userId,
         mockTestId,
         startedAt: new Date(),
         answers: {}, // ✅ Initialize as empty object, not array

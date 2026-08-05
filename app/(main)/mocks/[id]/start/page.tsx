@@ -92,6 +92,8 @@ export default function StartMockPage({ params }: StartMockPageProps) {
         return 'Free Test';
       case 'bundle':
         return 'Bundle Access';
+      case 'staff':
+        return 'Staff Access';
       default:
         return 'Individual Purchase';
     }
@@ -225,7 +227,6 @@ export default function StartMockPage({ params }: StartMockPageProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clerkUserId: user.id,
           mockTestId: id,
         }),
       });
