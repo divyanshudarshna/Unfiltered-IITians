@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import {
   BarChart,
   Bar,
@@ -71,6 +72,9 @@ interface Course {
 }
 
 export default function CoursesPage() {
+  const { userProfile } = useUserProfileContext();
+  const isAdmin = userProfile?.role === "ADMIN";
+
   const [courses, setCourses] = useState<Course[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -138,15 +142,17 @@ export default function CoursesPage() {
 
       setCourses(coursesWithDetails);
       
-      // Fetch actual revenue from paid subscriptions
-      await fetchCourseRevenue();
+      // Fetch actual revenue from paid subscriptions (ADMIN only)
+      if (isAdmin) {
+        await fetchCourseRevenue();
+      }
     } catch (err) {
       console.error(err);
       toast.error("Failed to load courses");
     } finally {
       setLoading(false);
     }
-  }, [fetchCourseRevenue]);
+  }, [fetchCourseRevenue, isAdmin]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -253,7 +259,7 @@ export default function CoursesPage() {
       <Separator className="my-2" />
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-4`}>
         {/* Card 1: Total Courses */}
         <Card className="border-0 shadow-md bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 overflow-hidden group hover:shadow-lg transition-all duration-300">
           <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
@@ -290,7 +296,8 @@ export default function CoursesPage() {
           </CardContent>
         </Card>
 
-        {/* Card 3: Total Revenue */}
+        {/* Card 3: Total Revenue — ADMIN only */}
+        {isAdmin && (
         <Card className="border-0 shadow-md bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 overflow-hidden group hover:shadow-lg transition-all duration-300">
           <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -307,6 +314,7 @@ export default function CoursesPage() {
             </p>
           </CardContent>
         </Card>
+        )}
 
         {/* Card 4: Total Contents */}
         <Card className="border-0 shadow-md bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30 overflow-hidden group hover:shadow-lg transition-all duration-300">
