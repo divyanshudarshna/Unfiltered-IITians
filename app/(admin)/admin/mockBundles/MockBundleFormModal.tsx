@@ -44,6 +44,16 @@ interface Bundle {
   mockIds: string[];
   discountedPrice?: number;
   status: "DRAFT" | "PUBLISHED";
+  subscriptionEnabled?: boolean;
+  billingPlans?: Array<{
+    id: string;
+    amountPaise: number;
+    totalCount: number;
+    version: number;
+    status: "DRAFT" | "ACTIVE" | "INACTIVE";
+    providerSyncState: string;
+    razorpayPlanId?: string | null;
+  }>;
 }
 
 interface Props {
@@ -58,6 +68,11 @@ export const MockBundleFormDialog = ({ open, onClose, bundle }: Props) => {
   const [mockIds, setMockIds] = useState<string[]>([]);
   const [discountedPrice, setDiscountedPrice] = useState<number | undefined>();
   const [status, setStatus] = useState<"DRAFT" | "PUBLISHED">("DRAFT");
+  const [subscriptionEnabled, setSubscriptionEnabled] = useState(false);
+  const [subscriptionAmount, setSubscriptionAmount] = useState("");
+  const [subscriptionTotalCount, setSubscriptionTotalCount] = useState("120");
+  const [razorpayPlanId, setRazorpayPlanId] = useState("");
+  const [activatingPlan, setActivatingPlan] = useState(false);
   const [mocks, setMocks] = useState<Mock[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalPrice, setTotalPrice] = useState(0);
@@ -81,14 +96,47 @@ export const MockBundleFormDialog = ({ open, onClose, bundle }: Props) => {
       setMockIds(bundle.mockIds || []);
       setDiscountedPrice(bundle.discountedPrice);
       setStatus(bundle.status || "DRAFT");
+      setSubscriptionEnabled(bundle.subscriptionEnabled ?? false);
+      setSubscriptionAmount(bundle.billingPlans?.[0] ? (bundle.billingPlans[0].amountPaise / 100).toFixed(2) : "");
+      setSubscriptionTotalCount(bundle.billingPlans?.[0]?.totalCount?.toString() || "120");
+      setRazorpayPlanId(bundle.billingPlans?.[0]?.razorpayPlanId || "");
     } else {
       setTitle("");
       setDescription("");
       setMockIds([]);
       setDiscountedPrice(undefined);
       setStatus("DRAFT");
+      setSubscriptionEnabled(false);
+      setSubscriptionAmount("");
+      setSubscriptionTotalCount("120");
     }
   }, [bundle, open]);
+
+  const latestBillingPlan = bundle?.billingPlans?.[0];
+
+  const handlePlanActivation = async () => {
+    if (!latestBillingPlan?.id || !razorpayPlanId.trim()) return;
+    setActivatingPlan(true);
+    try {
+      const response = await fetch(
+        `/api/admin/commerce-billing-plans/${latestBillingPlan.id}/link-razorpay`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ razorpayPlanId: razorpayPlanId.trim() }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to verify the Razorpay plan");
+      alert("Razorpay plan verified and activated.");
+      onClose();
+    } catch (error) {
+      console.error("Failed to activate Razorpay plan", error);
+      alert(error instanceof Error ? error.message : "Unable to verify the Razorpay plan");
+    } finally {
+      setActivatingPlan(false);
+    }
+  };
 
   // Calculate total price of selected mocks
   useEffect(() => {
@@ -112,12 +160,17 @@ export const MockBundleFormDialog = ({ open, onClose, bundle }: Props) => {
 
     setLoading(true);
     try {
-      const payload: any = { 
+      const payload: Record<string, unknown> = {
         title: title.trim(), 
         description: description.trim(), 
         mockIds, 
         discountedPrice, 
-        status 
+        status,
+        billingMode: subscriptionEnabled ? "RECURRING" : "ONE_TIME",
+        subscriptionEnabled,
+        subscriptionAmount: subscriptionEnabled ? subscriptionAmount : undefined,
+        subscriptionInterval: subscriptionEnabled ? "monthly" : undefined,
+        subscriptionTotalCount: subscriptionEnabled ? Number(subscriptionTotalCount) : undefined,
       };
       
       if (bundle?.id) payload.id = bundle.id;
@@ -311,6 +364,43 @@ export const MockBundleFormDialog = ({ open, onClose, bundle }: Props) => {
               )}
             </div>
           )}
+
+          {/* Status Selection */}
+          <div className="rounded-xl border border-primary/20 p-4 space-y-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={subscriptionEnabled}
+                onChange={(event) => setSubscriptionEnabled(event.target.checked)}
+              />
+              Enable monthly subscription
+            </label>
+            {subscriptionEnabled && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Monthly price (₹)</label>
+                    <Input type="number" min="1" step="0.01" value={subscriptionAmount} onChange={(event) => setSubscriptionAmount(event.target.value)} required />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Monthly cycles</label>
+                    <Input type="number" min="1" max="120" value={subscriptionTotalCount} onChange={(event) => setSubscriptionTotalCount(event.target.value)} required />
+                  </div>
+                </div>
+                {latestBillingPlan && (
+                  <div className="space-y-2 rounded border bg-muted/30 p-3 text-sm">
+                    <p>Local plan v{latestBillingPlan.version}: {latestBillingPlan.status} ({latestBillingPlan.providerSyncState})</p>
+                    <label className="text-sm font-medium">Razorpay Plan ID</label>
+                    <Input placeholder="plan_..." value={razorpayPlanId} onChange={(event) => setRazorpayPlanId(event.target.value)} />
+                    <Button type="button" variant="outline" onClick={handlePlanActivation} disabled={activatingPlan || !razorpayPlanId.trim() || latestBillingPlan.status === "INACTIVE"}>
+                      {activatingPlan ? "Verifying..." : "Verify & Activate"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">Create the matching monthly Razorpay plan first. Activation verifies amount and cadence server-side.</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
           {/* Status Selection */}
           <div className="space-y-2">

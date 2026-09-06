@@ -35,6 +35,7 @@ interface BundlePurchaseSectionProps {
   mockCount: number;
   purchasedMockIds?: string[];
   ownsAllIndividually?: boolean;
+  recurringPlan?: { amountPaise: number };
 }
 
 export default function BundlePurchaseSection({
@@ -49,6 +50,7 @@ export default function BundlePurchaseSection({
   mockCount,
   purchasedMockIds = [],
   ownsAllIndividually = false,
+  recurringPlan,
 }: Readonly<BundlePurchaseSectionProps>) {
   // Coupon states
   const [couponCode, setCouponCode] = useState("");
@@ -295,6 +297,8 @@ export default function BundlePurchaseSection({
         title={bundleTitle}
         amount={getFinalPrice()}
         mockIds={mockIds}
+        couponCode={appliedCoupon?.coupon?.code}
+        recurringPlan={recurringPlan}
         onPurchaseSuccess={handlePurchaseSuccess}
       />
     </section>

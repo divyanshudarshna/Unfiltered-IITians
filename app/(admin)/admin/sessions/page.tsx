@@ -14,13 +14,22 @@ interface SessionWithEnrollments extends Session {
     enrollments: number;
   };
   enrollments: SessionEnrollment[];
+  billingPlans?: Array<{
+    id: string;
+    amountPaise: number;
+    totalCount: number;
+    status: "DRAFT" | "ACTIVE" | "INACTIVE";
+    razorpayPlanId: string | null;
+    providerSyncState: string;
+    version: number;
+  }>;
 }
 
 export default function SessionsAdminPage() {
   const [sessions, setSessions] = useState<SessionWithEnrollments[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSession, setEditingSession] = useState<Session | null>(null);
+  const [editingSession, setEditingSession] = useState<SessionWithEnrollments | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     published: 0,
@@ -65,7 +74,7 @@ export default function SessionsAdminPage() {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (session: Session) => {
+  const handleEdit = (session: SessionWithEnrollments) => {
     setEditingSession(session);
     setIsModalOpen(true);
   };

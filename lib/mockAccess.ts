@@ -24,15 +24,37 @@ export async function getMockEntitlement(clerkUserId: string | null, mockTestId:
   if (mock.status !== "PUBLISHED") return { allowed: false, reason: "mock_not_available", userId: user.id }
   if (mock.price === 0) return { allowed: true, reason: "free_mock", subscriptionType: "free", userId: user.id }
 
-  const subscription = await prisma.subscription.findFirst({
-    where: {
+  const now = new Date()
+  const [subscription, commerceEntitlement] = await Promise.all([
+    prisma.subscription.findFirst({
+      where: {
+        userId: user.id,
+        mockTestId,
+        paid: true,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: { mockBundleId: true },
+    }),
+    prisma.entitlement.findFirst({
+      where: {
+        userId: user.id,
+        resourceType: "MOCK_TEST",
+        resourceId: mockTestId,
+        status: "ACTIVE",
+        startsAt: { lte: now },
+        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+      },
+      select: { sourceType: true },
+    }),
+  ])
+  if (commerceEntitlement) {
+    return {
+      allowed: true,
+      reason: "commerce_entitlement",
+      subscriptionType: commerceEntitlement.sourceType === "RAZORPAY_PAYMENT" ? "individual" : "bundle",
       userId: user.id,
-      mockTestId,
-      paid: true,
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-    },
-    select: { mockBundleId: true },
-  })
+    }
+  }
   if (!subscription) return { allowed: false, reason: "no_subscription", userId: user.id }
 
   return {

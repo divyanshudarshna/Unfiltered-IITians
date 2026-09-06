@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAuth, useUser, SignInButton } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,12 @@ import {
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle, Clock, Users, Shield, Award, FileText, Video, HelpCircle, Target, Package, MessageSquare, Timer, Star, Globe, Linkedin, Twitter, BookOpen, GraduationCap, FlaskConical, ZoomIn, X } from "lucide-react";
+import { getCheckoutPollingDecision, type CheckoutPollingStatus } from "@/lib/checkout-status";
+import type { RazorpayResponse } from "@/types/razorpay";
+
+const v2CourseCheckoutEnabled = process.env.NEXT_PUBLIC_V2_COURSE_CHECKOUT_ENABLED === "true";
+const checkoutPollIntervalMs = 2_000;
+const checkoutPollAttempts = 24;
 
 interface AcademicAffiliation {
   institution: string;
@@ -61,7 +67,7 @@ interface Course {
   level?: string;
   enrolledStudents?: number;
   coupons?: { code: string; discountPct: number; discountAmount?: number; newPrice?: number }[];
-  contents?: any[];
+  contents?: unknown[];
   inclusions?: {
     id: string;
     inclusionType: 'MOCK_TEST' | 'MOCK_BUNDLE' | 'SESSION';
@@ -94,6 +100,12 @@ interface Course {
   instructors?: Instructor[];
   hasFreePreview?: boolean;
   firstFreeLectureId?: string | null;
+  recurringPlan?: {
+    amountPaise: number;
+    currency: string;
+    interval: number;
+    totalCount: number;
+  } | null;
 }
 
 interface AppliedCoupon {
@@ -117,6 +129,9 @@ export default function CourseDetailPage() {
   const [publicCoupons, setPublicCoupons] = useState<Array<{id:string;code:string;discountPct:number;validTill:string;usageCount:number}>>([]);
   const [publicLoading, setPublicLoading] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<{ url: string; name: string } | null>(null);
+
+  const courseCheckoutStorageKey = (courseId: string, checkoutType: "ONE_TIME" | "COURSE_RECURRING") =>
+    `v2-course-checkout:${courseId}:${checkoutType}`;
 
   const instructorsSectionRef = useRef<HTMLDivElement>(null);
   const scrollToInstructors = () => {
@@ -210,6 +225,86 @@ export default function CourseDetailPage() {
     toast.info("Coupon removed");
   };
 
+  const waitForV2Fulfillment = async (checkoutId: string, storageKey: string) => {
+    toast.loading("Payment received. Confirming course access...", { id: "course-payment" });
+    for (let attempt = 0; attempt < checkoutPollAttempts; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, checkoutPollIntervalMs));
+      const response = await fetch(`/api/checkout/intents/${checkoutId}`, { cache: "no-store" });
+      if (!response.ok) continue;
+      const data = await response.json() as {
+        checkout: { status: CheckoutPollingStatus };
+        entitlement: { active: boolean };
+      };
+      const decision = getCheckoutPollingDecision(data.checkout.status, data.entitlement.active);
+      if (decision === "FULFILLED") {
+        window.sessionStorage.removeItem(storageKey);
+        toast.success("Payment confirmed. Course access is now active.", { id: "course-payment" });
+        router.push("/dashboard/courses");
+        return;
+      }
+      if (decision === "FAILED") {
+        window.sessionStorage.removeItem(storageKey);
+        toast.error("This checkout could not be completed.", { id: "course-payment" });
+        return;
+      }
+      if (decision === "REQUIRES_REVIEW") {
+        window.sessionStorage.removeItem(storageKey);
+        toast.error("Your payment needs review. Please contact support with your payment details.", { id: "course-payment" });
+        return;
+      }
+    }
+    toast.info("Payment is still being confirmed. Course access will appear automatically once confirmed.", { id: "course-payment" });
+  };
+
+  const handleV2Checkout = async (checkoutType: "ONE_TIME" | "COURSE_RECURRING") => {
+    if (!course) return;
+    const storageKey = courseCheckoutStorageKey(course.id, checkoutType);
+    const idempotencyKey = window.sessionStorage.getItem(storageKey) ?? `course:${course.id}:${checkoutType}:${crypto.randomUUID()}`;
+    window.sessionStorage.setItem(storageKey, idempotencyKey);
+    const response = await fetch("/api/checkout/intents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        productType: "COURSE",
+        productId: course.id,
+        checkoutType,
+        couponCode: checkoutType === "ONE_TIME" ? appliedCoupon?.code : undefined,
+        idempotencyKey,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Unable to create checkout");
+    if (data.checkout?.status === "PAID" && data.checkout?.id) {
+      await waitForV2Fulfillment(data.checkout.id, storageKey);
+      return;
+    }
+    if (!data.checkout?.id) throw new Error("Payment provider did not return a checkout");
+
+    const options = checkoutType === "COURSE_RECURRING"
+      ? {
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+          name: "Course Subscription",
+          description: course.title,
+          subscription_id: data.subscription?.id,
+          handler: () => { void waitForV2Fulfillment(data.checkout.id, storageKey); },
+          theme: { color: "#4f46e5" },
+        }
+      : {
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+          amount: data.order?.amount,
+          currency: data.order?.currency,
+          name: "Course Enrollment",
+          description: course.title,
+          order_id: data.order?.id,
+          handler: () => { void waitForV2Fulfillment(data.checkout.id, storageKey); },
+          theme: { color: "#4f46e5" },
+        };
+    if ((checkoutType === "COURSE_RECURRING" && !data.subscription?.id) || (checkoutType === "ONE_TIME" && !data.order?.id)) {
+      throw new Error("Payment provider did not return checkout details");
+    }
+    new window.Razorpay(options).open();
+  };
+
   // Checkout
   const handleCheckout = async () => {
   if (!course || !userId) {
@@ -220,6 +315,10 @@ export default function CourseDetailPage() {
   setLoading(true);
 
   try {
+    if (v2CourseCheckoutEnabled) {
+      await handleV2Checkout(course.recurringPlan ? "COURSE_RECURRING" : "ONE_TIME");
+      return;
+    }
     const res = await fetch(`/api/courses/${course.id}/razorpay`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -251,7 +350,7 @@ export default function CourseDetailPage() {
       name: "Course Enrollment",
       description: course.title,
       order_id: data.order.id,
-      handler: async (response: any) => {
+      handler: async (response: RazorpayResponse) => {
         try {
           
           
@@ -294,11 +393,11 @@ export default function CourseDetailPage() {
       },
     };
 
-    const rzp = new (window as any).Razorpay(options);
+    const rzp = new window.Razorpay(options);
     rzp.open();
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Checkout error:", err);
-    toast.error(err.message || "Failed to initiate payment");
+    toast.error(err instanceof Error ? err.message : "Failed to initiate payment");
   } finally {
     setLoading(false);
   }
@@ -596,60 +695,59 @@ export default function CourseDetailPage() {
                 </div>
               </div>
 
-              {/* Coupon */}
-              <div className="space-y-3 pt-2">
-                <Label htmlFor="coupon">Apply Coupon</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="coupon"
-                    placeholder="Enter coupon code"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    disabled={!!appliedCoupon}
-                    className="flex-1"
-                  />
-                  {appliedCoupon ? (
-                    <Button onClick={removeCoupon} variant="outline" size="sm">Remove</Button>
-                  ) : (
-                    <Button onClick={applyCoupon} variant="outline" size="sm" disabled={couponLoading || !couponCode.trim()}>
-                      {couponLoading ? "Applying..." : "Apply"}
-                    </Button>
-                  )}
-                </div>
-                {appliedCoupon && (
-                  <div className="text-sm text-green-600 flex items-center gap-1">
-                    <CheckCircle className="h-4 w-4" /> Coupon &quot;{appliedCoupon.code}&quot; applied
+                {!course.recurringPlan && (
+                  <div className="space-y-3 pt-2">
+                    <Label htmlFor="coupon">Apply Coupon</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="coupon"
+                        placeholder="Enter coupon code"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        disabled={!!appliedCoupon}
+                        className="flex-1"
+                      />
+                      {appliedCoupon ? (
+                        <Button onClick={removeCoupon} variant="outline" size="sm">Remove</Button>
+                      ) : (
+                        <Button onClick={applyCoupon} variant="outline" size="sm" disabled={couponLoading || !couponCode.trim()}>
+                          {couponLoading ? "Applying..." : "Apply"}
+                        </Button>
+                      )}
+                    </div>
+                    {appliedCoupon && (
+                      <div className="text-sm text-green-600 flex items-center gap-1">
+                        <CheckCircle className="h-4 w-4" /> Coupon &quot;{appliedCoupon.code}&quot; applied
+                      </div>
+                    )}
+                    <div className="pt-2">
+                      <h4 className="text-sm font-semibold mb-2">Available Coupons</h4>
+                      {publicLoading ? (
+                        <div className="text-sm text-muted-foreground">Checking for offers...</div>
+                      ) : publicCoupons.length > 0 ? (
+                        <div className="grid gap-2">
+                          {publicCoupons.map((pc) => (
+                            <div key={pc.id}
+                              className="flex items-center justify-between p-3 rounded-md border border-border bg-muted/30 hover:bg-muted/50 transition-colors">
+                              <div>
+                                <div className="text-sm font-semibold">{pc.code}</div>
+                                <div className="text-xs text-emerald-500 dark:text-emerald-400">{pc.discountPct}% off</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                  Expires: {new Date(pc.validTill).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <Button size="sm" variant="outline" onClick={() => applyCouponWithCode(pc.code)} disabled={couponLoading}>
+                                {couponLoading ? "..." : "Apply"}
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">No public coupons available.</div>
+                      )}
+                    </div>
                   </div>
                 )}
-
-                {/* Public coupons */}
-                <div className="pt-2">
-                  <h4 className="text-sm font-semibold mb-2">Available Coupons</h4>
-                  {publicLoading ? (
-                    <div className="text-sm text-muted-foreground">Checking for offers...</div>
-                  ) : publicCoupons.length > 0 ? (
-                    <div className="grid gap-2">
-                      {publicCoupons.map((pc) => (
-                        <div key={pc.id}
-                          className="flex items-center justify-between p-3 rounded-md border border-border bg-muted/30 hover:bg-muted/50 transition-colors">
-                          <div>
-                            <div className="text-sm font-semibold">{pc.code}</div>
-                            <div className="text-xs text-emerald-500 dark:text-emerald-400">{pc.discountPct}% off</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                              Expires: {new Date(pc.validTill).toLocaleDateString()}
-                            </div>
-                          </div>
-                          <Button size="sm" variant="outline" onClick={() => applyCouponWithCode(pc.code)} disabled={couponLoading}>
-                            {couponLoading ? '...' : 'Apply'}
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">No public coupons available.</div>
-                  )}
-                </div>
-              </div>
             </CardContent>
             <CardFooter className="pt-0">
               <div className="grid w-full gap-3">
@@ -667,7 +765,11 @@ export default function CourseDetailPage() {
                   disabled={loading}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-3 text-base font-semibold"
                 >
-                  {loading ? "Processing..." : `Pay ₹${finalPrice}`}
+                  {loading
+                    ? "Processing..."
+                    : course.recurringPlan
+                      ? `Subscribe for ₹${(course.recurringPlan.amountPaise / 100).toFixed(2)}/month`
+                      : `Pay ₹${finalPrice}`}
                 </Button>
               </div>
             </CardFooter>

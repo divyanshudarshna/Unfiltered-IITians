@@ -1,7 +1,9 @@
 // app/api/admin/courses/route.ts
 import { NextResponse } from "next/server";
+import { InclusionType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { assertAdminApiAccess } from "@/lib/roleAuth";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
+import { CourseBillingInputError, normalizeCourseBillingInput } from "@/lib/course-billing";
 
 // ================== CREATE COURSE ==================
 export async function POST(req: Request) {
@@ -17,12 +19,14 @@ export async function POST(req: Request) {
       status, 
       courseType, // Course type for certificate eligibility
       order,
-      inclusions // ✅ NEW: Array of inclusions { type, id }
-    } = body;
+      inclusions, // ✅ NEW: Array of inclusions { type, id }
+     } = body;
 
     if (!title || !price || !durationMonths) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    const billing = normalizeCourseBillingInput(body);
 
     // Validate courseType
     const validCourseTypes = ['COMPETITIVE', 'SKILLS', 'WORKSHOP'];
@@ -51,14 +55,16 @@ export async function POST(req: Request) {
           status: status || "DRAFT",
           courseType: validatedCourseType,
           order: courseOrder,
+          billingMode: billing.billingMode,
+          subscriptionEnabled: billing.subscriptionEnabled,
         },
       });
 
       // Create inclusions if provided
       if (inclusions && Array.isArray(inclusions) && inclusions.length > 0) {
-        const inclusionData = inclusions.map((inclusion: any) => ({
+        const inclusionData = inclusions.map((inclusion: { type: string; id: string }) => ({
           courseId: course.id,
-          inclusionType: inclusion.type, // 'MOCK_TEST', 'MOCK_BUNDLE', or 'SESSION'
+          inclusionType: inclusion.type as InclusionType, // 'MOCK_TEST', 'MOCK_BUNDLE', or 'SESSION'
           inclusionId: inclusion.id,
         }));
 
@@ -67,17 +73,38 @@ export async function POST(req: Request) {
         });
       }
 
+      if (billing.subscriptionEnabled && billing.amountPaise !== null) {
+        await tx.courseBillingPlan.create({
+          data: {
+            courseId: course.id,
+            version: 1,
+            status: "DRAFT",
+            amountPaise: billing.amountPaise,
+            currency: "INR",
+            interval: billing.interval,
+            totalCount: billing.totalCount,
+            providerSyncState: "PENDING",
+          },
+        });
+      }
+
       // Return course with inclusions
       return await tx.course.findUnique({
         where: { id: course.id },
         include: {
           inclusions: true,
+          billingPlans: { orderBy: { version: "desc" } },
         },
       });
     });
 
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
+    if (err instanceof CourseBillingInputError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     console.error("❌ Create Course Error:", err);
     return NextResponse.json({ error: "Failed to create course" }, { status: 500 });
   }
@@ -94,7 +121,7 @@ export async function GET(req: Request) {
         inclusions: true, // ✅ Re-enabled after DB migration
         enrollments: true,
         subscriptions: true,
-       
+        billingPlans: { orderBy: { version: "desc" } },
       },
 
       orderBy: [

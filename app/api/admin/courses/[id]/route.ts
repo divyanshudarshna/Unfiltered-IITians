@@ -1,11 +1,24 @@
 // app/api/admin/courses/[id]/route.ts
 import { NextResponse } from "next/server";
+import { InclusionType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 import { verifySecurityPassword } from "@/lib/securityPassword";
+import {
+  CourseBillingInputError,
+  hasCourseBillingInput,
+  isSameCourseBillingPlan,
+  normalizeCourseBillingInput,
+  type CourseBillingConfig,
+} from "@/lib/course-billing";
 
 interface Params {
   params: { id: string };
+}
+
+interface CourseInclusionInput {
+  type?: unknown;
+  id?: unknown;
 }
 
 // ================== GET SINGLE COURSE ==================
@@ -20,6 +33,7 @@ export async function GET(req: Request, { params }: Params) {
         enrollments: true,
         subscriptions: true,
         inclusions: true, // ✅ Re-enabled after DB migration
+        billingPlans: { orderBy: { version: "desc" } },
       },
     });
 
@@ -54,8 +68,8 @@ export async function PUT(req: Request, { params }: Params) {
       status, 
       courseType, // Course type for certificate eligibility
       order,
-      inclusions // ✅ NEW: Handle inclusions in updates
-    } = body;
+       inclusions, // ✅ NEW: Handle inclusions in updates
+     } = body;
 
     // Validate required fields
     if (!title || title.trim().length === 0) {
@@ -72,8 +86,6 @@ export async function PUT(req: Request, { params }: Params) {
 
     // ✅ Validate status - ensure it's a valid PublishStatus enum value
     const validStatuses = ['DRAFT', 'PUBLISHED', 'ARCHIVED'];
-    const validStatus = status && validStatuses.includes(status) ? status : 'DRAFT';
-    
     if (status && !validStatuses.includes(status)) {
       console.warn(`Invalid status "${status}" provided, defaulting to DRAFT`);
     }
@@ -91,8 +103,24 @@ export async function PUT(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
+    const billing: CourseBillingConfig | null = hasCourseBillingInput(body)
+      ? normalizeCourseBillingInput(body)
+      : null;
+
     // Use transaction to update course and inclusions together
     const result = await prisma.$transaction(async (tx) => {
+      const latestPlan = await tx.courseBillingPlan.findFirst({
+        where: { courseId: params.id },
+        orderBy: { version: "desc" },
+      });
+      const effectiveBilling = billing ?? {
+        billingMode: existingCourse.billingMode,
+        subscriptionEnabled: existingCourse.subscriptionEnabled,
+        amountPaise: latestPlan?.amountPaise ?? null,
+        interval: (latestPlan?.interval ?? "monthly") as "monthly",
+        totalCount: latestPlan?.totalCount ?? 120,
+      };
+
       // Update the course
       await tx.course.update({
         where: { id: params.id },
@@ -101,12 +129,14 @@ export async function PUT(req: Request, { params }: Params) {
           description: description?.trim() || null, 
           price: Number(price), 
           actualPrice: actualPrice ? Number(actualPrice) : null, 
-          durationMonths: Number(durationMonths), 
-          status: status && validStatuses.includes(status) ? status : 'DRAFT', // ✅ Use validated status
-          ...(validCourseType && { courseType: validCourseType }), // ✅ Only update if provided
-          order: order ? Number(order) : undefined 
-        },
-      });
+           durationMonths: Number(durationMonths),
+           status: status && validStatuses.includes(status) ? status : 'DRAFT', // ✅ Use validated status
+           ...(validCourseType && { courseType: validCourseType }), // ✅ Only update if provided
+           order: order ? Number(order) : undefined,
+           billingMode: effectiveBilling.billingMode,
+           subscriptionEnabled: effectiveBilling.subscriptionEnabled,
+         },
+       });
 
       // Handle inclusions if provided
       if (inclusions !== undefined && Array.isArray(inclusions)) {
@@ -119,10 +149,10 @@ export async function PUT(req: Request, { params }: Params) {
           // Create new inclusions if any
           if (inclusions.length > 0) {
             // Validate inclusion data
-            const inclusionData = inclusions.map((inclusion: any, index: number) => {
-              if (!inclusion.type || !inclusion.id) {
-                throw new Error(`Invalid inclusion at index ${index}: missing type or id`);
-              }
+             const inclusionData = inclusions.map((inclusion: CourseInclusionInput, index: number) => {
+               if (typeof inclusion.type !== "string" || typeof inclusion.id !== "string") {
+                 throw new Error(`Invalid inclusion at index ${index}: missing type or id`);
+               }
 
               if (!['MOCK_TEST', 'MOCK_BUNDLE', 'SESSION'].includes(inclusion.type)) {
                 throw new Error(`Invalid inclusion type: ${inclusion.type}`);
@@ -135,7 +165,7 @@ export async function PUT(req: Request, { params }: Params) {
 
               return {
                 courseId: params.id,
-                inclusionType: inclusion.type,
+                inclusionType: inclusion.type as InclusionType,
                 inclusionId: inclusion.id,
               };
             });
@@ -144,32 +174,54 @@ export async function PUT(req: Request, { params }: Params) {
               data: inclusionData,
             });
           }
-        } catch (inclusionError: any) {
-          console.error("Inclusion processing error:", inclusionError);
-          throw new Error(`Inclusion error: ${inclusionError.message}`);
+         } catch (inclusionError: unknown) {
+           console.error("Inclusion processing error:", inclusionError);
+           const message = inclusionError instanceof Error ? inclusionError.message : "Invalid inclusion";
+           throw new Error(`Inclusion error: ${message}`);
+          }
         }
-      }
 
-      // Return updated course with inclusions
-      const finalCourse = await tx.course.findUnique({
-        where: { id: params.id },
-        include: {
-          inclusions: true,
-        },
+         if (effectiveBilling.subscriptionEnabled && effectiveBilling.amountPaise !== null) {
+           if (!latestPlan || !isSameCourseBillingPlan(latestPlan, effectiveBilling)) {
+             await tx.courseBillingPlan.create({
+               data: {
+                 courseId: params.id,
+                 version: (latestPlan?.version ?? 0) + 1,
+                 status: "DRAFT",
+                 amountPaise: effectiveBilling.amountPaise,
+                 currency: "INR",
+                 interval: effectiveBilling.interval,
+                 totalCount: effectiveBilling.totalCount,
+                 providerSyncState: "PENDING",
+               },
+             });
+           }
+         }
+
+        // Return updated course with inclusions
+       const finalCourse = await tx.course.findUnique({
+         where: { id: params.id },
+         include: {
+           inclusions: true,
+           billingPlans: { orderBy: { version: "desc" } },
+         },
       });
 
       return finalCourse;
     });
 
     return NextResponse.json(result);
-  } catch (err: any) {
+   } catch (err: unknown) {
     const authResponse = handleAuthError(err);
     if (authResponse) return authResponse;
+    if (err instanceof CourseBillingInputError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     console.error("Update Course Error:", err);
     
     return NextResponse.json({ 
       error: "Failed to update course",
-      details: err.message 
+     details: err instanceof Error ? err.message : "Unknown error"
     }, { status: 500 });
   }
 }
@@ -206,7 +258,7 @@ export async function DELETE(req: Request, { params }: Params) {
 
     await prisma.course.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+   } catch (err: unknown) {
     const authResponse = handleAuthError(err);
     if (authResponse) return authResponse;
     console.error("Delete Course Error:", err);

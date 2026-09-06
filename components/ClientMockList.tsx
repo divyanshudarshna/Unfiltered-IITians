@@ -39,6 +39,7 @@ interface Mock {
   questions: unknown;
   description?: string | null;
   tags?: string[];
+  recurringPlan?: { amountPaise: number };
   [key: string]: unknown;
 }
 
@@ -264,7 +265,8 @@ export default function ClientMockList({ mocks, userId, purchasedMockIds, bundle
               mockTestId={mock.id}
               clerkUserId={userId}
               mockTitle={mock.title}
-              amount={mock.price}
+               amount={mock.price}
+               recurringPlan={mock.recurringPlan}
               onPurchaseSuccess={() => handlePurchaseSuccess(mock.id)}
             />
           )}

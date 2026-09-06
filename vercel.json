@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/internal/billing/release-expired-session-seats",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

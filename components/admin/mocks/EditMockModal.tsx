@@ -29,6 +29,16 @@ interface EditMockModalProps {
     duration?: number
     difficulty: DifficultyLevel
     status: PublishStatus
+    subscriptionEnabled?: boolean
+    billingPlans?: Array<{
+      id: string
+      amountPaise: number
+      totalCount: number
+      version: number
+      status: "DRAFT" | "ACTIVE" | "INACTIVE"
+      providerSyncState: string
+      razorpayPlanId?: string | null
+    }>
   }
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -42,6 +52,8 @@ export function EditMockModal({
   onSuccess,
 }: EditMockModalProps) {
   const [loading, setLoading] = useState(false)
+  const [activatingPlan, setActivatingPlan] = useState(false)
+  const [razorpayPlanId, setRazorpayPlanId] = useState("")
 
   const [formData, setFormData] = useState({
     title: mock.title,
@@ -51,6 +63,9 @@ export function EditMockModal({
     duration: mock.duration ?? 0,
     difficulty: mock.difficulty,
     status: mock.status,
+    subscriptionEnabled: mock.subscriptionEnabled ?? false,
+    subscriptionAmount: mock.billingPlans?.[0] ? (mock.billingPlans[0].amountPaise / 100).toFixed(2) : "",
+    subscriptionTotalCount: mock.billingPlans?.[0]?.totalCount?.toString() || "120",
   })
 
   useEffect(() => {
@@ -63,9 +78,38 @@ export function EditMockModal({
         duration: mock.duration ?? 0,
         difficulty: mock.difficulty,
         status: mock.status,
+        subscriptionEnabled: mock.subscriptionEnabled ?? false,
+        subscriptionAmount: mock.billingPlans?.[0] ? (mock.billingPlans[0].amountPaise / 100).toFixed(2) : "",
+        subscriptionTotalCount: mock.billingPlans?.[0]?.totalCount?.toString() || "120",
       })
+      setRazorpayPlanId(mock.billingPlans?.[0]?.razorpayPlanId || "")
     }
   }, [mock])
+
+  const latestBillingPlan = mock.billingPlans?.[0]
+
+  const handlePlanActivation = async () => {
+    if (!latestBillingPlan?.id || !razorpayPlanId.trim()) return
+    setActivatingPlan(true)
+    try {
+      const response = await fetch(
+        `/api/admin/commerce-billing-plans/${latestBillingPlan.id}/link-razorpay`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ razorpayPlanId: razorpayPlanId.trim() }),
+        },
+      )
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Unable to verify the Razorpay plan")
+      onSuccess()
+      onOpenChange(false)
+    } catch (error) {
+      console.error("Error activating Razorpay plan:", error)
+    } finally {
+      setActivatingPlan(false)
+    }
+  }
 
  const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
@@ -78,7 +122,11 @@ export function EditMockModal({
         "Content-Type": "application/json",
       },
       credentials: "include",
-      body: JSON.stringify(formData),
+      body: JSON.stringify({
+        ...formData,
+        billingMode: formData.subscriptionEnabled ? "RECURRING" : "ONE_TIME",
+        subscriptionInterval: formData.subscriptionEnabled ? "monthly" : undefined,
+      }),
     })
 
     if (!response.ok) throw new Error("Failed to update mock")
@@ -121,6 +169,42 @@ export function EditMockModal({
                 setFormData({ ...formData, description: e.target.value })
               }
             />
+          </div>
+
+          <div className="rounded-md border p-4 space-y-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={formData.subscriptionEnabled}
+                onChange={(event) => setFormData({ ...formData, subscriptionEnabled: event.target.checked })}
+              />
+              Enable monthly subscription
+            </label>
+            {formData.subscriptionEnabled && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="subscriptionAmount">Monthly price (₹)</Label>
+                    <Input id="subscriptionAmount" type="number" min="1" step="0.01" required value={formData.subscriptionAmount} onChange={(event) => setFormData({ ...formData, subscriptionAmount: event.target.value })} />
+                  </div>
+                  <div>
+                    <Label htmlFor="subscriptionTotalCount">Monthly cycles</Label>
+                    <Input id="subscriptionTotalCount" type="number" min="1" max="120" required value={formData.subscriptionTotalCount} onChange={(event) => setFormData({ ...formData, subscriptionTotalCount: event.target.value })} />
+                  </div>
+                </div>
+                {latestBillingPlan && (
+                  <div className="space-y-2 rounded border bg-muted/30 p-3 text-sm">
+                    <p>Local plan v{latestBillingPlan.version}: {latestBillingPlan.status} ({latestBillingPlan.providerSyncState})</p>
+                    <Label htmlFor="razorpayPlanId">Razorpay Plan ID</Label>
+                    <Input id="razorpayPlanId" placeholder="plan_..." value={razorpayPlanId} onChange={(event) => setRazorpayPlanId(event.target.value)} />
+                    <Button type="button" variant="outline" onClick={handlePlanActivation} disabled={activatingPlan || !razorpayPlanId.trim() || latestBillingPlan.status === "INACTIVE"}>
+                      {activatingPlan ? "Verifying..." : "Verify & Activate"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">Create the matching monthly plan in Razorpay first. The server verifies its amount and cadence before activation.</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

@@ -13,7 +13,10 @@ const isPublicRoute = createRouteMatcher([
   '/privacy-policy(.*)', // ✅ Static route - Privacy Policy
   '/refund-policy(.*)', // ✅ Static route - Refund Policy  
   '/terms-of-service(.*)', // ✅ Static route - Terms of Service
-  '/api/webhooks/clerk',
+   '/api/webhooks/clerk',
+   '/api/webhooks/razorpay',
+   // Vercel Cron is authenticated by CRON_SECRET inside the handler.
+   '/api/internal/billing/release-expired-session-seats',
   '/api/user/(.*)',
   '/api/mock/(.*)',
   '/api/subscription/(.*)',

@@ -27,6 +27,8 @@ export default async function BundleMocksPage({ params }: Readonly<{ params: { b
       basePrice: true,
       discountedPrice: true,
       status: true,
+      billingMode: true,
+      subscriptionEnabled: true,
     }
   });
 
@@ -39,31 +41,59 @@ export default async function BundleMocksPage({ params }: Readonly<{ params: { b
     );
   }
 
-  // Check if user has purchased this bundle
-  const userSubscription = await prisma.subscription.findFirst({
-    where: {
-      user: { clerkUserId: userId },
-      mockBundleId: bundleId,
-      paid: true,
-    },
-  });
+  const now = new Date();
+  const [userSubscription, userMockSubscriptions, commerceEntitlements, recurringPlan] = await Promise.all([
+    prisma.subscription.findFirst({
+      where: {
+        user: { clerkUserId: userId },
+        mockBundleId: bundleId,
+        paid: true,
+      },
+    }),
+    prisma.subscription.findMany({
+      where: {
+        user: { clerkUserId: userId },
+        mockTestId: { in: bundle.mockIds },
+        paid: true,
+      },
+      select: { mockTestId: true },
+    }),
+    prisma.entitlement.findMany({
+      where: {
+        user: { clerkUserId: userId },
+        resourceType: { in: ["MOCK_TEST", "MOCK_BUNDLE"] },
+        status: "ACTIVE",
+        startsAt: { lte: now },
+        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+      },
+      select: { resourceType: true, resourceId: true },
+    }),
+    prisma.commerceBillingPlan.findFirst({
+      where: {
+        productType: "MOCK_BUNDLE",
+        productId: bundleId,
+        status: "ACTIVE",
+        providerSyncState: "ACTIVE",
+        razorpayPlanId: { not: null },
+      },
+      orderBy: { version: "desc" },
+      select: { amountPaise: true },
+    }),
+  ]);
 
-  // Get individual mock subscriptions for this user
-  const userMockSubscriptions = await prisma.subscription.findMany({
-    where: {
-      user: { clerkUserId: userId },
-      mockTestId: { in: bundle.mockIds },
-      paid: true,
-    },
-    select: { mockTestId: true }
-  });
-
-  const purchasedMockIds = userMockSubscriptions.map(sub => sub.mockTestId!);
-  const isBundlePurchased = !!userSubscription;
+  const purchasedMockIds = new Set([
+    ...userMockSubscriptions.map((subscription) => subscription.mockTestId!),
+    ...commerceEntitlements
+      .filter((entitlement) => entitlement.resourceType === "MOCK_TEST")
+      .map((entitlement) => entitlement.resourceId),
+  ]);
+  const isBundlePurchased = Boolean(userSubscription) || commerceEntitlements.some(
+    (entitlement) => entitlement.resourceType === "MOCK_BUNDLE" && entitlement.resourceId === bundleId,
+  );
   
   // Check if user owns all mocks individually
   const ownsAllMocksIndividually = bundle.mockIds.length > 0 && 
-    bundle.mockIds.every(mockId => purchasedMockIds.includes(mockId));
+    bundle.mockIds.every(mockId => purchasedMockIds.has(mockId));
   
   const isPurchased = isBundlePurchased || ownsAllMocksIndividually;
 
@@ -89,12 +119,12 @@ export default async function BundleMocksPage({ params }: Readonly<{ params: { b
         })
       : [];
   const simplifiedMocks = mocks.map((m) => {
-    const isSubscribed = isPurchased || purchasedMockIds.includes(m.id);
+    const isSubscribed = isPurchased || purchasedMockIds.has(m.id);
     let subscriptionSource: 'bundle' | 'individual' | 'none';
     
     if (isPurchased) {
       subscriptionSource = isBundlePurchased ? 'bundle' : 'individual';
-    } else if (purchasedMockIds.includes(m.id)) {
+    } else if (purchasedMockIds.has(m.id)) {
       subscriptionSource = 'individual';
     } else {
       subscriptionSource = 'none';
@@ -178,8 +208,9 @@ export default async function BundleMocksPage({ params }: Readonly<{ params: { b
             discountPercentage={discountPercentage}
             isPurchased={isPurchased}
             mockCount={bundle.mockIds.length}
-            purchasedMockIds={purchasedMockIds}
+            purchasedMockIds={[...purchasedMockIds]}
             ownsAllIndividually={ownsAllMocksIndividually}
+            recurringPlan={bundle.billingMode === "RECURRING" && bundle.subscriptionEnabled ? recurringPlan ?? undefined : undefined}
           />
         </section>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, type ReactNode } from "react";
+import { DifficultyLevel, PublishStatus } from "@prisma/client";
 import {
   ColumnDef,
   flexRender,
@@ -29,7 +30,6 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
-  DollarSign,
   Trophy,
   Star,
   Award,
@@ -51,10 +51,20 @@ type MockTest = {
   price: number;
   actualPrice?: number;
   duration?: number;
-  difficulty: string;
-  questions: Array<any>;
+  difficulty: DifficultyLevel;
+  questions: unknown[];
   createdAt: string;
-  status: string;
+  status: PublishStatus;
+  subscriptionEnabled?: boolean;
+  billingPlans?: Array<{
+    id: string;
+    amountPaise: number;
+    totalCount: number;
+    version: number;
+    status: "DRAFT" | "ACTIVE" | "INACTIVE";
+    providerSyncState: string;
+    razorpayPlanId?: string | null;
+  }>;
 };
 
 type MockStats = {
@@ -150,14 +160,14 @@ export default function AdminMocksPage() {
         const errorData = await res.json().catch(() => ({ error: "Delete failed" }));
         alert(errorData.error || "Failed to delete mock");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error deleting mock:", err);
-      alert(err.message || "Error deleting mock");
+      alert(err instanceof Error ? err.message : "Error deleting mock");
     }
   };
 
   const getDifficultyBadge = (difficulty: string) => {
-    const difficultyMap: Record<string, { icon: JSX.Element; color: string }> = {
+    const difficultyMap: Record<string, { icon: ReactNode; color: string }> = {
       EASY: { icon: <Star className="w-4 h-4" />, color: "bg-green-100 text-green-800 border-green-200" },
       MEDIUM: { icon: <Award className="w-4 h-4" />, color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
       HARD: { icon: <Trophy className="w-4 h-4" />, color: "bg-red-100 text-red-800 border-red-200" },
@@ -399,8 +409,8 @@ export default function AdminMocksPage() {
     getPaginationRowModel: getPaginationRowModel(),
     globalFilterFn: (row, _, filterValue) => {
       const search = filterValue.toLowerCase();
-      const title = row.getValue("title").toString().toLowerCase();
-      const difficulty = row.getValue("difficulty").toString().toLowerCase();
+      const title = String(row.getValue("title")).toLowerCase();
+      const difficulty = String(row.getValue("difficulty")).toLowerCase();
       const description = row.getValue("description")?.toString().toLowerCase() || "";
       return title.includes(search) || difficulty.includes(search) || description.includes(search);
     },

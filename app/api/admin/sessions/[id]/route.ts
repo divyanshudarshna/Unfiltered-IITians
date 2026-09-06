@@ -1,30 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { getSessionExpiryDate } from '@/lib/guidance-session-expiry';
+import { assertAdminApiAccess, handleAuthError } from '@/lib/roleAuth';
+import {
+  CommerceBillingInputError,
+  hasCommerceBillingInput,
+  normalizeCommerceBillingInput,
+  type CommerceBillingConfig,
+} from '@/lib/commerce-billing';
+import { createOrVersionCommerceBillingPlan } from '@/lib/commerce-billing-plan';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = getAuth(req);
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
-      select: { role: true }
-    });
-
-    if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    await assertAdminApiAccess(req.url, req.method, 'courses');
+    const { id } = await params;
 
     const session = await prisma.session.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         enrollments: {
           include: {
@@ -50,6 +45,8 @@ export async function GET(
 
     return NextResponse.json(session);
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error('Error fetching session:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -60,29 +57,38 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = getAuth(req);
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
-      select: { role: true }
-    });
-
-    if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    await assertAdminApiAccess(req.url, req.method, 'courses');
+    const { id } = await params;
 
     const body = await req.json();
+    const hasBillingInput = hasCommerceBillingInput(body);
+    const existing = await prisma.session.findUniqueOrThrow({ where: { id } });
+    const latestPlan = existing.subscriptionEnabled
+      ? await prisma.commerceBillingPlan.findFirst({
+          where: { productType: 'GUIDANCE_SESSION', productId: id },
+          orderBy: { version: 'desc' },
+        })
+      : null;
+    const billing: CommerceBillingConfig = hasBillingInput
+      ? normalizeCommerceBillingInput(body)
+      : {
+          billingMode: existing.billingMode,
+          subscriptionEnabled: existing.subscriptionEnabled,
+          amountPaise: latestPlan?.amountPaise ?? null,
+          interval: 'monthly',
+          totalCount: latestPlan?.totalCount ?? 120,
+        };
+    if (billing.subscriptionEnabled && body.expiryDate) {
+      return NextResponse.json({ error: 'Recurring guidance programs cannot have a fixed expiry date' }, { status: 400 });
+    }
     
-    const session = await prisma.session.update({
-      where: { id: params.id },
-      data: {
+    const session = await prisma.$transaction(async (tx) => {
+      const updated = await tx.session.update({
+        where: { id },
+        data: {
         title: body.title,
         description: body.description,
         content: body.content,
@@ -94,16 +100,32 @@ export async function PUT(
         type: body.type,
         duration: parseInt(body.duration),
         expiryDate: getSessionExpiryDate(body.expiryDate),
-      },
-      include: {
+          billingMode: billing.billingMode,
+          subscriptionEnabled: billing.subscriptionEnabled,
+        },
+      });
+      await createOrVersionCommerceBillingPlan(tx, {
+        productType: 'GUIDANCE_SESSION',
+        productId: updated.id,
+        billing,
+      });
+      return tx.session.findUniqueOrThrow({
+        where: { id: updated.id },
+        include: {
         _count: {
           select: { enrollments: true }
         }
-      }
+        }
+      });
     });
 
     return NextResponse.json(session);
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
+    if (error instanceof CommerceBillingInputError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error('Error updating session:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -114,27 +136,15 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = getAuth(req);
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
-      select: { role: true }
-    });
-
-    if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    await assertAdminApiAccess(req.url, req.method, 'courses');
+    const { id } = await params;
 
     // Check if there are any enrollments
     const enrollments = await prisma.sessionEnrollment.count({
-      where: { sessionId: params.id }
+      where: { sessionId: id }
     });
 
     if (enrollments > 0) {
@@ -145,11 +155,13 @@ export async function DELETE(
     }
 
     await prisma.session.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     return NextResponse.json({ message: 'Session deleted successfully' });
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error('Error deleting session:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

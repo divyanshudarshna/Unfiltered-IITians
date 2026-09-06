@@ -5,6 +5,24 @@ import MockBundlesList from "@/components/MockBundlesList";
 
 export const revalidate = 60;
 
+type BundleWithMockDetails = {
+  id: string;
+  title: string;
+  description: string | null;
+  mockIds: string[];
+  basePrice: number;
+  discountedPrice: number | null;
+  createdAt: Date;
+  status: string;
+  mockTests: Array<{
+    id: string;
+    title: string;
+    difficulty: string;
+    duration: number | null;
+    tags: string[];
+  }>;
+};
+
 export default async function MockBundlesSection() {
   let clerkUserId: string | null = null;
   let userMockSubscriptions: string[] = [];
@@ -20,7 +38,7 @@ export default async function MockBundlesSection() {
         include: { subscriptions: true },
       });
 
-      if (dbUser?.subscriptions) {
+      if (dbUser) {
         // Get individual mock subscriptions
         userMockSubscriptions = dbUser.subscriptions
           .filter(sub => sub.paid && sub.mockTestId)
@@ -30,17 +48,40 @@ export default async function MockBundlesSection() {
         userBundleSubscriptions = dbUser.subscriptions
           .filter(sub => sub.paid && sub.mockBundleId)
           .map(sub => sub.mockBundleId!);
+
+        const now = new Date();
+        const entitlements = await prisma.entitlement.findMany({
+          where: {
+            userId: dbUser.id,
+            resourceType: { in: ["MOCK_TEST", "MOCK_BUNDLE"] },
+            status: "ACTIVE",
+            startsAt: { lte: now },
+            OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+          },
+          select: { resourceType: true, resourceId: true },
+        });
+        userMockSubscriptions = [...new Set([
+          ...userMockSubscriptions,
+          ...entitlements
+            .filter((entitlement) => entitlement.resourceType === "MOCK_TEST")
+            .map((entitlement) => entitlement.resourceId),
+        ])];
+        userBundleSubscriptions = [...new Set([
+          ...userBundleSubscriptions,
+          ...entitlements
+            .filter((entitlement) => entitlement.resourceType === "MOCK_BUNDLE")
+            .map((entitlement) => entitlement.resourceId),
+        ])];
       }
     }
-  } catch (error) {
+  } catch {
     // console.warn("No logged-in user, continuing as guest:", error);
   }
 
-  let bundles: any[] = [];
-  let bundlesWithMockDetails: any[] = [];
+  let bundlesWithMockDetails: BundleWithMockDetails[] = [];
 
   try {
-    bundles = await prisma.mockBundle.findMany({
+    const bundles = await prisma.mockBundle.findMany({
       where: { status: "PUBLISHED" },
       orderBy: [
         { order: "asc" },
@@ -70,7 +111,7 @@ export default async function MockBundlesSection() {
             ...bundle,
             mockTests
           };
-        } catch (error) {
+        } catch {
           // console.error(`Error fetching mock tests for bundle ${bundle.id}:`, error);
           return {
             ...bundle,
@@ -79,7 +120,7 @@ export default async function MockBundlesSection() {
         }
       })
     );
-  } catch (error) {
+  } catch {
     // console.error("Error fetching mock bundles:", error);
     bundlesWithMockDetails = [];
   }

@@ -23,8 +23,6 @@ import {
   Loader2,
   Package,
   CheckCircle,
-  Circle,
-  Plus,
   Sparkles
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +40,19 @@ interface Course {
   status: PublishStatus;
   courseType?: CourseType;
   order?: number;
+  billingMode?: "ONE_TIME" | "RECURRING";
+  subscriptionEnabled?: boolean;
+  billingPlans?: {
+    id: string;
+    version: number;
+    status: "DRAFT" | "ACTIVE" | "INACTIVE";
+    amountPaise: number;
+    currency: string;
+    interval: string;
+    totalCount: number;
+    razorpayPlanId?: string | null;
+    providerSyncState?: string;
+  }[];
   inclusions?: {
     id: string;
     inclusionType: 'MOCK_TEST' | 'MOCK_BUNDLE' | 'SESSION';
@@ -86,6 +97,8 @@ interface InclusionData {
 }
 
 export default function CourseForm({ onSuccess, course }: CourseFormProps) {
+  const currentBillingPlan = course?.billingPlans?.[0];
+
   // For edit mode, use existing course values; for add mode, use defaults
   const [form, setForm] = useState({
     title: course?.title || "",
@@ -96,6 +109,10 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
     status: course?.status || PublishStatus.DRAFT,
     courseType: course?.courseType || CourseType.COMPETITIVE,
     order: course?.order?.toString() || "",
+    subscriptionEnabled: course?.subscriptionEnabled ?? false,
+    subscriptionAmount: currentBillingPlan ? (currentBillingPlan.amountPaise / 100).toFixed(2) : "",
+    subscriptionInterval: currentBillingPlan?.interval || "monthly",
+    subscriptionTotalCount: currentBillingPlan?.totalCount?.toString() || "120",
   });
 
   // ✅ State for inclusions
@@ -116,6 +133,8 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
   });
 
   const [loading, setLoading] = useState(false);
+  const [linkingRazorpayPlan, setLinkingRazorpayPlan] = useState(false);
+  const [razorpayPlanId, setRazorpayPlanId] = useState(currentBillingPlan?.razorpayPlanId || "");
   const [loadingInclusions, setLoadingInclusions] = useState(true);
 
   // ✅ Fetch inclusion options
@@ -150,7 +169,14 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
         status: course.status || PublishStatus.DRAFT,
         courseType: course.courseType || CourseType.COMPETITIVE,
         order: course.order?.toString() || "",
+        subscriptionEnabled: course.subscriptionEnabled ?? false,
+        subscriptionAmount: course.billingPlans?.[0]
+          ? (course.billingPlans[0].amountPaise / 100).toFixed(2)
+          : "",
+        subscriptionInterval: course.billingPlans?.[0]?.interval || "monthly",
+        subscriptionTotalCount: course.billingPlans?.[0]?.totalCount?.toString() || "120",
       });
+      setRazorpayPlanId(course.billingPlans?.[0]?.razorpayPlanId || "");
 
       // ✅ Set existing inclusions if editing
       if (course.inclusions && Array.isArray(course.inclusions)) {
@@ -231,6 +257,11 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
         status: form.status || PublishStatus.DRAFT, // ✅ Ensure status is never empty
         courseType: form.courseType || CourseType.COMPETITIVE, // ✅ Course type for certificate eligibility
         order: form.order ? Number(form.order) : null,
+        billingMode: form.subscriptionEnabled ? "RECURRING" : "ONE_TIME",
+        subscriptionEnabled: form.subscriptionEnabled,
+        subscriptionAmount: form.subscriptionEnabled ? form.subscriptionAmount : undefined,
+        subscriptionInterval: form.subscriptionEnabled ? form.subscriptionInterval : undefined,
+        subscriptionTotalCount: form.subscriptionEnabled ? Number(form.subscriptionTotalCount) : undefined,
         inclusions: inclusions,
       };
       
@@ -248,11 +279,39 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
 
       toast.success(course ? "Course updated successfully!" : "Course created successfully!");
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Form submission error:", err);
-      toast.error(`Error saving course: ${err.message}`);
+      toast.error(`Error saving course: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLinkRazorpayPlan = async () => {
+    if (!course || !currentBillingPlan || !razorpayPlanId.trim()) {
+      toast.error("Save the recurring course and enter a Razorpay Plan ID first.");
+      return;
+    }
+
+    setLinkingRazorpayPlan(true);
+    try {
+      const response = await fetch(
+        `/api/admin/courses/${course.id}/billing-plans/${currentBillingPlan.id}/link-razorpay`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ razorpayPlanId: razorpayPlanId.trim() }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to verify Razorpay plan");
+
+      toast.success("Razorpay plan verified and recurring checkout activated.");
+      onSuccess();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to verify Razorpay plan");
+    } finally {
+      setLinkingRazorpayPlan(false);
     }
   };
 
@@ -343,6 +402,129 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                   />
                 </div>
               </div>
+            </div>
+
+            <Separator className="my-2 dark:bg-gray-700" />
+
+            {/* Recurring Billing Section */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-md bg-indigo-100 dark:bg-indigo-900/40">
+                  <DollarSign className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Recurring Subscription</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Configure a local plan draft. A Razorpay plan is created separately after deployment checks.
+                  </p>
+                </div>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-lg border border-indigo-200 dark:border-indigo-800 p-4 cursor-pointer">
+                <Checkbox
+                  checked={form.subscriptionEnabled}
+                  onCheckedChange={(checked) =>
+                    setForm({ ...form, subscriptionEnabled: checked === true })
+                  }
+                  className="mt-0.5 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                />
+                <div>
+                  <div className="font-medium">Enable monthly auto-renewing subscription</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Students will only see this after a verified Razorpay plan is configured and enabled.
+                  </p>
+                </div>
+              </label>
+
+              {form.subscriptionEnabled && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 rounded-lg bg-indigo-50/50 dark:bg-indigo-950/20 p-4">
+                  <div className="space-y-3">
+                    <Label htmlFor="subscriptionAmount" className="text-sm font-medium">
+                      Monthly Amount (₹)
+                    </Label>
+                    <Input
+                      id="subscriptionAmount"
+                      type="number"
+                      name="subscriptionAmount"
+                      value={form.subscriptionAmount}
+                      onChange={handleChange}
+                      min="1"
+                      step="0.01"
+                      required={form.subscriptionEnabled}
+                      placeholder="499.00"
+                      className="h-11 border-gray-300 dark:border-gray-600 dark:bg-gray-800/50"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="subscriptionInterval" className="text-sm font-medium">
+                      Billing Interval
+                    </Label>
+                    <Select
+                      value={form.subscriptionInterval}
+                      onValueChange={(value) => setForm({ ...form, subscriptionInterval: value })}
+                    >
+                      <SelectTrigger id="subscriptionInterval" className="h-11 border-gray-300 dark:border-gray-600 dark:bg-gray-800/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="subscriptionTotalCount" className="text-sm font-medium">
+                      Billing Cycles
+                    </Label>
+                    <Input
+                      id="subscriptionTotalCount"
+                      type="number"
+                      name="subscriptionTotalCount"
+                      value={form.subscriptionTotalCount}
+                      onChange={handleChange}
+                      min="1"
+                      max="120"
+                      step="1"
+                      required={form.subscriptionEnabled}
+                      placeholder="120"
+                      className="h-11 border-gray-300 dark:border-gray-600 dark:bg-gray-800/50"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground md:col-span-3">
+                    Amounts are stored as paise on the server. Changing price or cycles creates a new local plan version; existing subscribers are not changed automatically.
+                  </p>
+                </div>
+              )}
+
+              {form.subscriptionEnabled && course && currentBillingPlan && (
+                <div className="rounded-lg border border-indigo-200 dark:border-indigo-800 p-4 space-y-3">
+                  <div>
+                    <h4 className="font-medium">Verify Razorpay Plan</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Create the matching plan manually in Razorpay Dashboard, then paste its ID here. The server checks amount, INR currency, and monthly cadence before activation.
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Input
+                      value={razorpayPlanId}
+                      onChange={(event) => setRazorpayPlanId(event.target.value)}
+                      placeholder="plan_..."
+                      aria-label="Razorpay Plan ID"
+                      className="h-10"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleLinkRazorpayPlan}
+                      disabled={linkingRazorpayPlan || !razorpayPlanId.trim()}
+                      className="sm:shrink-0"
+                    >
+                      {linkingRazorpayPlan ? "Verifying..." : "Verify & Activate"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Local plan v{currentBillingPlan.version}: {currentBillingPlan.status.toLowerCase()} / {currentBillingPlan.providerSyncState?.toLowerCase() || "pending"}.
+                  </p>
+                </div>
+              )}
             </div>
 
             <Separator className="my-2 dark:bg-gray-700" />

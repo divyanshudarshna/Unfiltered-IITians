@@ -1,32 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { type Prisma, type SessionStatus } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { getSessionExpiryDate } from '@/lib/guidance-session-expiry';
+import { assertAdminApiAccess, handleAuthError } from '@/lib/roleAuth';
+import { CommerceBillingInputError, normalizeCommerceBillingInput } from '@/lib/commerce-billing';
+import { createOrVersionCommerceBillingPlan } from '@/lib/commerce-billing-plan';
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is admin
-    const user = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
-      select: { role: true }
-    });
-
-    if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    await assertAdminApiAccess(req.url, req.method, 'courses');
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status');
 
-    const where = status ? { status } : {};
+    const where: Prisma.SessionWhereInput = status ? { status: status as SessionStatus } : {};
 
     const sessions = await prisma.session.findMany({
       where,
@@ -56,9 +45,19 @@ export async function GET(req: NextRequest) {
     });
 
     const total = await prisma.session.count({ where });
+    const plans = await prisma.commerceBillingPlan.findMany({
+      where: { productType: 'GUIDANCE_SESSION', productId: { in: sessions.map((session) => session.id) } },
+      orderBy: { version: 'desc' },
+    });
+    const plansBySession = new Map<string, typeof plans>();
+    for (const plan of plans) {
+      const current = plansBySession.get(plan.productId) ?? [];
+      current.push(plan);
+      plansBySession.set(plan.productId, current);
+    }
 
     return NextResponse.json({
-      sessions,
+      sessions: sessions.map((session) => ({ ...session, billingPlans: plansBySession.get(session.id) ?? [] })),
       pagination: {
         page,
         limit,
@@ -67,6 +66,8 @@ export async function GET(req: NextRequest) {
       }
     });
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error('Error fetching sessions:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -77,25 +78,17 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
-      select: { role: true }
-    });
-
-    if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    await assertAdminApiAccess(req.url, req.method, 'courses');
 
     const body = await req.json();
+    const billing = normalizeCommerceBillingInput(body);
+    if (billing.subscriptionEnabled && body.expiryDate) {
+      return NextResponse.json({ error: 'Recurring guidance programs cannot have a fixed expiry date' }, { status: 400 });
+    }
     
-    const session = await prisma.session.create({
-      data: {
+    const session = await prisma.$transaction(async (tx) => {
+      const created = await tx.session.create({
+        data: {
         title: body.title,
         description: body.description,
         content: body.content,
@@ -107,16 +100,32 @@ export async function POST(req: NextRequest) {
         type: body.type,
         duration: parseInt(body.duration),
         expiryDate: getSessionExpiryDate(body.expiryDate),
-      },
-      include: {
+          billingMode: billing.billingMode,
+          subscriptionEnabled: billing.subscriptionEnabled,
+        },
+      });
+      await createOrVersionCommerceBillingPlan(tx, {
+        productType: 'GUIDANCE_SESSION',
+        productId: created.id,
+        billing,
+      });
+      return tx.session.findUniqueOrThrow({
+        where: { id: created.id },
+        include: {
         _count: {
           select: { enrollments: true }
         }
-      }
+        }
+      });
     });
 
     return NextResponse.json(session);
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
+    if (error instanceof CommerceBillingInputError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error('Error creating session:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

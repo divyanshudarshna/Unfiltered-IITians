@@ -15,11 +15,20 @@ interface SessionWithEnrollments extends Omit<Session, 'order'> {
   };
   enrollments: SessionEnrollment[];
   order?: number;
+  billingPlans?: Array<{
+    id: string;
+    amountPaise: number;
+    totalCount: number;
+    status: "DRAFT" | "ACTIVE" | "INACTIVE";
+    razorpayPlanId: string | null;
+    providerSyncState: string;
+    version: number;
+  }>;
 }
 
 interface DatatableProps {
   sessions: SessionWithEnrollments[];
-  onEdit: (session: Session) => void;
+  onEdit: (session: SessionWithEnrollments) => void;
   onDelete: (sessionId: string) => void;
   loading: boolean;
   onRefresh: () => void;
@@ -202,7 +211,7 @@ export default function SessionsDatatable({ sessions, onEdit, onDelete, loading,
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onEdit(session as Session)}
+                    onClick={() => onEdit(session)}
                     className="h-8 gap-1"
                   >
                     <Edit className="h-3 w-3" />

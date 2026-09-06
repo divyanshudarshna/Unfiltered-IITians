@@ -11,8 +11,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { X, Plus, Loader2 } from 'lucide-react';
 
+type SessionWithBillingPlans = Session & {
+  billingPlans?: Array<{
+    id: string;
+    amountPaise: number;
+    totalCount: number;
+    status: 'DRAFT' | 'ACTIVE' | 'INACTIVE';
+    razorpayPlanId: string | null;
+    providerSyncState: string;
+    version: number;
+  }>;
+};
+
 interface SessionFormModalProps {
-  session: Session | null;
+  session: SessionWithBillingPlans | null;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -30,12 +42,18 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
     maxEnrollment: '',
     type: 'GROUP' as SessionType,
     duration: '60',
-    expiryDate: ''
+    expiryDate: '',
+    subscriptionEnabled: false,
+    subscriptionAmount: '',
+    subscriptionTotalCount: '120',
   });
 
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [razorpayPlanId, setRazorpayPlanId] = useState('');
+  const [linkingPlan, setLinkingPlan] = useState(false);
+  const currentBillingPlan = session?.billingPlans?.[0];
 
   useEffect(() => {
     if (session) {
@@ -50,8 +68,12 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
         maxEnrollment: session.maxEnrollment?.toString() || '',
         type: session.type,
         duration: session.duration.toString(),
-        expiryDate: session.expiryDate ? new Date(session.expiryDate).toISOString().split('T')[0] : ''
+        expiryDate: session.expiryDate ? new Date(session.expiryDate).toISOString().split('T')[0] : '',
+        subscriptionEnabled: session.subscriptionEnabled,
+        subscriptionAmount: session.billingPlans?.[0] ? (session.billingPlans[0].amountPaise / 100).toFixed(2) : '',
+        subscriptionTotalCount: session.billingPlans?.[0]?.totalCount?.toString() || '120',
       });
+      setRazorpayPlanId(session.billingPlans?.[0]?.razorpayPlanId || '');
     } else {
       // Reset form when creating new session
       setFormData({
@@ -65,12 +87,36 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
         maxEnrollment: '',
         type: 'GROUP',
         duration: '60',
-        expiryDate: ''
+        expiryDate: '',
+        subscriptionEnabled: false,
+        subscriptionAmount: '',
+        subscriptionTotalCount: '120',
       });
     }
     setError('');
     setTagInput('');
+    if (!session) setRazorpayPlanId('');
   }, [session, isOpen]);
+
+  const linkRazorpayPlan = async () => {
+    if (!currentBillingPlan || !razorpayPlanId.trim()) return;
+    setLinkingPlan(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/admin/commerce-billing-plans/${currentBillingPlan.id}/link-razorpay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ razorpayPlanId: razorpayPlanId.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to verify Razorpay plan');
+      onSuccess();
+    } catch (linkError) {
+      setError(linkError instanceof Error ? linkError.message : 'Unable to verify Razorpay plan');
+    } finally {
+      setLinkingPlan(false);
+    }
+  };
 
   const addTag = () => {
     const trimmedTag = tagInput.trim();
@@ -114,6 +160,11 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
           maxEnrollment: formData.maxEnrollment ? parseInt(formData.maxEnrollment) : null,
           duration: parseInt(formData.duration),
           expiryDate: formData.expiryDate ? new Date(formData.expiryDate).toISOString() : null,
+          billingMode: formData.subscriptionEnabled ? 'RECURRING' : 'ONE_TIME',
+          subscriptionEnabled: formData.subscriptionEnabled,
+          subscriptionAmount: formData.subscriptionEnabled ? formData.subscriptionAmount : undefined,
+          subscriptionInterval: formData.subscriptionEnabled ? 'monthly' : undefined,
+          subscriptionTotalCount: formData.subscriptionEnabled ? Number(formData.subscriptionTotalCount) : undefined,
         }),
       });
 
@@ -123,7 +174,7 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
         const errorData = await response.json();
         setError(errorData.error || 'Something went wrong');
       }
-    } catch (error) {
+    } catch {
       setError('Network error occurred');
     } finally {
       setLoading(false);
@@ -200,6 +251,55 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
                 rows={3}
               />
             </div>
+          </div>
+
+          <div className="rounded-lg border p-4 space-y-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={formData.subscriptionEnabled}
+                onChange={(event) => setFormData(prev => ({ ...prev, subscriptionEnabled: event.target.checked }))}
+              />
+              Enable monthly program subscription
+            </label>
+            {formData.subscriptionEnabled && (
+              <>
+                <p className="text-xs text-muted-foreground">Recurring programs cannot have a fixed expiry date. One active subscriber holds one seat while paid access remains active.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="subscriptionAmount">Monthly price (₹)</Label>
+                    <Input id="subscriptionAmount" type="number" min="1" step="0.01" value={formData.subscriptionAmount} onChange={(event) => setFormData(prev => ({ ...prev, subscriptionAmount: event.target.value }))} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="subscriptionTotalCount">Monthly cycles</Label>
+                    <Input id="subscriptionTotalCount" type="number" min="1" max="120" value={formData.subscriptionTotalCount} onChange={(event) => setFormData(prev => ({ ...prev, subscriptionTotalCount: event.target.value }))} required />
+                  </div>
+                </div>
+                {session && currentBillingPlan && (
+                  <div className="space-y-2 border-t pt-3">
+                    <p className="text-xs text-muted-foreground">
+                      Plan v{currentBillingPlan.version} is {currentBillingPlan.status.toLowerCase()}. Create the exact
+                      monthly plan in Razorpay first, then paste its Plan ID to verify and activate it.
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={razorpayPlanId}
+                        onChange={(event) => setRazorpayPlanId(event.target.value)}
+                        placeholder="plan_..."
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={linkRazorpayPlan}
+                        disabled={linkingPlan || !razorpayPlanId.trim()}
+                      >
+                        {linkingPlan ? 'Verifying...' : 'Verify & Activate'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Pricing & Enrollment */}
@@ -283,6 +383,7 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
                   type="date"
                   value={formData.expiryDate}
                   onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                  disabled={formData.subscriptionEnabled}
                 />
               </div>
             </div>

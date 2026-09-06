@@ -15,22 +15,37 @@ export async function getCourseEntitlement(clerkUserId: string | null, courseId:
     return { hasFullAccess: true, userId: user.id, role: user.role, accessSource: "role" as const, enrollmentExpiresAt: null }
   }
 
-  const enrollment = await prisma.enrollment.findFirst({
-    where: {
-      userId: user.id,
-      courseId,
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-    },
-    orderBy: { enrolledAt: "desc" },
-    select: { expiresAt: true },
-  })
+  const now = new Date()
+  const [enrollment, commerceEntitlement] = await Promise.all([
+    prisma.enrollment.findFirst({
+      where: {
+        userId: user.id,
+        courseId,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      orderBy: { enrolledAt: "desc" },
+      select: { expiresAt: true },
+    }),
+    prisma.entitlement.findFirst({
+      where: {
+        userId: user.id,
+        resourceType: "COURSE",
+        resourceId: courseId,
+        status: "ACTIVE",
+        startsAt: { lte: now },
+        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+      },
+      orderBy: { endsAt: "desc" },
+      select: { endsAt: true },
+    }),
+  ])
 
   return {
-    hasFullAccess: Boolean(enrollment),
+    hasFullAccess: Boolean(enrollment || commerceEntitlement),
     userId: user.id,
     role: user.role,
-    accessSource: enrollment ? "enrollment" as const : null,
-    enrollmentExpiresAt: enrollment?.expiresAt ?? null,
+    accessSource: enrollment ? "enrollment" as const : commerceEntitlement ? "commerce" as const : null,
+    enrollmentExpiresAt: enrollment?.expiresAt ?? commerceEntitlement?.endsAt ?? null,
   }
 }
 

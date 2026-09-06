@@ -22,6 +22,12 @@ export async function GET(req: Request, { params }: Params) {
           },
         },
         coupons: true,
+        billingPlans: {
+          where: { status: "ACTIVE", providerSyncState: "ACTIVE" },
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { amountPaise: true, currency: true, interval: true, totalCount: true },
+        },
         inclusions: true, // Get raw inclusions first
         // ✅ Instructor full profiles
         courseInstructors: {
@@ -110,6 +116,9 @@ export async function GET(req: Request, { params }: Params) {
       ...course,
       actualPrice: course.actualPrice ?? course.price,
       price: course.price,
+      recurringPlan: course.billingMode === "RECURRING" && course.subscriptionEnabled
+        ? course.billingPlans[0] ?? null
+        : null,
       inclusions: inclusionsWithData, // Replace with enriched inclusions
       instructors, // ✅ Flattened instructor profiles
       hasFreePreview: course.contents.some((content) =>

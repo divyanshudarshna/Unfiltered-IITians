@@ -34,8 +34,32 @@ export default async function MockListPage() {
       status: true,
       createdAt: true,
       updatedAt: true,
+      billingMode: true,
+      subscriptionEnabled: true,
     },
   });
+
+  const mockPlans = await prisma.commerceBillingPlan.findMany({
+    where: {
+      productType: "MOCK_TEST",
+      productId: { in: mocks.map((mock) => mock.id) },
+      status: "ACTIVE",
+      providerSyncState: "ACTIVE",
+      razorpayPlanId: { not: null },
+    },
+    orderBy: { version: "desc" },
+    select: { productId: true, amountPaise: true },
+  });
+  const recurringPlansByMock = new Map<string, { amountPaise: number }>();
+  for (const plan of mockPlans) {
+    if (!recurringPlansByMock.has(plan.productId)) recurringPlansByMock.set(plan.productId, { amountPaise: plan.amountPaise });
+  }
+  const mocksWithRecurringPlans = mocks.map((mock) => ({
+    ...mock,
+    recurringPlan: mock.billingMode === "RECURRING" && mock.subscriptionEnabled
+      ? recurringPlansByMock.get(mock.id)
+      : undefined,
+  }));
 
   const mockBundles = await prisma.mockBundle.findMany({
     where: { status: "PUBLISHED" },
@@ -80,10 +104,35 @@ export default async function MockListPage() {
     })
   );
 
-  const userSubscriptions = await prisma.subscription.findMany({
-    where: { userId: dbUser.id, paid: true },
-    select: { mockTestId: true, mockBundleId: true },
-  });
+  const now = new Date();
+  const [userSubscriptions, commerceEntitlements] = await Promise.all([
+    prisma.subscription.findMany({
+      where: { userId: dbUser.id, paid: true },
+      select: { mockTestId: true, mockBundleId: true },
+    }),
+    prisma.entitlement.findMany({
+      where: {
+        userId: dbUser.id,
+        resourceType: { in: ["MOCK_TEST", "MOCK_BUNDLE"] },
+        status: "ACTIVE",
+        startsAt: { lte: now },
+        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+      },
+      select: { resourceType: true, resourceId: true },
+    }),
+  ]);
+  const purchasedMockIds = new Set([
+    ...userSubscriptions.map((sub) => sub.mockTestId).filter((id): id is string => id !== null),
+    ...commerceEntitlements
+      .filter((entitlement) => entitlement.resourceType === "MOCK_TEST")
+      .map((entitlement) => entitlement.resourceId),
+  ]);
+  const purchasedBundleIds = new Set([
+    ...userSubscriptions.map((sub) => sub.mockBundleId).filter((id): id is string => id !== null),
+    ...commerceEntitlements
+      .filter((entitlement) => entitlement.resourceType === "MOCK_BUNDLE")
+      .map((entitlement) => entitlement.resourceId),
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-200 dark:bg-black transition-colors duration-500">
@@ -105,11 +154,11 @@ export default async function MockListPage() {
           </div>
 
           <ClientMockList
-            mocks={mocks}
+            mocks={mocksWithRecurringPlans}
             bundles={bundlesWithMockDetails}
             userId={userId}
-            purchasedMockIds={userSubscriptions.map((sub) => sub.mockTestId).filter((id): id is string => id !== null)}
-            purchasedBundleIds={userSubscriptions.map((sub) => sub.mockBundleId).filter((id): id is string => id !== null)}
+            purchasedMockIds={[...purchasedMockIds]}
+            purchasedBundleIds={[...purchasedBundleIds]}
           />
 
           <FAQPage categories={["mocks"]}/>

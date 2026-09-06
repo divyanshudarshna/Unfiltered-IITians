@@ -27,6 +27,101 @@ enum CourseType {
   WORKSHOP // Workshop courses
 }
 
+enum CourseBillingMode {
+  ONE_TIME
+  RECURRING
+}
+
+enum BillingPlanStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+}
+
+enum CommerceProductType {
+  COURSE
+  MOCK_TEST
+  MOCK_BUNDLE
+  GUIDANCE_SESSION
+}
+
+enum CommerceCheckoutType {
+  ONE_TIME
+  // Kept for records created by the initial course-only rollout.
+  COURSE_RECURRING
+  RECURRING
+}
+
+enum CommerceCheckoutStatus {
+  CREATED
+  PROVIDER_CREATED
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REQUIRES_REVIEW
+}
+
+enum CommercePaymentStatus {
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum CommerceRefundStatus {
+  CREATED
+  PROCESSED
+  FAILED
+}
+
+enum CourseSubscriptionProviderStatus {
+  CREATED
+  AUTHENTICATED
+  ACTIVE
+  PENDING
+  HALTED
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum CommerceResourceType {
+  COURSE
+  MOCK_TEST
+  MOCK_BUNDLE
+  GUIDANCE_SESSION
+}
+
+enum CommerceEntitlementSource {
+  RAZORPAY_PAYMENT
+  RAZORPAY_SUBSCRIPTION
+  LEGACY
+  ADMIN_GRANT
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  REQUIRES_REVIEW
+}
+
+enum WebhookProcessingStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum BillingOutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
 enum ContactStatus {
   PENDING
   RESOLVED
@@ -74,14 +169,20 @@ model User {
 
   feedbackReplies FeedbackReply[] // add this
 
-  receivedFeedbackReplies FeedbackReplyRecipient[] // replies received by this student
+  receivedFeedbackReplies      FeedbackReplyRecipient[] // replies received by this student
   //need to add the relation for the sessions enrollments
-  sessionEnrollments      SessionEnrollment[]
-  couponUsages            CouponUsage[] // Track coupon usages by this user
-  generalCouponUsages     GeneralCouponUsage[]     @relation("GeneralCouponUsages") // Track general coupon usages
-  certificates            Certificate[] // Certificates earned by this user
-  customCertificates      CustomCertificate[] // Custom certificates issued by admin
-  successStories          StudentSuccessStory[]
+  sessionEnrollments           SessionEnrollment[]
+  couponUsages                 CouponUsage[] // Track coupon usages by this user
+  generalCouponUsages          GeneralCouponUsage[]          @relation("GeneralCouponUsages") // Track general coupon usages
+  generalCouponReservations    GeneralCouponReservation[]
+  certificates                 Certificate[] // Certificates earned by this user
+  customCertificates           CustomCertificate[] // Custom certificates issued by admin
+  successStories               StudentSuccessStory[]
+  commerceCheckouts            CommerceCheckout[]
+  courseBillingSubscriptions   CourseBillingSubscription[]
+  commerceBillingSubscriptions CommerceBillingSubscription[]
+  entitlements                 Entitlement[]
+  sessionSeatHolds             SessionSeatHold[]
 
   // ✅ PERFORMANCE: Indexes for frequently queried fields
   @@index([role, createdAt])
@@ -91,32 +192,34 @@ model User {
 // Admin-managed access profiles. Permissions contain stable keys from
 // lib/roleConfig.ts so route names can evolve without changing assignments.
 model RoleDefinition {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  key        String   @unique
-  name       String
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  key         String   @unique
+  name        String
   permissions String[] @default([])
-  readOnly   Boolean  @default(false)
-  canDelete  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  readOnly    Boolean  @default(false)
+  canDelete   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([name])
 }
 
 // ================== MOCKS ==================
 model MockTest {
-  id          String          @id @default(auto()) @map("_id") @db.ObjectId
-  title       String
-  description String?
-  price       Int             @default(0)
-  actualPrice Int?
-  duration    Int?
-  questions   Json
-  tags        String[]        @default([])
-  difficulty  DifficultyLevel @default(EASY)
-  status      PublishStatus   @default(DRAFT)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id                  String            @id @default(auto()) @map("_id") @db.ObjectId
+  title               String
+  description         String?
+  price               Int               @default(0)
+  actualPrice         Int?
+  duration            Int?
+  questions           Json
+  tags                String[]          @default([])
+  difficulty          DifficultyLevel   @default(EASY)
+  status              PublishStatus     @default(DRAFT)
+  billingMode         CourseBillingMode @default(ONE_TIME)
+  subscriptionEnabled Boolean           @default(false)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   attempts      MockAttempt[]
   subscriptions Subscription[]
@@ -184,19 +287,239 @@ model Subscription {
   @@index([paidAt])
 }
 
+// ================== COMMERCE V2 ==================
+// These models are additive. Legacy Subscription, Enrollment, and
+// SessionEnrollment remain readable during the migration.
+
+model CourseBillingPlan {
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  courseId          String            @db.ObjectId
+  version           Int
+  status            BillingPlanStatus @default(DRAFT)
+  amountPaise       Int
+  currency          String            @default("INR")
+  interval          String            @default("monthly")
+  totalCount        Int
+  razorpayPlanId    String?
+  providerSyncState String            @default("PENDING")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  course        Course                      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  subscriptions CourseBillingSubscription[]
+
+  @@unique([courseId, version])
+  @@index([courseId, status])
+  @@index([razorpayPlanId])
+}
+
+model CommerceCheckout {
+  id                     String                 @id @default(auto()) @map("_id") @db.ObjectId
+  userId                 String                 @db.ObjectId
+  productType            CommerceProductType
+  checkoutType           CommerceCheckoutType
+  productId              String
+  status                 CommerceCheckoutStatus @default(CREATED)
+  currency               String                 @default("INR")
+  amountPaise            Int
+  originalAmountPaise    Int?
+  discountPaise          Int                    @default(0)
+  couponCode             String?
+  snapshot               Json
+  idempotencyKey         String?
+  razorpayOrderId        String?
+  razorpaySubscriptionId String?
+  paidAt                 DateTime?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, status, createdAt])
+  @@index([productType, productId])
+  @@index([razorpayOrderId])
+  @@index([razorpaySubscriptionId])
+  @@index([idempotencyKey])
+}
+
+model CourseBillingSubscription {
+  id                     String                           @id @default(auto()) @map("_id") @db.ObjectId
+  userId                 String                           @db.ObjectId
+  courseId               String                           @db.ObjectId
+  billingPlanId          String                           @db.ObjectId
+  razorpaySubscriptionId String                           @unique
+  providerStatus         CourseSubscriptionProviderStatus @default(CREATED)
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  nextChargeAt           DateTime?
+  cancelAtPeriodEnd      Boolean                          @default(false)
+  cancelledAt            DateTime?
+  lastProviderEventAt    DateTime?
+  createdAt              DateTime                         @default(now())
+  updatedAt              DateTime                         @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id])
+  course      Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  billingPlan CourseBillingPlan @relation(fields: [billingPlanId], references: [id])
+
+  @@index([userId, courseId, providerStatus])
+  @@index([courseId, providerStatus])
+}
+
+// Generic recurring billing records are additive. CourseBillingPlan and
+// CourseBillingSubscription remain intact for existing course subscriptions.
+model CommerceBillingPlan {
+  id                String              @id @default(auto()) @map("_id") @db.ObjectId
+  productType       CommerceProductType
+  productId         String
+  version           Int
+  status            BillingPlanStatus   @default(DRAFT)
+  amountPaise       Int
+  currency          String              @default("INR")
+  interval          String              @default("monthly")
+  totalCount        Int
+  razorpayPlanId    String?
+  providerSyncState String              @default("PENDING")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  subscriptions CommerceBillingSubscription[]
+
+  @@unique([productType, productId, version])
+  @@index([productType, productId, status])
+  @@index([razorpayPlanId])
+}
+
+model CommerceBillingSubscription {
+  id                     String                           @id @default(auto()) @map("_id") @db.ObjectId
+  userId                 String                           @db.ObjectId
+  productType            CommerceProductType
+  productId              String
+  billingPlanId          String                           @db.ObjectId
+  originCheckoutId       String?                          @db.ObjectId
+  razorpaySubscriptionId String                           @unique
+  providerStatus         CourseSubscriptionProviderStatus @default(CREATED)
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  nextChargeAt           DateTime?
+  cancelAtPeriodEnd      Boolean                          @default(false)
+  cancelledAt            DateTime?
+  lastProviderEventAt    DateTime?
+  entitlementSnapshot    Json
+  createdAt              DateTime                         @default(now())
+  updatedAt              DateTime                         @updatedAt
+
+  user        User                @relation(fields: [userId], references: [id])
+  billingPlan CommerceBillingPlan @relation(fields: [billingPlanId], references: [id])
+
+  @@index([userId, productType, productId, providerStatus])
+  @@index([productType, productId, providerStatus])
+  @@index([originCheckoutId])
+}
+
+model CommercePayment {
+  id                     String                @id @default(auto()) @map("_id") @db.ObjectId
+  externalKey            String                @unique
+  providerPaymentId      String?
+  providerOrderId        String?
+  providerSubscriptionId String?
+  checkoutId             String?               @db.ObjectId
+  amountPaise            Int
+  currency               String
+  status                 CommercePaymentStatus
+  providerCapturedAt     DateTime?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  @@index([providerPaymentId])
+  @@index([providerOrderId])
+  @@index([providerSubscriptionId])
+  @@index([checkoutId])
+}
+
+model CommerceRefund {
+  id                String               @id @default(auto()) @map("_id") @db.ObjectId
+  externalKey       String               @unique
+  providerRefundId  String               @unique
+  providerPaymentId String
+  amountPaise       Int
+  currency          String
+  status            CommerceRefundStatus
+  reason            String?
+  processedAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([providerPaymentId])
+  @@index([status, createdAt])
+}
+
+model Entitlement {
+  id            String                    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String                    @db.ObjectId
+  resourceType  CommerceResourceType
+  resourceId    String
+  sourceType    CommerceEntitlementSource
+  sourceId      String
+  status        EntitlementStatus         @default(ACTIVE)
+  startsAt      DateTime                  @default(now())
+  endsAt        DateTime?
+  lastPaymentId String?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, resourceType, resourceId])
+  @@index([userId, status, endsAt])
+  @@index([sourceType, sourceId])
+}
+
+model RazorpayWebhookEvent {
+  id              String                  @id @default(auto()) @map("_id") @db.ObjectId
+  providerEventId String                  @unique
+  eventType       String
+  payloadHash     String
+  status          WebhookProcessingStatus @default(RECEIVED)
+  processingError String?
+  receivedAt      DateTime                @default(now())
+  processedAt     DateTime?
+  createdAt       DateTime                @default(now())
+
+  @@index([status, receivedAt])
+  @@index([eventType, receivedAt])
+}
+
+model BillingOutbox {
+  id            String              @id @default(auto()) @map("_id") @db.ObjectId
+  dedupeKey     String              @unique
+  action        String
+  payload       Json
+  status        BillingOutboxStatus @default(PENDING)
+  attempts      Int                 @default(0)
+  nextAttemptAt DateTime?
+  lastError     String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([status, nextAttemptAt])
+}
+
 // ================== COURSES ==================
 model Course {
-  id             String        @id @default(auto()) @map("_id") @db.ObjectId
-  title          String
-  description    String?
-  price          Int
-  actualPrice    Int?
-  durationMonths Int
-  order          Int           @default(0) // ✅ NEW: Order field for course display sequence
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  status         PublishStatus @default(DRAFT)
-  courseType     CourseType    @default(COMPETITIVE) // Course type for certificate eligibility
+  id                  String            @id @default(auto()) @map("_id") @db.ObjectId
+  title               String
+  description         String?
+  price               Int
+  actualPrice         Int?
+  durationMonths      Int
+  order               Int               @default(0) // ✅ NEW: Order field for course display sequence
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  status              PublishStatus     @default(DRAFT)
+  courseType          CourseType        @default(COMPETITIVE) // Course type for certificate eligibility
+  billingMode         CourseBillingMode @default(ONE_TIME)
+  subscriptionEnabled Boolean           @default(false)
 
   enrollments    Enrollment[]
   contents       Content[]
@@ -212,7 +535,9 @@ model Course {
   inclusions CourseInclusion[]
 
   // Instructor assignments
-  courseInstructors CourseInstructor[]
+  courseInstructors          CourseInstructor[]
+  billingPlans               CourseBillingPlan[]
+  courseBillingSubscriptions CourseBillingSubscription[]
 
   // ✅ PERFORMANCE: Indexes for course queries (most critical!)
   @@index([status])
@@ -355,18 +680,18 @@ model Testimonial {
 }
 
 model StudentSuccessStory {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String?  @db.ObjectId
-  name      String
-  role      String
-  content   String
-  image     String? // Cloudinary image URL
-  rating    Float    @default(0)
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId  String? @db.ObjectId
+  name    String
+  role    String
+  content String
+  image   String? // Cloudinary image URL
+  rating  Float   @default(0)
 
   // Approval workflow
-  submittedViaForm Boolean  @default(false) // true when submitted from student-facing form
-  approvalStatus   String   @default("approved") // "pending" | "approved" | "rejected"
-  isApproved       Boolean  @default(true)
+  submittedViaForm Boolean   @default(false) // true when submitted from student-facing form
+  approvalStatus   String    @default("approved") // "pending" | "approved" | "rejected"
+  isApproved       Boolean   @default(true)
   approvedAt       DateTime?
   approvalNotes    String?
 
@@ -544,14 +869,16 @@ model Material {
 }
 
 model MockBundle {
-  id              String        @id @default(auto()) @map("_id") @db.ObjectId
-  title           String
-  description     String?
-  mockIds         String[] // ✅ Still stores mockTest IDs inside bundle
-  basePrice       Int
-  discountedPrice Int?
-  status          PublishStatus @default(DRAFT)
-  order           Int           @default(0) // ✅ NEW: Order field for bundle display sequence
+  id                  String            @id @default(auto()) @map("_id") @db.ObjectId
+  title               String
+  description         String?
+  mockIds             String[] // ✅ Still stores mockTest IDs inside bundle
+  basePrice           Int
+  discountedPrice     Int?
+  status              PublishStatus     @default(DRAFT)
+  billingMode         CourseBillingMode @default(ONE_TIME)
+  subscriptionEnabled Boolean           @default(false)
+  order               Int               @default(0) // ✅ NEW: Order field for bundle display sequence
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -596,28 +923,68 @@ enum PaymentStatus {
 
 // Add these models to your existing schema
 model Session {
-  id              String        @id @default(auto()) @map("_id") @db.ObjectId
-  title           String
-  description     String?
-  content         String? // HTML content from text editor
-  tags            String[]
-  status          SessionStatus @default(DRAFT)
-  price           Float         @default(0)
-  discountedPrice Float?
-  maxEnrollment   Int? // null means unlimited
-  type            SessionType
-  duration        Int // in minutes
-  expiryDate      DateTime?
-  order           Int           @default(0) // ✅ NEW: Order field for session display sequence
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                  String            @id @default(auto()) @map("_id") @db.ObjectId
+  title               String
+  description         String?
+  content             String? // HTML content from text editor
+  tags                String[]
+  status              SessionStatus     @default(DRAFT)
+  price               Float             @default(0)
+  discountedPrice     Float?
+  maxEnrollment       Int? // null means unlimited
+  type                SessionType
+  duration            Int // in minutes
+  expiryDate          DateTime?
+  billingMode         CourseBillingMode @default(ONE_TIME)
+  subscriptionEnabled Boolean           @default(false)
+  order               Int               @default(0) // ✅ NEW: Order field for session display sequence
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   // Relations
   enrollments   SessionEnrollment[]
-  testimonials GuidanceSessionTestimonial[]
+  testimonials  GuidanceSessionTestimonial[]
+  seatInventory SessionSeatInventory?
+  seatHolds     SessionSeatHold[]
 
   @@index([status])
   @@index([expiryDate])
+}
+
+// V2 checkout capacity is held independently from legacy pending enrollments.
+// The inventory counter is mutated atomically when a hold is acquired or released.
+model SessionSeatInventory {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId      String   @unique @db.ObjectId
+  capacity       Int?
+  availableSeats Int?
+  heldCount      Int      @default(0)
+  confirmedCount Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model SessionSeatHold {
+  id               String                @id @default(auto()) @map("_id") @db.ObjectId
+  checkoutId       String                @unique @db.ObjectId
+  sessionId        String                @db.ObjectId
+  userId           String                @db.ObjectId
+  status           SessionSeatHoldStatus @default(HELD)
+  expiresAt        DateTime
+  confirmedAt      DateTime?
+  releasedAt       DateTime?
+  requiresReviewAt DateTime?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@index([sessionId, status, expiresAt])
+  @@index([userId, sessionId, status])
 }
 
 model GuidanceSessionTestimonial {
@@ -643,19 +1010,22 @@ model GuidanceSessionTestimonial {
 }
 
 model SessionEnrollment {
-  id                String        @id @default(auto()) @map("_id") @db.ObjectId
-  sessionId         String        @db.ObjectId
-  userId            String        @db.ObjectId
-  studentName       String // Auto-filled from user table
-  studentEmail      String // Auto-filled from user table
-  studentPhone      String // Manually entered by user
-  razorpayOrderId   String?
-  razorpayPaymentId String?
-  paymentStatus     PaymentStatus @default(PENDING)
-  amountPaid        Float? // Actual amount paid by user (discounted or original)
-  couponCode        String? // Coupon code used for this enrollment
-  enrolledAt        DateTime      @default(now())
-  completedAt       DateTime?
+  id                    String        @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId             String        @db.ObjectId
+  userId                String        @db.ObjectId
+  studentName           String // Auto-filled from user table
+  studentEmail          String // Auto-filled from user table
+  studentPhone          String // Manually entered by user
+  razorpayOrderId       String?
+  razorpayPaymentId     String?
+  paymentStatus         PaymentStatus @default(PENDING)
+  amountPaid            Float? // Actual amount paid by user (discounted or original)
+  couponCode            String? // Coupon code used for this enrollment
+  enrolledAt            DateTime      @default(now())
+  completedAt           DateTime?
+  billingSubscriptionId String?
+  accessEndsAt          DateTime?
+  seatReleasedAt        DateTime?
 
   // Relations
   session Session @relation(fields: [sessionId], references: [id])
@@ -719,6 +1089,21 @@ enum DiscountType {
   FIXED_AMOUNT
 }
 
+enum GeneralCouponReservationStatus {
+  RESERVED
+  REDEEMED
+  RELEASED
+  EXPIRED
+}
+
+enum SessionSeatHoldStatus {
+  HELD
+  CONFIRMED
+  EXPIRED
+  RELEASED
+  REQUIRES_REVIEW
+}
+
 // ✅ NEW: Enum for course inclusion types
 enum InclusionType {
   MOCK_TEST
@@ -739,9 +1124,10 @@ model GeneralCoupon {
   minOrderValue  Float? // Minimum order value to apply coupon
 
   // Usage Configuration
-  usageLimit Int? // Total usage limit (null = unlimited)
-  usageCount Int  @default(0) // Current usage count
-  userLimit  Int? // Per-user usage limit (null = unlimited)
+  usageLimit    Int? // Total usage limit (null = unlimited)
+  usageCount    Int  @default(0) // Current usage count
+  reservedCount Int  @default(0) // In-flight V2 checkout reservations
+  userLimit     Int? // Per-user usage limit (null = unlimited)
 
   // Product Configuration
   productType ProductType // Type of product this coupon applies to
@@ -759,7 +1145,8 @@ model GeneralCoupon {
   updatedAt DateTime @updatedAt
 
   // Relations
-  usages GeneralCouponUsage[]
+  usages       GeneralCouponUsage[]
+  reservations GeneralCouponReservation[]
 
   @@index([productType])
   @@index([validTill])
@@ -795,6 +1182,26 @@ model GeneralCouponUsage {
   @@index([userId])
   @@index([usedAt])
   @@index([productType])
+}
+
+model GeneralCouponReservation {
+  id         String                         @id @default(auto()) @map("_id") @db.ObjectId
+  couponId   String                         @db.ObjectId
+  userId     String                         @db.ObjectId
+  checkoutId String                         @unique @db.ObjectId
+  status     GeneralCouponReservationStatus @default(RESERVED)
+  expiresAt  DateTime
+  redeemedAt DateTime?
+  releasedAt DateTime?
+  createdAt  DateTime                       @default(now())
+  updatedAt  DateTime                       @updatedAt
+
+  coupon GeneralCoupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([couponId, status, expiresAt])
+  @@index([couponId, userId, status])
+  @@index([status, expiresAt])
 }
 
 // ================== COURSE INCLUSIONS ==================
@@ -860,7 +1267,7 @@ model RevenueSettings {
   currentRevenue         Float     @default(0) // Current revenue (resets after disbursement)
   lifetimeRevenue        Float     @default(0) // Total revenue from beginning
   lastDisbursementDate   DateTime? // Date of last disbursement
-  lastDisbursementAmount Float?    // Amount disbursed last time
+  lastDisbursementAmount Float? // Amount disbursed last time
   autoResetEnabled       Boolean   @default(false) // Auto reset on April 1st
   lastResetDate          DateTime? // Last time auto reset was applied
   updatedAt              DateTime  @updatedAt
@@ -871,13 +1278,13 @@ model RevenueSettings {
 
 // ================== DISBURSEMENT HISTORY ==================
 model DisbursementHistory {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  amount          Float // Amount disbursed
-  previousBalance Float // Balance before disbursement
-  disbursedBy     String // Admin who performed disbursement
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  amount           Float // Amount disbursed
+  previousBalance  Float // Balance before disbursement
+  disbursedBy      String // Admin who performed disbursement
   disbursementDate DateTime @default(now())
-  notes           String? // Optional notes
-  isAutomatic     Boolean  @default(false) // Was it auto-reset or manual
+  notes            String? // Optional notes
+  isAutomatic      Boolean  @default(false) // Was it auto-reset or manual
 
   @@index([disbursementDate])
   @@index([disbursedBy])
@@ -885,11 +1292,11 @@ model DisbursementHistory {
 
 // ================== INSTRUCTORS ==================
 model Instructor {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  fullName       String
-  email          String?  @unique
-  title          String?  // e.g. "Principal Investigator | Quantum Biologist"
-  bio            String?
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  fullName        String
+  email           String? @unique
+  title           String? // e.g. "Principal Investigator | Quantum Biologist"
+  bio             String?
   profileImageUrl String?
 
   // Academic affiliations: [{name, role, logoUrl, year}]
@@ -907,15 +1314,15 @@ model Instructor {
   // Social links: {website, linkedin, researchgate, twitter}
   socialLinks Json?
 
-  isActive  Boolean  @default(true)
-  order     Int      @default(0)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
 
   // Approval workflow
-  isApproved        Boolean   @default(false)
-  approvedAt        DateTime?
-  approvalNotes     String?   // Admin notes on approval
-  submittedViaForm  Boolean   @default(false) // true = submitted from public /instructor-form
-  approvalStatus    String    @default("pending") // "pending" | "approved" | "rejected"
+  isApproved       Boolean   @default(false)
+  approvedAt       DateTime?
+  approvalNotes    String? // Admin notes on approval
+  submittedViaForm Boolean   @default(false) // true = submitted from public /instructor-form
+  approvalStatus   String    @default("pending") // "pending" | "approved" | "rejected"
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -947,14 +1354,14 @@ model CourseInstructor {
 model CustomCertificate {
   id             String    @id @default(auto()) @map("_id") @db.ObjectId
   certificateId  String    @unique // Unique certificate number e.g. UNF-2024-XXXXXXXX
-  recipientName  String    // Name as shown on certificate
-  recipientEmail String    // Email of the recipient
-  purpose        String    // e.g. "Internship", "Mentorship", "Contribution"
+  recipientName  String // Name as shown on certificate
+  recipientEmail String // Email of the recipient
+  purpose        String // e.g. "Internship", "Mentorship", "Contribution"
   startDate      DateTime?
   completionDate DateTime
   issuedAt       DateTime  @default(now())
   emailSentAt    DateTime?
-  generatedBy    String?   // Admin name who generated this
+  generatedBy    String? // Admin name who generated this
 
   // Optional link to a platform user
   userId String? @db.ObjectId

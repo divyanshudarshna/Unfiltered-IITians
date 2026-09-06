@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { assertAdminApiAccess } from "@/lib/roleAuth";
+import { CommerceBillingInputError, hasCommerceBillingInput, normalizeCommerceBillingInput } from "@/lib/commerce-billing";
+import { createOrVersionCommerceBillingPlan } from "@/lib/commerce-billing-plan";
 
 export async function GET(req: Request) {
   // Fetch all bundles ordered by display order
@@ -12,7 +14,17 @@ export async function GET(req: Request) {
         { createdAt: 'desc' }
       ]
     });
-    return NextResponse.json({ bundles });
+    const plans = await prisma.commerceBillingPlan.findMany({
+      where: { productType: "MOCK_BUNDLE", productId: { in: bundles.map((bundle) => bundle.id) } },
+      orderBy: { version: "desc" },
+    });
+    const plansByBundle = new Map<string, typeof plans>();
+    for (const plan of plans) {
+      const current = plansByBundle.get(plan.productId) ?? [];
+      current.push(plan);
+      plansByBundle.set(plan.productId, current);
+    }
+    return NextResponse.json({ bundles: bundles.map((bundle) => ({ ...bundle, billingPlans: plansByBundle.get(bundle.id) ?? [] })) });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Failed to fetch mock bundles" }, { status: 500 });
@@ -23,7 +35,9 @@ export async function POST(req: NextRequest) {
   // Create new bundle
   try {
     await assertAdminApiAccess(req.url, req.method);
-    const { title, description, mockIds, discountedPrice, status } = await req.json();
+    const body = await req.json();
+    const { title, description, mockIds, discountedPrice, status } = body;
+    const billing = normalizeCommerceBillingInput(body);
 
     if (!title || !mockIds?.length) {
       return NextResponse.json({ error: "Title and mockIds are required" }, { status: 400 });
@@ -40,19 +54,32 @@ export async function POST(req: NextRequest) {
 
     const basePrice = mocks.reduce((sum, mock) => sum + mock.price, 0);
 
-    const bundle = await prisma.mockBundle.create({
-      data: {
+    const bundle = await prisma.$transaction(async (tx) => {
+      const created = await tx.mockBundle.create({
+        data: {
         title,
         description,
         mockIds,
         basePrice,
         discountedPrice,
         status: status ?? "DRAFT",
-      },
+          billingMode: billing.billingMode,
+          subscriptionEnabled: billing.subscriptionEnabled,
+        },
+      });
+      await createOrVersionCommerceBillingPlan(tx, {
+        productType: "MOCK_BUNDLE",
+        productId: created.id,
+        billing,
+      });
+      return created;
     });
 
     return NextResponse.json({ bundle });
   } catch (err) {
+    if (err instanceof CommerceBillingInputError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     console.error(err);
     return NextResponse.json({ error: "Failed to create bundle" }, { status: 500 });
   }
@@ -62,11 +89,13 @@ export async function PUT(req: NextRequest) {
   // Update bundle
   try {
     await assertAdminApiAccess(req.url, req.method);
-    const { id, title, description, mockIds, discountedPrice, status } = await req.json();
+    const body = await req.json();
+    const { id, title, description, mockIds, discountedPrice, status } = body;
+    const billing = hasCommerceBillingInput(body) ? normalizeCommerceBillingInput(body) : null;
 
     if (!id) return NextResponse.json({ error: "Bundle ID is required" }, { status: 400 });
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
 
     if (title) updateData.title = title;
     if (description) updateData.description = description;
@@ -78,14 +107,29 @@ export async function PUT(req: NextRequest) {
     }
     if (discountedPrice !== undefined) updateData.discountedPrice = discountedPrice;
     if (status) updateData.status = status;
+    if (billing) {
+      updateData.billingMode = billing.billingMode;
+      updateData.subscriptionEnabled = billing.subscriptionEnabled;
+    }
 
-    const updatedBundle = await prisma.mockBundle.update({
-      where: { id },
-      data: updateData,
+    const updatedBundle = await prisma.$transaction(async (tx) => {
+      const updated = await tx.mockBundle.update({
+        where: { id },
+        data: updateData,
+      });
+      await createOrVersionCommerceBillingPlan(tx, {
+        productType: "MOCK_BUNDLE",
+        productId: updated.id,
+        billing: billing ?? { billingMode: "ONE_TIME", subscriptionEnabled: false, amountPaise: null, interval: "monthly", totalCount: 120 },
+      });
+      return updated;
     });
 
     return NextResponse.json({ bundle: updatedBundle });
   } catch (err) {
+    if (err instanceof CommerceBillingInputError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     console.error(err);
     return NextResponse.json({ error: "Failed to update bundle" }, { status: 500 });
   }
@@ -103,7 +147,7 @@ export async function DELETE(req: NextRequest) {
     await prisma.mockBundle.delete({ where: { id } });
 
     return NextResponse.json({ message: "Bundle deleted successfully" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting mock bundle:", error);
     
     // Check if it's a role-based access error
@@ -119,8 +163,8 @@ export async function DELETE(req: NextRequest) {
       }
     }
     
-    return NextResponse.json({ 
-      error: error.message || "Failed to delete bundle" 
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : "Failed to delete bundle"
     }, { status: 500 });
   }
 }

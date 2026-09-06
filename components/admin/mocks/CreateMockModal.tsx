@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { DifficultyLevel } from "@prisma/client"
 import { useRouter } from "next/navigation"
 
-export function CreateMockModal() {
+export function CreateMockModal({ onSuccess }: { onSuccess?: () => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -36,6 +36,9 @@ export function CreateMockModal() {
     duration: 0,
     difficulty: "EASY" as DifficultyLevel,
     status: "DRAFT" as "DRAFT" | "PUBLISHED",
+    subscriptionEnabled: false,
+    subscriptionAmount: "",
+    subscriptionTotalCount: "120",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,15 +58,18 @@ export function CreateMockModal() {
         credentials: "include",
         body: JSON.stringify({
           ...formData,
+          billingMode: formData.subscriptionEnabled ? "RECURRING" : "ONE_TIME",
+          subscriptionInterval: "monthly",
           questions: [], // Start with empty questions
         }),
       })
 
       if (!response.ok) throw new Error("Failed to create mock")
 
-      const data = await response.json()
-      setOpen(false)
-      router.push(`/admin/mocks/${data.mock.id}`)
+       const data = await response.json()
+       setOpen(false)
+       onSuccess?.()
+       router.push(`/admin/mocks/${data.mock.id}`)
     } catch (error) {
       console.error("Error creating mock:", error)
     } finally {
@@ -95,6 +101,45 @@ export function CreateMockModal() {
                 }
                 required
               />
+            </div>
+
+            <div className="rounded-md border p-4 space-y-3">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={formData.subscriptionEnabled}
+                  onChange={(e) => setFormData({ ...formData, subscriptionEnabled: e.target.checked })}
+                />
+                Enable monthly subscription
+              </label>
+              {formData.subscriptionEnabled && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="subscriptionAmount">Monthly price (₹)</Label>
+                    <Input
+                      id="subscriptionAmount"
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      value={formData.subscriptionAmount}
+                      onChange={(e) => setFormData({ ...formData, subscriptionAmount: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="subscriptionTotalCount">Monthly cycles</Label>
+                    <Input
+                      id="subscriptionTotalCount"
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={formData.subscriptionTotalCount}
+                      onChange={(e) => setFormData({ ...formData, subscriptionTotalCount: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
