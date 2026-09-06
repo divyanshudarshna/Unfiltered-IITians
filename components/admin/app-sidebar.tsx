@@ -97,7 +97,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [feedbackCount, setFeedbackCount] = React.useState(0);
   const [instructorUnreadCount, setInstructorUnreadCount] = React.useState(0);
   const [successStoryUnreadCount, setSuccessStoryUnreadCount] = React.useState(0);
-  const [permissions, setPermissions] = React.useState<string[] | null>(null);
+  const [access, setAccess] = React.useState<{ role: string; permissions: string[] } | null>(null);
   const { userProfile, clerkUser, getProfileImageUrl, isLoading } = useUserProfileContext();
 
   const toggleMenu = (title: string) => {
@@ -107,8 +107,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   React.useEffect(() => {
     fetch("/api/admin/roles/me")
       .then((response) => response.ok ? response.json() : null)
-      .then((access) => setPermissions(access?.permissions ?? []))
-      .catch(() => setPermissions([]))
+      .then((roleAccess) => setAccess(roleAccess))
+      .catch(() => setAccess({ role: "STUDENT", permissions: [] }))
   }, [])
 
   // Fetch notification counts
@@ -176,9 +176,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     };
   }, [userProfile, clerkUser, getProfileImageUrl, isLoading]);
 
-  const currentRole = userProfile?.role || clerkUser?.publicMetadata?.role;
-  const isAdmin = currentRole === "ADMIN";
-  const isAllowed = (permission?: string) => isAdmin || (permissions !== null && permission !== undefined && hasPermission(permissions, permission as PermissionKey));
+  const isAllowed = (permission?: string) =>
+    access?.role === "ADMIN" ||
+    (access !== null && permission !== undefined && hasPermission(access.permissions, permission as PermissionKey));
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 export async function PUT(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { lectureOrders } = await req.json();
 
     if (!Array.isArray(lectureOrders)) {
@@ -24,6 +26,8 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Reorder Lectures Error:", err);
     return NextResponse.json(
       { error: "Failed to reorder lectures" },

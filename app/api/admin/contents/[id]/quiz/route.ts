@@ -89,6 +89,7 @@ export async function PUT(req: Request, { params }: Params) {
 // ❌ Delete quiz
 export async function DELETE(req: Request, { params }: Params) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
     await prisma.quiz.delete({
       where: { contentId: id },
@@ -96,6 +97,8 @@ export async function DELETE(req: Request, { params }: Params) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ Delete Quiz Error:", err);
     return NextResponse.json({ error: "Failed to delete quiz" }, { status: 500 });
   }
