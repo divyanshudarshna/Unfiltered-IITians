@@ -10,6 +10,8 @@ const isPublicRoute = createRouteMatcher([
   '/contact(.*)', // ✅ Allow all contact routes including /contact/reply
   '/youtube',
   '/guidance(.*)', // ✅ Add this line
+  '/success-stories(.*)',
+  '/testimonials(.*)',
   '/privacy-policy(.*)', // ✅ Static route - Privacy Policy
   '/refund-policy(.*)', // ✅ Static route - Refund Policy  
   '/terms-of-service(.*)', // ✅ Static route - Terms of Service

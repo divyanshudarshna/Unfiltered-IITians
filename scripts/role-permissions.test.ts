@@ -30,4 +30,15 @@ assert.equal(canAccessApiPath(instructor, "/api/admin/contents/content-123/quiz"
 assert.equal(canAccessApiPath({ ...instructor, canDelete: true }, "/api/admin/mocks/123", "DELETE"), true)
 assert.equal(canAccessApiPath({ role: "ADMIN", permissions: [], readOnly: true, canDelete: false }, "/api/admin/users", "DELETE"), true)
 
+const testimonialManager = {
+  role: "TESTIMONIAL_MANAGER",
+  permissions: ["testimonials"] as const,
+  readOnly: false,
+  canDelete: true,
+}
+
+assert.equal(canAccessApiPath(testimonialManager, "/api/testimonials", "POST", "testimonials"), true)
+assert.equal(canAccessApiPath(testimonialManager, "/api/testimonials/123", "PUT", "testimonials"), true)
+assert.equal(canAccessApiPath({ ...testimonialManager, canDelete: false }, "/api/testimonials/123", "DELETE", "testimonials"), false)
+
 console.log("role-permissions tests passed")

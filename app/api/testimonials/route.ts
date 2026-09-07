@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { cloudinary } from "@/lib/cloudinary"
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth"
 
 // GET all testimonials
 export async function GET() {
@@ -18,6 +19,7 @@ export async function GET() {
 // POST new testimonial (with optional image upload)
 export async function POST(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method, "testimonials")
     const contentType = req.headers.get("content-type")
 
     // ✅ Case 1: If user uploads a file via multipart/form-data
@@ -40,17 +42,18 @@ export async function POST(req: Request) {
         const arrayBuffer = await file.arrayBuffer()
         const buffer = Buffer.from(arrayBuffer)
 
-        const uploaded = await new Promise((resolve, reject) => {
+        const uploaded = await new Promise<{ secure_url: string }>((resolve, reject) => {
           cloudinary.uploader.upload_stream(
             { resource_type: "auto", folder: "testimonials" },
             (err, result) => {
               if (err) return reject(err)
-              resolve(result)
+              if (!result?.secure_url) return reject(new Error("Cloudinary did not return an image URL"))
+              resolve({ secure_url: result.secure_url })
             }
           ).end(buffer)
         })
 
-        imageUrl = (uploaded as any).secure_url
+        imageUrl = uploaded.secure_url
       }
 
       const testimonial = await prisma.testimonial.create({
@@ -74,6 +77,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json(testimonial)
   } catch (error) {
+    const authError = handleAuthError(error)
+    if (authError) return authError
     console.error("POST testimonial error:", error)
     return new NextResponse("Failed to create testimonial", { status: 500 })
   }
