@@ -29,6 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { calculateCourseSubscriptionTotalPaise } from "@/lib/course-billing";
 
 interface Course {
   id: string;
@@ -114,6 +115,15 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
     subscriptionInterval: currentBillingPlan?.interval || "monthly",
     subscriptionTotalCount: currentBillingPlan?.totalCount?.toString() || "120",
   });
+
+  const tentativeSubscriptionTotalPaise = (() => {
+    if (!form.subscriptionEnabled) return null;
+    try {
+      return calculateCourseSubscriptionTotalPaise(form.subscriptionAmount, form.subscriptionTotalCount);
+    } catch {
+      return null;
+    }
+  })();
 
   // ✅ State for inclusions
   const [selectedInclusions, setSelectedInclusions] = useState<{
@@ -473,7 +483,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                   </div>
                   <div className="space-y-3">
                     <Label htmlFor="subscriptionTotalCount" className="text-sm font-medium">
-                      Billing Cycles
+                      Billing Cycles (Months)
                     </Label>
                     <Input
                       id="subscriptionTotalCount"
@@ -488,6 +498,16 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                       placeholder="120"
                       className="h-11 border-gray-300 dark:border-gray-600 dark:bg-gray-800/50"
                     />
+                  </div>
+                  <div className="md:col-span-3 rounded-md border border-indigo-200 bg-white/70 px-3 py-2 text-sm dark:border-indigo-800 dark:bg-gray-900/40">
+                    {tentativeSubscriptionTotalPaise === null ? (
+                      <span className="text-muted-foreground">Enter a valid monthly amount and billing cycle count to preview the subscription total.</span>
+                    ) : (
+                      <span>
+                        Tentative subscriber commitment: <strong>₹{(tentativeSubscriptionTotalPaise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                        {" "}({form.subscriptionAmount || "0"} per month × {form.subscriptionTotalCount} months).
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground md:col-span-3">
                     Amounts are stored as paise on the server. Changing price or cycles creates a new local plan version; existing subscribers are not changed automatically.

@@ -103,9 +103,11 @@ interface Course {
   recurringPlan?: {
     amountPaise: number;
     currency: string;
-    interval: number;
+    interval: string;
     totalCount: number;
   } | null;
+  billingMode?: "ONE_TIME" | "RECURRING";
+  subscriptionEnabled?: boolean;
 }
 
 interface AppliedCoupon {
@@ -178,6 +180,8 @@ export default function CourseDetailPage() {
   const finalPrice = appliedCoupon
     ? basePrice - Math.round((appliedCoupon.discountPct / 100) * basePrice)
     : basePrice;
+  const subscriptionConfigured = course?.subscriptionEnabled === true;
+  const subscriptionCheckoutAvailable = Boolean(course?.recurringPlan && v2CourseCheckoutEnabled);
 
   // Apply coupon
   const applyCouponWithCode = async (codeToApply: string) => {
@@ -307,10 +311,20 @@ export default function CourseDetailPage() {
 
   // Checkout
   const handleCheckout = async () => {
-  if (!course || !userId) {
-    router.push(`/sign-in?redirect=/courses/${course?.id}`);
-    return;
-  }
+    if (!course || !userId) {
+      router.push(`/sign-in?redirect=/courses/${course?.id}`);
+      return;
+    }
+
+    if (subscriptionConfigured && !course.recurringPlan) {
+      toast.error("This subscription is being configured. Please try again after its Razorpay plan is verified.");
+      return;
+    }
+
+    if (subscriptionConfigured && !v2CourseCheckoutEnabled) {
+      toast.error("Course subscriptions are not live yet. Please try again later.");
+      return;
+    }
 
   setLoading(true);
 
@@ -671,6 +685,27 @@ export default function CourseDetailPage() {
               <CardTitle className="text-lg">Order Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {subscriptionConfigured && !course.recurringPlan ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                  Monthly subscription setup is in progress. Enrollment will open after the Razorpay plan is verified.
+                </div>
+              ) : course.recurringPlan ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Monthly subscription</span>
+                    <span className="font-medium">₹{(course.recurringPlan.amountPaise / 100).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span className="text-sm">Billing cycles</span>
+                    <span className="text-sm">{course.recurringPlan.totalCount} months</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between items-center font-bold text-lg">
+                    <span>Total plan value</span>
+                    <span className="text-green-600 dark:text-green-400">₹{((course.recurringPlan.amountPaise / 100) * course.recurringPlan.totalCount).toFixed(2)}</span>
+                  </div>
+                </div>
+              ) : (
               <div className="space-y-2">
                 {course.price > basePrice && (
                   <div className="flex justify-between items-center text-muted-foreground">
@@ -694,8 +729,9 @@ export default function CourseDetailPage() {
                   <span className="text-green-600 dark:text-green-400">₹{finalPrice}</span>
                 </div>
               </div>
+              )}
 
-                {!course.recurringPlan && (
+                {!subscriptionConfigured && (
                   <div className="space-y-3 pt-2">
                     <Label htmlFor="coupon">Apply Coupon</Label>
                     <div className="flex gap-2">
@@ -762,14 +798,18 @@ export default function CourseDetailPage() {
                 )}
                 <Button
                   onClick={handleCheckout}
-                  disabled={loading}
+                  disabled={loading || (subscriptionConfigured && !subscriptionCheckoutAvailable)}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-3 text-base font-semibold"
                 >
                   {loading
                     ? "Processing..."
-                    : course.recurringPlan
-                      ? `Subscribe for ₹${(course.recurringPlan.amountPaise / 100).toFixed(2)}/month`
-                      : `Pay ₹${finalPrice}`}
+                    : subscriptionConfigured && !course.recurringPlan
+                      ? "Subscription setup in progress"
+                      : subscriptionConfigured && !v2CourseCheckoutEnabled
+                        ? "Subscriptions not live yet"
+                        : course.recurringPlan
+                          ? `Subscribe for ₹${(course.recurringPlan.amountPaise / 100).toFixed(2)}/month`
+                          : `Pay ₹${finalPrice}`}
                 </Button>
               </div>
             </CardFooter>

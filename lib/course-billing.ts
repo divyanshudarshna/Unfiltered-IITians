@@ -44,6 +44,20 @@ export function parseRupeesToPaise(value: unknown) {
   return amountPaise;
 }
 
+export function calculateCourseSubscriptionTotalPaise(amount: unknown, totalCount: unknown) {
+  const cycles = Number(totalCount);
+  if (!Number.isInteger(cycles) || cycles < 1 || cycles > MAX_PLAN_CYCLES) {
+    throw new CourseBillingInputError(`Subscription cycles must be a whole number from 1 to ${MAX_PLAN_CYCLES}`);
+  }
+
+  const totalPaise = parseRupeesToPaise(amount) * cycles;
+  if (!Number.isSafeInteger(totalPaise)) {
+    throw new CourseBillingInputError("Subscription total is too large");
+  }
+
+  return totalPaise;
+}
+
 export function normalizeCourseBillingInput(input: Record<string, unknown>): CourseBillingConfig {
   if (!hasCourseBillingInput(input)) {
     return {

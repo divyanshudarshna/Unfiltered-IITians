@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  calculateCourseSubscriptionTotalPaise,
   CourseBillingInputError,
   isSameCourseBillingPlan,
   normalizeCourseBillingInput,
@@ -9,6 +10,7 @@ import {
 assert.equal(parseRupeesToPaise("499"), 49900);
 assert.equal(parseRupeesToPaise("499.5"), 49950);
 assert.equal(parseRupeesToPaise("499.99"), 49999);
+assert.equal(calculateCourseSubscriptionTotalPaise("59", 4), 23600);
 
 assert.deepEqual(normalizeCourseBillingInput({}), {
   billingMode: "ONE_TIME",
@@ -59,5 +61,6 @@ assert.throws(
   () => normalizeCourseBillingInput({ billingMode: "RECURRING", subscriptionAmount: "499", subscriptionInterval: "yearly" }),
   CourseBillingInputError,
 );
+assert.throws(() => calculateCourseSubscriptionTotalPaise("59", 0), CourseBillingInputError);
 
 console.log("course billing tests passed");
