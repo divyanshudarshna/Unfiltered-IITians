@@ -158,10 +158,12 @@ model User {
   subscriptionKey String?
 
   // Relations
-  mockAttempts   MockAttempt[]
-  enrollments    Enrollment[]
-  subscriptions  Subscription[]
-  courseProgress CourseProgress[]
+  mockAttempts               MockAttempt[]
+  enrollments                Enrollment[]
+  subscriptions              Subscription[]
+  courseProgress             CourseProgress[]
+  lectureProgress            LectureProgress[]
+  courseLectureUpdateCursors CourseLectureUpdateCursor[]
 
   // Added relations for announcements & feedback
   announcementsReceived AnnouncementRecipient[]
@@ -521,15 +523,17 @@ model Course {
   billingMode         CourseBillingMode @default(ONE_TIME)
   subscriptionEnabled Boolean           @default(false)
 
-  enrollments    Enrollment[]
-  contents       Content[]
-  subscriptions  Subscription[]
-  coupons        Coupon[]
-  courseProgress CourseProgress[]
-  announcements  CourseAnnouncement[]
-  feedbacks      CourseFeedback[]
-  details        CourseDetail[]
-  certificates   Certificate[]
+  enrollments          Enrollment[]
+  contents             Content[]
+  subscriptions        Subscription[]
+  coupons              Coupon[]
+  courseProgress       CourseProgress[]
+  lectureProgress      LectureProgress[]
+  lectureUpdateCursors CourseLectureUpdateCursor[]
+  announcements        CourseAnnouncement[]
+  feedbacks            CourseFeedback[]
+  details              CourseDetail[]
+  certificates         Certificate[]
 
   // ✅ NEW: Course inclusions for bundling
   inclusions CourseInclusion[]
@@ -605,17 +609,18 @@ model Content {
   order       Int
   courseId    String  @db.ObjectId
 
-  course         Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lectures       Lecture[]
-  quiz           Quiz?            @relation("ContentQuiz")
-  courseProgress CourseProgress[]
+  course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lectures        Lecture[]
+  quiz            Quiz?             @relation("ContentQuiz")
+  courseProgress  CourseProgress[]
+  lectureProgress LectureProgress[]
 
   // ✅ PERFORMANCE: Indexes for content ordering
   @@index([courseId, order])
 }
 
 model Lecture {
-  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
   title           String
   videoUrl        String? // Cloudinary video URL
   youtubeEmbedUrl String? // YouTube embed URL (optional)
@@ -623,10 +628,13 @@ model Lecture {
   summary         String?
   order           Int
   studyTips       Json? // Array of tip strings
-  isFreePreview   Boolean @default(false)
-  contentId       String  @db.ObjectId
+  isFreePreview   Boolean   @default(false)
+  contentId       String    @db.ObjectId
+  createdAt       DateTime? @default(now())
+  updatedAt       DateTime? @updatedAt
 
-  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  content         Content           @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  lectureProgress LectureProgress[]
 
   // ✅ PERFORMANCE: Index for lecture ordering
   @@index([contentId, order])
@@ -665,6 +673,43 @@ model CourseProgress {
   @@index([userId, courseId, completed])
   @@index([contentId])
   @@index([completed])
+}
+
+model LectureProgress {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @db.ObjectId
+  courseId     String   @db.ObjectId
+  contentId    String   @db.ObjectId
+  lectureId    String   @db.ObjectId
+  completed    Boolean  @default(false)
+  lastAccessed DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  lecture Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId, lectureId])
+  @@index([userId, courseId, completed])
+  @@index([contentId])
+  @@index([lectureId])
+}
+
+model CourseLectureUpdateCursor {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  courseId   String   @db.ObjectId
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId, lastSeenAt])
 }
 
 // ================== TESTIMONIALS & CONTACT ==================

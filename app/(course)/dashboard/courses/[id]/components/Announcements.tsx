@@ -14,9 +14,10 @@ export interface Notification {
   message: string;
   read: boolean;
   createdAt: string;
-  type: "announcement" | "feedback";
+  type: "announcement" | "feedback" | "lecture";
   announcementId?: string;
   replyId?: string;
+  lectureUpdateSeenThrough?: string;
 }
 
 interface AnnouncementsProps {
@@ -79,7 +80,7 @@ export function Announcements({
                   No notifications yet
                 </h3>
                 <p className="text-sm text-gray-400 dark:text-gray-500">
-                  New announcements and feedback replies will appear here
+                  New announcements, lectures, and feedback replies will appear here
                 </p>
               </div>
             ) : (

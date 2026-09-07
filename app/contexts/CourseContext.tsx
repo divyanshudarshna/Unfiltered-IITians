@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { getCompletedLectureIds } from "@/lib/course-learning-state";
 
 interface Lecture {
   id: string;
@@ -93,7 +94,10 @@ export const CourseProvider = ({ courseId, children, preview = false }: Props) =
       }
 
       const progressRes = preview ? null : await fetch(`/api/courses/progress?courseId=${courseId}`, { credentials: "include" });
-      const progressJson = progressRes?.ok ? await progressRes.json() : [];
+      const progressJson = progressRes?.ok ? await progressRes.json() : { contentProgress: [], lectureProgress: [] };
+      const contentProgress = Array.isArray(progressJson) ? progressJson : progressJson.contentProgress ?? [];
+      const lectureProgress = Array.isArray(progressJson) ? [] : progressJson.lectureProgress ?? [];
+      const completedLectureIds = getCompletedLectureIds(lectureProgress);
 
       // Sort contents and lectures by order before merging progress
       // Ensure proper numeric sorting
@@ -115,10 +119,9 @@ export const CourseProvider = ({ courseId, children, preview = false }: Props) =
       // Merge progress into course
       courseJson.contents.forEach((content: CourseContent) => {
         content.lectures.forEach((lecture) => {
-          const match = progressJson.find((p: any) => p.contentId === content.id && p.completed);
-          if (match) lecture.completed = true;
+          lecture.completed = completedLectureIds.has(lecture.id);
         });
-        if (progressJson.some((p: any) => p.contentId === content.id && p.quizScore)) {
+        if (contentProgress.some((p: any) => p.contentId === content.id && p.quizScore !== null && p.quizScore !== undefined)) {
           content.quizCompleted = true;
         }
       });
@@ -172,6 +175,7 @@ export const CourseProvider = ({ courseId, children, preview = false }: Props) =
         body: JSON.stringify({
           courseId,
           contentId: activeContent,
+          lectureId,
           completed: true,
         }),
       });

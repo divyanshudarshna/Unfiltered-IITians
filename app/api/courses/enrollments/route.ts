@@ -36,6 +36,10 @@ export async function GET() {
             courseProgress: {
               where: { userId: dbUser.id },
             },
+            lectureProgress: {
+              where: { userId: dbUser.id },
+              select: { lectureId: true, completed: true },
+            },
           },
         },
       },
@@ -51,8 +55,8 @@ export async function GET() {
         // Count lectures
         content.lectures.forEach((lecture) => {
           total++;
-          const lectureCompleted = enroll.course.courseProgress?.some(
-            (cp) => cp.contentId === content.id && cp.completed
+          const lectureCompleted = enroll.course.lectureProgress?.some(
+            (progress) => progress.lectureId === lecture.id && progress.completed,
           );
           if (lectureCompleted) completed++;
         });
@@ -61,7 +65,7 @@ export async function GET() {
         if (content.quiz) {
           total++;
           const quizCompleted = enroll.course.courseProgress?.some(
-            (cp) => cp.contentId === content.id && cp.completed
+            (cp) => cp.contentId === content.id && cp.quizScore !== null,
           );
           if (quizCompleted) completed++;
         }

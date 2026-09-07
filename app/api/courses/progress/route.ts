@@ -33,18 +33,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Active course access required' }, { status: 403 });
     }
 
-    const whereClause: any = { userId: mongoUserId, courseId };
-    if (contentId) whereClause.contentId = contentId;
+    const courseProgressWhere = { userId: mongoUserId, courseId, ...(contentId ? { contentId } : {}) };
+    const [contentProgress, lectureProgress] = await Promise.all([
+      prisma.courseProgress.findMany({
+        where: courseProgressWhere,
+        include: {
+          content: { select: { title: true, order: true } },
+        },
+        orderBy: { content: { order: 'asc' } },
+      }),
+      prisma.lectureProgress.findMany({
+        where: courseProgressWhere,
+        select: { lectureId: true, contentId: true, completed: true, lastAccessed: true },
+        orderBy: { lastAccessed: 'desc' },
+      }),
+    ]);
 
-    const progress = await prisma.courseProgress.findMany({
-      where: whereClause,
-      include: {
-        content: { select: { title: true, order: true } },
-      },
-      orderBy: { content: { order: 'asc' } },
-    });
-
-    return NextResponse.json(progress);
+    return NextResponse.json({ contentProgress, lectureProgress });
   } catch (error) {
     console.error('Error fetching course progress:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -61,26 +66,63 @@ export async function POST(request: NextRequest) {
     if (!mongoUserId) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const body = await request.json();
-    const { courseId, contentId, completed, progress, quizScore, totalQuizQuestions, attemptedQuestions } = body;
+    const { courseId, contentId, lectureId, completed, progress, quizScore, totalQuizQuestions, attemptedQuestions } = body;
 
     if (!courseId || !contentId) {
       return NextResponse.json({ error: 'Course ID and Content ID are required' }, { status: 400 });
     }
 
     // ✅ Validate ObjectId format
-    if (!ObjectId.isValid(courseId) || !ObjectId.isValid(contentId)) {
-      return NextResponse.json({ error: 'Invalid courseId or contentId' }, { status: 400 });
+    if (!ObjectId.isValid(courseId) || !ObjectId.isValid(contentId) || (lectureId && !ObjectId.isValid(lectureId))) {
+      return NextResponse.json({ error: 'Invalid courseId, contentId, or lectureId' }, { status: 400 });
     }
 
     const [entitlement, content] = await Promise.all([
       getCourseEntitlement(clerkUserId, courseId),
-      prisma.content.findFirst({ where: { id: contentId, courseId }, select: { id: true } }),
+      prisma.content.findFirst({ where: { id: contentId, courseId }, select: { id: true, quiz: { select: { id: true } } } }),
     ]);
     if (!entitlement.hasFullAccess) {
       return NextResponse.json({ error: 'Active course access required' }, { status: 403 });
     }
     if (!content) {
       return NextResponse.json({ error: 'Content does not belong to this course' }, { status: 400 });
+    }
+
+    if (lectureId) {
+      const lecture = await prisma.lecture.findFirst({
+        where: { id: lectureId, contentId },
+        select: { id: true },
+      });
+      if (!lecture) {
+        return NextResponse.json({ error: 'Lecture does not belong to this content' }, { status: 400 });
+      }
+
+      const lectureProgress = await prisma.lectureProgress.upsert({
+        where: {
+          userId_courseId_lectureId: {
+            userId: mongoUserId,
+            courseId,
+            lectureId,
+          },
+        },
+        update: {
+          completed: completed === true,
+          lastAccessed: new Date(),
+        },
+        create: {
+          userId: mongoUserId,
+          courseId,
+          contentId,
+          lectureId,
+          completed: completed === true,
+        },
+      });
+
+      return NextResponse.json(lectureProgress);
+    }
+
+    if (!content.quiz) {
+      return NextResponse.json({ error: 'Quiz progress requires a course module quiz' }, { status: 400 });
     }
 
     const courseProgress = await prisma.courseProgress.upsert({
@@ -92,7 +134,7 @@ export async function POST(request: NextRequest) {
         },
       },
       update: {
-        completed,
+        completed: completed === true,
         progress,
         quizScore,
         totalQuizQuestions,
@@ -103,7 +145,7 @@ export async function POST(request: NextRequest) {
         userId: mongoUserId,
         courseId,
         contentId,
-        completed,
+        completed: completed === true,
         progress,
         quizScore,
         totalQuizQuestions,
@@ -115,5 +157,38 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error updating course progress:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  }
+}
+
+// DELETE - Reset a module quiz attempt
+export async function DELETE(request: NextRequest) {
+  try {
+    const { userId: clerkUserId } = getAuth(request);
+    if (!clerkUserId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const mongoUserId = await getMongoUserId(clerkUserId);
+    if (!mongoUserId) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const { courseId, contentId } = await request.json();
+    if (!courseId || !contentId || !ObjectId.isValid(courseId) || !ObjectId.isValid(contentId)) {
+      return NextResponse.json({ error: 'Valid courseId and contentId are required' }, { status: 400 });
+    }
+
+    const [entitlement, content] = await Promise.all([
+      getCourseEntitlement(clerkUserId, courseId),
+      prisma.content.findFirst({ where: { id: contentId, courseId }, select: { id: true, quiz: { select: { id: true } } } }),
+    ]);
+    if (!entitlement.hasFullAccess) {
+      return NextResponse.json({ error: 'Active course access required' }, { status: 403 });
+    }
+    if (!content?.quiz) {
+      return NextResponse.json({ error: 'Quiz does not belong to this course module' }, { status: 400 });
+    }
+
+    await prisma.courseProgress.deleteMany({ where: { userId: mongoUserId, courseId, contentId } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error resetting course quiz progress:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -64,10 +64,13 @@ useEffect(() => {
         `/api/courses/progress?courseId=${courseId}&contentId=${contentId}`
       );
 
-      if (progressRes.ok) {
-        const progressData = await progressRes.json();
-        if (progressData.length > 0) {
-          const progress = progressData[0]; // already filtered by contentId
+        if (progressRes.ok) {
+          const progressData = await progressRes.json();
+          const contentProgress = Array.isArray(progressData)
+            ? progressData
+            : progressData.contentProgress ?? [];
+          if (contentProgress.length > 0) {
+            const progress = contentProgress[0]; // already filtered by contentId
 
           // If quiz was completed previously
           if (progress.quizScore !== null) {

@@ -76,12 +76,22 @@ export async function POST(req: Request) {
     }
 
     // Calculate progress - matching frontend logic
-    const courseProgress = await prisma.courseProgress.findMany({
-      where: {
-        userId: dbUser.id,
-        courseId: courseId,
-      },
-    });
+    const [courseProgress, lectureProgress] = await Promise.all([
+      prisma.courseProgress.findMany({
+        where: {
+          userId: dbUser.id,
+          courseId: courseId,
+        },
+      }),
+      prisma.lectureProgress.findMany({
+        where: {
+          userId: dbUser.id,
+          courseId: courseId,
+          completed: true,
+        },
+        select: { lectureId: true },
+      }),
+    ]);
 
     
     
@@ -94,6 +104,7 @@ export async function POST(req: Request) {
         quizScore: progress.quizScore,
       });
     }
+    const completedLectureIds = new Set(lectureProgress.map((progress) => progress.lectureId));
 
     // Count total items (lectures + quizzes) - same as frontend CourseSidebar
     let totalItems = 0;
@@ -109,8 +120,7 @@ export async function POST(req: Request) {
       // Count lectures
       for (const lecture of content.lectures) {
         totalItems++;
-        // A lecture is completed if the content has a completed progress record
-        if (contentProgress?.completed) {
+        if (completedLectureIds.has(lecture.id)) {
           completedItems++;
         }
       }

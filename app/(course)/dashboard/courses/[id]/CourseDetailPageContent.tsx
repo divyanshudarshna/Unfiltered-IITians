@@ -77,13 +77,15 @@ export default function CourseDetailPageContent() {
       const token = await getToken();
       if (!token) return;
 
-      const [annRes, fbRes] = await Promise.all([
+      const [annRes, fbRes, lectureRes] = await Promise.all([
         fetch(`/api/announcements?courseId=${courseId}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`/api/feedback/reply`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/courses/${courseId}/lecture-updates`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       const annData = await annRes.json();
       const fbData = await fbRes.json();
+      const lectureData = lectureRes.ok ? await lectureRes.json() : { updates: [] };
 
       const announcements: Notification[] = Array.isArray(annData.announcements)
         ? annData.announcements.map((a: any) => ({
@@ -109,7 +111,21 @@ export default function CourseDetailPageContent() {
         }))
       ) ?? [];
 
-      const merged = [...announcements, ...feedbackReplies].sort(
+      const lectureUpdates: Notification[] = Array.isArray(lectureData.updates)
+        ? lectureData.updates
+            .filter((lecture: { createdAt?: string | null }) => lecture.createdAt)
+            .map((lecture: { id: string; title: string; contentTitle: string; createdAt: string }) => ({
+              id: `lecture-${lecture.id}`,
+              title: `New lecture: ${lecture.title}`,
+              message: `A new lecture was added to ${lecture.contentTitle}.`,
+              createdAt: lecture.createdAt,
+              read: false,
+              type: "lecture" as const,
+              lectureUpdateSeenThrough: lectureData.seenThrough,
+            }))
+        : [];
+
+      const merged = [...announcements, ...feedbackReplies, ...lectureUpdates].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
@@ -165,8 +181,17 @@ export default function CourseDetailPageContent() {
             });
           }
           return Promise.resolve();
-        })
+        }),
       );
+
+      const lectureSnapshot = unread.find((notification) => notification.type === "lecture")?.lectureUpdateSeenThrough;
+      if (lectureSnapshot) {
+        await fetch(`/api/courses/${courseId}/lecture-updates`, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ seenThrough: lectureSnapshot }),
+        });
+      }
 
       // Re-fetch from the server after all PATCHes are committed so local
       // state reflects the true DB state (handles any edge-case failures too).
