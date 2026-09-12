@@ -22,7 +22,10 @@ type LocalPlanCreationState = {
   status: string;
   providerSyncState: string;
   razorpayPlanId?: string | null;
+  updatedAt?: Date | string;
 };
+
+export const RAZORPAY_PLAN_CREATION_STALE_MS = 5 * 60 * 1000;
 
 export class RazorpayPlanValidationError extends Error {
   constructor(message: string) {
@@ -90,10 +93,24 @@ export function getRazorpayPlanCreationDecision(plan: LocalPlanCreationState) {
  * provider Plan ID is recorded. Resetting is intentionally opt-in and only
  * permitted after an administrator confirms Razorpay has no matching plan.
  */
-export function getRazorpayPlanRecoveryDecision(plan: LocalPlanCreationState) {
+export function getRazorpayPlanRecoveryDecision(plan: LocalPlanCreationState, now = new Date()) {
   if (plan.razorpayPlanId || plan.status !== "DRAFT") return "BLOCKED" as const;
-  if (plan.providerSyncState === "CREATING" || plan.providerSyncState === "CREATE_REVIEW_REQUIRED") {
-    return "RESET" as const;
+  if (plan.providerSyncState === "CREATE_REVIEW_REQUIRED") return "RESET" as const;
+  if (plan.providerSyncState === "CREATING" && plan.updatedAt) {
+    const updatedAt = new Date(plan.updatedAt);
+    if (!Number.isNaN(updatedAt.getTime()) && now.getTime() - updatedAt.getTime() >= RAZORPAY_PLAN_CREATION_STALE_MS) {
+      return "RESET" as const;
+    }
   }
   return "BLOCKED" as const;
+}
+
+/** Prisma MongoDB distinguishes an explicit null from a field that is absent. */
+export function getUnlinkedRazorpayPlanFilter() {
+  return {
+    OR: [
+      { razorpayPlanId: null },
+      { razorpayPlanId: { isSet: false as const } },
+    ],
+  };
 }

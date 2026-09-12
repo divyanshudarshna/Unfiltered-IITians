@@ -5,6 +5,7 @@ import { assertRazorpayServerConfiguration, razorpay } from "@/lib/razorpay";
 import {
   buildRazorpayPlanCreateInput,
   getRazorpayPlanCreationDecision,
+  getUnlinkedRazorpayPlanFilter,
   RazorpayPlanValidationError,
   validateRazorpayPlanMatch,
 } from "@/lib/razorpay-plan";
@@ -71,7 +72,7 @@ export async function POST(
     const claim = await prisma.commerceBillingPlan.updateMany({
       where: {
         id: plan.id,
-        razorpayPlanId: null,
+        ...getUnlinkedRazorpayPlanFilter(),
         providerSyncState: "PENDING",
         status: { not: "INACTIVE" },
       },

@@ -3,6 +3,7 @@ import {
   buildRazorpayPlanCreateInput,
   getRazorpayPlanCreationDecision,
   getRazorpayPlanRecoveryDecision,
+  getUnlinkedRazorpayPlanFilter,
   RazorpayPlanValidationError,
   validateRazorpayPlanMatch,
 } from "../lib/razorpay-plan";
@@ -65,10 +66,19 @@ assert.equal(getRazorpayPlanCreationDecision({ status: "ACTIVE", providerSyncSta
 assert.equal(getRazorpayPlanCreationDecision({ status: "INACTIVE", providerSyncState: "PENDING", razorpayPlanId: null }), "BLOCKED");
 assert.equal(getRazorpayPlanCreationDecision({ status: "DRAFT", providerSyncState: "CREATING", razorpayPlanId: null }), "BLOCKED");
 
-assert.equal(getRazorpayPlanRecoveryDecision({ status: "DRAFT", providerSyncState: "CREATING", razorpayPlanId: null }), "RESET");
+const recoveryNow = new Date("2026-09-13T12:10:00.000Z");
+assert.equal(getRazorpayPlanRecoveryDecision({ status: "DRAFT", providerSyncState: "CREATING", razorpayPlanId: null, updatedAt: "2026-09-13T12:00:00.000Z" }, recoveryNow), "RESET");
+assert.equal(getRazorpayPlanRecoveryDecision({ status: "DRAFT", providerSyncState: "CREATING", razorpayPlanId: null, updatedAt: "2026-09-13T12:09:00.000Z" }, recoveryNow), "BLOCKED");
 assert.equal(getRazorpayPlanRecoveryDecision({ status: "DRAFT", providerSyncState: "CREATE_REVIEW_REQUIRED", razorpayPlanId: null }), "RESET");
 assert.equal(getRazorpayPlanRecoveryDecision({ status: "DRAFT", providerSyncState: "PENDING", razorpayPlanId: null }), "BLOCKED");
 assert.equal(getRazorpayPlanRecoveryDecision({ status: "ACTIVE", providerSyncState: "CREATING", razorpayPlanId: null }), "BLOCKED");
 assert.equal(getRazorpayPlanRecoveryDecision({ status: "DRAFT", providerSyncState: "CREATING", razorpayPlanId: "plan_123" }), "BLOCKED");
+
+assert.deepEqual(getUnlinkedRazorpayPlanFilter(), {
+  OR: [
+    { razorpayPlanId: null },
+    { razorpayPlanId: { isSet: false } },
+  ],
+});
 
 console.log("razorpay plan tests passed");

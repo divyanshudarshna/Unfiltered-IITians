@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
-import { getRazorpayPlanRecoveryDecision } from "@/lib/razorpay-plan";
+import { getRazorpayPlanRecoveryDecision, getUnlinkedRazorpayPlanFilter } from "@/lib/razorpay-plan";
 
 export const runtime = "nodejs";
 
@@ -47,7 +47,7 @@ export async function POST(
     const reset = await prisma.courseBillingPlan.updateMany({
       where: {
         id: plan.id,
-        razorpayPlanId: null,
+        ...getUnlinkedRazorpayPlanFilter(),
         status: "DRAFT",
         providerSyncState: { in: ["CREATING", "CREATE_REVIEW_REQUIRED"] },
       },
