@@ -53,6 +53,7 @@ export function EditMockModal({
 }: EditMockModalProps) {
   const [loading, setLoading] = useState(false)
   const [activatingPlan, setActivatingPlan] = useState(false)
+  const [creatingPlan, setCreatingPlan] = useState(false)
   const [razorpayPlanId, setRazorpayPlanId] = useState("")
 
   const [formData, setFormData] = useState({
@@ -90,6 +91,10 @@ export function EditMockModal({
 
   const handlePlanActivation = async () => {
     if (!latestBillingPlan?.id || !razorpayPlanId.trim()) return
+    if (Math.round(Number(formData.subscriptionAmount) * 100) !== latestBillingPlan.amountPaise || Number(formData.subscriptionTotalCount) !== latestBillingPlan.totalCount) {
+      alert("Save the updated monthly amount and billing cycles before verifying a Razorpay plan.")
+      return
+    }
     setActivatingPlan(true)
     try {
       const response = await fetch(
@@ -108,6 +113,34 @@ export function EditMockModal({
       console.error("Error activating Razorpay plan:", error)
     } finally {
       setActivatingPlan(false)
+    }
+  }
+
+  const handlePlanCreation = async () => {
+    if (!latestBillingPlan?.id) return
+    if (Math.round(Number(formData.subscriptionAmount) * 100) !== latestBillingPlan.amountPaise || Number(formData.subscriptionTotalCount) !== latestBillingPlan.totalCount) {
+      alert("Save the updated monthly amount and billing cycles before creating the Razorpay plan.")
+      return
+    }
+    if (!window.confirm(`Create an immutable Razorpay plan for ₹${formData.subscriptionAmount || "0"} per month?`)) return
+    setCreatingPlan(true)
+    try {
+      const response = await fetch(
+        `/api/admin/commerce-billing-plans/${latestBillingPlan.id}/create-razorpay`,
+        { method: "POST" },
+      )
+      const data = await response.json()
+      if (!response.ok) {
+        if (typeof data.razorpayPlanId === "string") setRazorpayPlanId(data.razorpayPlanId)
+        throw new Error(data.error || "Unable to create the Razorpay plan")
+      }
+      setRazorpayPlanId(data.billingPlan.razorpayPlanId || "")
+      onSuccess()
+      onOpenChange(false)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Unable to create the Razorpay plan")
+    } finally {
+      setCreatingPlan(false)
     }
   }
 
@@ -195,12 +228,17 @@ export function EditMockModal({
                 {latestBillingPlan && (
                   <div className="space-y-2 rounded border bg-muted/30 p-3 text-sm">
                     <p>Local plan v{latestBillingPlan.version}: {latestBillingPlan.status} ({latestBillingPlan.providerSyncState})</p>
+                    {!latestBillingPlan.razorpayPlanId && (
+                      <Button type="button" onClick={handlePlanCreation} disabled={creatingPlan || activatingPlan || latestBillingPlan.providerSyncState !== "PENDING"}>
+                        {creatingPlan ? "Creating in Razorpay..." : "Create & Activate Razorpay Plan"}
+                      </Button>
+                    )}
                     <Label htmlFor="razorpayPlanId">Razorpay Plan ID</Label>
                     <Input id="razorpayPlanId" placeholder="plan_..." value={razorpayPlanId} onChange={(event) => setRazorpayPlanId(event.target.value)} />
-                    <Button type="button" variant="outline" onClick={handlePlanActivation} disabled={activatingPlan || !razorpayPlanId.trim() || latestBillingPlan.status === "INACTIVE"}>
-                      {activatingPlan ? "Verifying..." : "Verify & Activate"}
+                    <Button type="button" variant="outline" onClick={handlePlanActivation} disabled={creatingPlan || activatingPlan || !razorpayPlanId.trim() || latestBillingPlan.status === "INACTIVE"}>
+                      {activatingPlan ? "Verifying..." : "Verify Existing Plan"}
                     </Button>
-                    <p className="text-xs text-muted-foreground">Create the matching monthly plan in Razorpay first. The server verifies its amount and cadence before activation.</p>
+                    <p className="text-xs text-muted-foreground">Automatic creation uses the saved monthly amount. The existing Plan ID field remains available for recovery or plans created in Razorpay Dashboard.</p>
                   </div>
                 )}
               </>

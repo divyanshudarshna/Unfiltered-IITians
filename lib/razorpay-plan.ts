@@ -10,6 +10,20 @@ type ProviderPlan = {
   interval?: number;
 };
 
+type RazorpayPlanMetadata = {
+  name: string;
+  description?: string | null;
+  localPlanId: string;
+  productType: string;
+  productId: string;
+};
+
+type LocalPlanCreationState = {
+  status: string;
+  providerSyncState: string;
+  razorpayPlanId?: string | null;
+};
+
 export class RazorpayPlanValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -31,4 +45,42 @@ export function validateRazorpayPlanMatch(localPlan: LocalBillingPlan, providerP
   if (providerPeriod !== localPlan.interval.toLowerCase() || providerPlan.interval !== 1) {
     throw new RazorpayPlanValidationError("Razorpay plan billing interval does not match the local billing plan");
   }
+}
+
+export function buildRazorpayPlanCreateInput(localPlan: LocalBillingPlan, metadata: RazorpayPlanMetadata) {
+  if (
+    !Number.isInteger(localPlan.amountPaise)
+    || localPlan.amountPaise < 100
+    || localPlan.currency.toUpperCase() !== "INR"
+    || localPlan.interval.toLowerCase() !== "monthly"
+  ) {
+    throw new RazorpayPlanValidationError("Only valid monthly INR billing plans can be created in Razorpay");
+  }
+
+  const name = metadata.name.trim().slice(0, 255);
+  if (!name) throw new RazorpayPlanValidationError("Razorpay plan name is required");
+  const description = metadata.description?.trim().slice(0, 255);
+
+  return {
+    period: "monthly" as const,
+    interval: 1,
+    item: {
+      name,
+      amount: localPlan.amountPaise,
+      currency: "INR",
+      ...(description ? { description } : {}),
+    },
+    notes: {
+      local_plan_id: metadata.localPlanId,
+      product_type: metadata.productType,
+      product_id: metadata.productId,
+      managed_by: "unfiltered_iitians_admin",
+    },
+  };
+}
+
+export function getRazorpayPlanCreationDecision(plan: LocalPlanCreationState) {
+  if (plan.razorpayPlanId) return "ALREADY_LINKED" as const;
+  if (plan.status === "INACTIVE" || plan.providerSyncState !== "PENDING") return "BLOCKED" as const;
+  return "CREATE" as const;
 }

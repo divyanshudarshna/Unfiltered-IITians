@@ -144,6 +144,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
 
   const [loading, setLoading] = useState(false);
   const [linkingRazorpayPlan, setLinkingRazorpayPlan] = useState(false);
+  const [creatingRazorpayPlan, setCreatingRazorpayPlan] = useState(false);
   const [razorpayPlanId, setRazorpayPlanId] = useState(currentBillingPlan?.razorpayPlanId || "");
   const [loadingInclusions, setLoadingInclusions] = useState(true);
 
@@ -302,6 +303,13 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
       toast.error("Save the recurring course and enter a Razorpay Plan ID first.");
       return;
     }
+    if (
+      Math.round(Number(form.subscriptionAmount) * 100) !== currentBillingPlan.amountPaise
+      || Number(form.subscriptionTotalCount) !== currentBillingPlan.totalCount
+    ) {
+      toast.error("Save the updated monthly amount and billing cycles before verifying a Razorpay plan.");
+      return;
+    }
 
     setLinkingRazorpayPlan(true);
     try {
@@ -322,6 +330,42 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
       toast.error(error instanceof Error ? error.message : "Unable to verify Razorpay plan");
     } finally {
       setLinkingRazorpayPlan(false);
+    }
+  };
+
+  const handleCreateRazorpayPlan = async () => {
+    if (!course || !currentBillingPlan) {
+      toast.error("Save the recurring course first.");
+      return;
+    }
+    if (
+      Math.round(Number(form.subscriptionAmount) * 100) !== currentBillingPlan.amountPaise
+      || Number(form.subscriptionTotalCount) !== currentBillingPlan.totalCount
+    ) {
+      toast.error("Save the updated monthly amount and billing cycles before creating the Razorpay plan.");
+      return;
+    }
+    if (!window.confirm(`Create an immutable Razorpay plan for ₹${form.subscriptionAmount || "0"} per month?`)) return;
+
+    setCreatingRazorpayPlan(true);
+    try {
+      const response = await fetch(
+        `/api/admin/courses/${course.id}/billing-plans/${currentBillingPlan.id}/create-razorpay`,
+        { method: "POST" },
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        if (typeof data.razorpayPlanId === "string") setRazorpayPlanId(data.razorpayPlanId);
+        throw new Error(data.error || "Unable to create Razorpay plan");
+      }
+
+      setRazorpayPlanId(data.billingPlan.razorpayPlanId || "");
+      toast.success("Razorpay plan created, verified, and activated.");
+      onSuccess();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to create Razorpay plan");
+    } finally {
+      setCreatingRazorpayPlan(false);
     }
   };
 
@@ -518,11 +562,22 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
               {form.subscriptionEnabled && course && currentBillingPlan && (
                 <div className="rounded-lg border border-indigo-200 dark:border-indigo-800 p-4 space-y-3">
                   <div>
-                    <h4 className="font-medium">Verify Razorpay Plan</h4>
+                    <h4 className="font-medium">Activate Razorpay Plan</h4>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Create the matching plan manually in Razorpay Dashboard, then paste its ID here. The server checks amount, INR currency, and monthly cadence before activation.
+                      Create and activate the matching live Razorpay Plan directly. Existing Plan IDs can still be verified as a recovery option.
                     </p>
                   </div>
+                  {!currentBillingPlan.razorpayPlanId && (
+                    <Button
+                      type="button"
+                      onClick={handleCreateRazorpayPlan}
+                      disabled={creatingRazorpayPlan || linkingRazorpayPlan || currentBillingPlan.providerSyncState !== "PENDING"}
+                      className="w-full sm:w-auto"
+                    >
+                      {creatingRazorpayPlan ? "Creating in Razorpay..." : "Create & Activate Razorpay Plan"}
+                    </Button>
+                  )}
+                  <p className="text-xs font-medium text-muted-foreground">Verify an existing Plan ID</p>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Input
                       value={razorpayPlanId}
@@ -534,10 +589,10 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                     <Button
                       type="button"
                       onClick={handleLinkRazorpayPlan}
-                      disabled={linkingRazorpayPlan || !razorpayPlanId.trim()}
+                      disabled={creatingRazorpayPlan || linkingRazorpayPlan || !razorpayPlanId.trim()}
                       className="sm:shrink-0"
                     >
-                      {linkingRazorpayPlan ? "Verifying..." : "Verify & Activate"}
+                      {linkingRazorpayPlan ? "Verifying..." : "Verify Existing Plan"}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">

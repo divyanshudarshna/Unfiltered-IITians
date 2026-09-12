@@ -53,6 +53,7 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
   const [error, setError] = useState('');
   const [razorpayPlanId, setRazorpayPlanId] = useState('');
   const [linkingPlan, setLinkingPlan] = useState(false);
+  const [creatingPlan, setCreatingPlan] = useState(false);
   const currentBillingPlan = session?.billingPlans?.[0];
 
   useEffect(() => {
@@ -100,6 +101,10 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
 
   const linkRazorpayPlan = async () => {
     if (!currentBillingPlan || !razorpayPlanId.trim()) return;
+    if (Math.round(Number(formData.subscriptionAmount) * 100) !== currentBillingPlan.amountPaise || Number(formData.subscriptionTotalCount) !== currentBillingPlan.totalCount) {
+      setError('Save the updated monthly amount and billing cycles before verifying a Razorpay plan.');
+      return;
+    }
     setLinkingPlan(true);
     setError('');
     try {
@@ -115,6 +120,33 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
       setError(linkError instanceof Error ? linkError.message : 'Unable to verify Razorpay plan');
     } finally {
       setLinkingPlan(false);
+    }
+  };
+
+  const createRazorpayPlan = async () => {
+    if (!currentBillingPlan) return;
+    if (Math.round(Number(formData.subscriptionAmount) * 100) !== currentBillingPlan.amountPaise || Number(formData.subscriptionTotalCount) !== currentBillingPlan.totalCount) {
+      setError('Save the updated monthly amount and billing cycles before creating the Razorpay plan.');
+      return;
+    }
+    if (!window.confirm(`Create an immutable Razorpay plan for ₹${formData.subscriptionAmount || '0'} per month?`)) return;
+    setCreatingPlan(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/admin/commerce-billing-plans/${currentBillingPlan.id}/create-razorpay`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (typeof data.razorpayPlanId === 'string') setRazorpayPlanId(data.razorpayPlanId);
+        throw new Error(data.error || 'Unable to create Razorpay plan');
+      }
+      setRazorpayPlanId(data.billingPlan.razorpayPlanId || '');
+      onSuccess();
+    } catch (creationError) {
+      setError(creationError instanceof Error ? creationError.message : 'Unable to create Razorpay plan');
+    } finally {
+      setCreatingPlan(false);
     }
   };
 
@@ -278,9 +310,18 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
                 {session && currentBillingPlan && (
                   <div className="space-y-2 border-t pt-3">
                     <p className="text-xs text-muted-foreground">
-                      Plan v{currentBillingPlan.version} is {currentBillingPlan.status.toLowerCase()}. Create the exact
-                      monthly plan in Razorpay first, then paste its Plan ID to verify and activate it.
+                      Plan v{currentBillingPlan.version} is {currentBillingPlan.status.toLowerCase()}. Create and
+                      activate it directly, or verify an existing Razorpay Plan ID for recovery.
                     </p>
+                    {!currentBillingPlan.razorpayPlanId && (
+                      <Button
+                        type="button"
+                        onClick={createRazorpayPlan}
+                        disabled={creatingPlan || linkingPlan || currentBillingPlan.providerSyncState !== 'PENDING'}
+                      >
+                        {creatingPlan ? 'Creating in Razorpay...' : 'Create & Activate Razorpay Plan'}
+                      </Button>
+                    )}
                     <div className="flex gap-2">
                       <Input
                         value={razorpayPlanId}
@@ -291,9 +332,9 @@ export default function SessionFormModal({ session, isOpen, onClose, onSuccess }
                         type="button"
                         variant="outline"
                         onClick={linkRazorpayPlan}
-                        disabled={linkingPlan || !razorpayPlanId.trim()}
+                        disabled={creatingPlan || linkingPlan || !razorpayPlanId.trim()}
                       >
-                        {linkingPlan ? 'Verifying...' : 'Verify & Activate'}
+                        {linkingPlan ? 'Verifying...' : 'Verify Existing Plan'}
                       </Button>
                     </div>
                   </div>

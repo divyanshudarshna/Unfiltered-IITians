@@ -24,6 +24,14 @@ export async function POST(
       include: { course: { select: { billingMode: true, subscriptionEnabled: true } } },
     });
     if (!plan) return NextResponse.json({ error: "Billing plan not found" }, { status: 404 });
+    const latestPlan = await prisma.courseBillingPlan.findFirst({
+      where: { courseId },
+      orderBy: { version: "desc" },
+      select: { id: true },
+    });
+    if (latestPlan?.id !== plan.id) {
+      return NextResponse.json({ error: "Only the latest billing-plan version can be activated" }, { status: 409 });
+    }
     if (plan.course.billingMode !== "RECURRING" || !plan.course.subscriptionEnabled) {
       return NextResponse.json({ error: "Recurring subscriptions are disabled for this course" }, { status: 409 });
     }

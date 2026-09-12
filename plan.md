@@ -436,23 +436,21 @@ This guide describes the live dashboard actions only. Do not perform the webhook
 6. Confirm the server can create a provider request with the live key without exposing the secret. A missing or invalid key must fail closed, not fall back to empty strings.
 7. Record only the key ID suffix/rotation date in the operational runbook. Never record the secret.
 
-### 3. Create A Recurring Course Plan
+### 3. Create A Recurring Product Plan
 
-Razorpay plans cannot be edited or deleted. A price or cadence change requires a new plan and a new local `CourseBillingPlan` version; existing subscribers must remain mapped to their original provider plan.
+Razorpay plans cannot be edited or deleted. A price or cadence change requires a new provider plan and a new local billing-plan version; existing subscribers must remain mapped to their original provider plan. The preferred workflow is the explicit **Create & Activate Razorpay Plan** button in the protected admin editor. It creates the provider plan from the saved local amount and cadence, validates the response, and activates the local plan. It never runs automatically during an ordinary resource save.
 
 1. Stay in **Live Mode**.
 2. Open **Subscriptions** under **Payment Products**.
-3. Open **Plans** and select **+ New Plan**.
-4. Enter a stable descriptive name, for example `Course <internal-course-id> - Monthly - V1`. Do not include secret data or customer data.
-5. Enter a description that states the course, recurring cadence, access relationship, and support contact without promising behavior not implemented by the application.
-6. Choose the approved billing frequency, initially monthly if the V1 decision remains approved.
-7. Enter the amount in the dashboard's INR minor currency unit. For INR, `₹499` means `49900` paise. Verify the amount twice before saving. The application must store the same value as integer `amountPaise`.
-8. Enter the approved total billing cycles. Do not leave a finite contract horizon implicit; record the exact provider `totalCount` in the local plan configuration.
-9. Add an internal note containing only the internal course ID, local plan version, deployment/change reference, and operator initials. Do not include API secrets or personal data.
-10. Select **Create Plan**.
-11. Copy the returned Razorpay `plan_id` into the protected admin/server configuration workflow. It must be persisted in the local versioned plan record, not hard-coded in source.
-12. Verify the plan ID, amount, currency, frequency, and total count by fetching the plan through the server API or dashboard before enabling the course for sale.
-13. If any value is wrong, do not try to edit it. Disable the local plan version, create a corrected provider plan, and retain the incorrect plan ID in an audit record.
+3. In the application admin editor, save the recurring resource first so a local DRAFT plan exists.
+4. Review the saved monthly amount and cycle count, then select **Create & Activate Razorpay Plan**. The server creates the plan with the live server credentials and stores the returned `plan_id`; no Razorpay secret reaches the browser.
+5. Confirm the admin editor reports the local plan as `ACTIVE` and provider sync as `ACTIVE`.
+6. Use the remaining manual Dashboard steps only as a recovery path or when an existing plan must be linked.
+7. For manual recovery, open **Plans** and select **+ New Plan**.
+8. Enter a stable descriptive name, choose monthly billing, and use the exact saved local INR amount in paise-equivalent terms.
+9. Select **Create Plan**, copy the returned `plan_id`, and use **Verify Existing Plan** in the resource editor.
+10. The server fetches and verifies amount, currency, frequency, and interval before activation.
+11. If any value is wrong, do not try to edit it. Disable the local plan version, create a corrected provider plan, and retain the incorrect plan ID in an audit record.
 
 ### 4. Create The Live Razorpay Webhook
 
@@ -476,7 +474,7 @@ Do this only after the URL is available and the deployed route has passed signat
    - `payment.failed`
    - `refund.created`
    - `refund.processed`
-10. Select the recurring course lifecycle events:
+10. Select the recurring subscription lifecycle events:
    - `subscription.authenticated`
    - `subscription.activated`
    - `subscription.charged`
@@ -515,7 +513,7 @@ Razorpay retries failed deliveries for a limited period and can disable an unhea
 3. Confirm Razorpay Orders use integer INR paise and the local checkout snapshot stores the same amount/currency.
 4. Do not enable a product while its old client-controlled amount or unsafe fulfillment path remains active for new orders.
 5. Keep legacy reads available during the defined migration window, but do not use old browser verification as a rollback path.
-6. For recurring courses, create a plan manually in Razorpay Dashboard, save the local course plan draft, then use **Verify & Activate** in the course editor. The app fetches the provider plan and requires an exact amount, INR currency, and monthly-cadence match before recurring checkout can use it.
+6. For any recurring resource, save its local plan draft and use **Create & Activate Razorpay Plan** in the admin editor. Use **Verify Existing Plan** only for recovery or a dashboard-created plan. Both paths enforce exact amount, INR currency, and monthly cadence before checkout can use it.
 7. Do not enable V2 guidance-session checkout yet. The repository now has a 30-minute `SessionSeatHold` and atomic `SessionSeatInventory` design, but the new schema, expired-hold reconciliation, webhook processor, and a dedicated client flag must be deployed and verified together before exposing it. A late captured payment transitions to staff review rather than access. The existing shared session checkout must not be treated as a V2 rollback path.
 8. `vercel.json` schedules the CRON_SECRET-protected recurring-session seat reconciliation once daily, which is compatible with Vercel's basic cron availability. A higher-frequency schedule may be configured only after confirming the production Vercel plan supports it.
 

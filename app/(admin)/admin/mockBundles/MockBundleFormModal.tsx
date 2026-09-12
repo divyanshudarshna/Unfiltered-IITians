@@ -73,6 +73,7 @@ export const MockBundleFormDialog = ({ open, onClose, bundle }: Props) => {
   const [subscriptionTotalCount, setSubscriptionTotalCount] = useState("120");
   const [razorpayPlanId, setRazorpayPlanId] = useState("");
   const [activatingPlan, setActivatingPlan] = useState(false);
+  const [creatingPlan, setCreatingPlan] = useState(false);
   const [mocks, setMocks] = useState<Mock[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalPrice, setTotalPrice] = useState(0);
@@ -116,6 +117,10 @@ export const MockBundleFormDialog = ({ open, onClose, bundle }: Props) => {
 
   const handlePlanActivation = async () => {
     if (!latestBillingPlan?.id || !razorpayPlanId.trim()) return;
+    if (Math.round(Number(subscriptionAmount) * 100) !== latestBillingPlan.amountPaise || Number(subscriptionTotalCount) !== latestBillingPlan.totalCount) {
+      alert("Save the updated monthly amount and billing cycles before verifying a Razorpay plan.");
+      return;
+    }
     setActivatingPlan(true);
     try {
       const response = await fetch(
@@ -135,6 +140,35 @@ export const MockBundleFormDialog = ({ open, onClose, bundle }: Props) => {
       alert(error instanceof Error ? error.message : "Unable to verify the Razorpay plan");
     } finally {
       setActivatingPlan(false);
+    }
+  };
+
+  const handlePlanCreation = async () => {
+    if (!latestBillingPlan?.id) return;
+    if (Math.round(Number(subscriptionAmount) * 100) !== latestBillingPlan.amountPaise || Number(subscriptionTotalCount) !== latestBillingPlan.totalCount) {
+      alert("Save the updated monthly amount and billing cycles before creating the Razorpay plan.");
+      return;
+    }
+    if (!window.confirm(`Create an immutable Razorpay plan for ₹${subscriptionAmount || "0"} per month?`)) return;
+    setCreatingPlan(true);
+    try {
+      const response = await fetch(
+        `/api/admin/commerce-billing-plans/${latestBillingPlan.id}/create-razorpay`,
+        { method: "POST" },
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        if (typeof data.razorpayPlanId === "string") setRazorpayPlanId(data.razorpayPlanId);
+        throw new Error(data.error || "Unable to create the Razorpay plan");
+      }
+      setRazorpayPlanId(data.billingPlan.razorpayPlanId || "");
+      alert("Razorpay plan created, verified, and activated.");
+      onClose();
+    } catch (error) {
+      console.error("Failed to create Razorpay plan", error);
+      alert(error instanceof Error ? error.message : "Unable to create the Razorpay plan");
+    } finally {
+      setCreatingPlan(false);
     }
   };
 
@@ -390,12 +424,17 @@ export const MockBundleFormDialog = ({ open, onClose, bundle }: Props) => {
                 {latestBillingPlan && (
                   <div className="space-y-2 rounded border bg-muted/30 p-3 text-sm">
                     <p>Local plan v{latestBillingPlan.version}: {latestBillingPlan.status} ({latestBillingPlan.providerSyncState})</p>
+                    {!latestBillingPlan.razorpayPlanId && (
+                      <Button type="button" onClick={handlePlanCreation} disabled={creatingPlan || activatingPlan || latestBillingPlan.providerSyncState !== "PENDING"}>
+                        {creatingPlan ? "Creating in Razorpay..." : "Create & Activate Razorpay Plan"}
+                      </Button>
+                    )}
                     <label className="text-sm font-medium">Razorpay Plan ID</label>
                     <Input placeholder="plan_..." value={razorpayPlanId} onChange={(event) => setRazorpayPlanId(event.target.value)} />
-                    <Button type="button" variant="outline" onClick={handlePlanActivation} disabled={activatingPlan || !razorpayPlanId.trim() || latestBillingPlan.status === "INACTIVE"}>
-                      {activatingPlan ? "Verifying..." : "Verify & Activate"}
+                    <Button type="button" variant="outline" onClick={handlePlanActivation} disabled={creatingPlan || activatingPlan || !razorpayPlanId.trim() || latestBillingPlan.status === "INACTIVE"}>
+                      {activatingPlan ? "Verifying..." : "Verify Existing Plan"}
                     </Button>
-                    <p className="text-xs text-muted-foreground">Create the matching monthly Razorpay plan first. Activation verifies amount and cadence server-side.</p>
+                    <p className="text-xs text-muted-foreground">Automatic creation uses the saved monthly amount. The existing Plan ID field remains available for recovery or dashboard-created plans.</p>
                   </div>
                 )}
               </>

@@ -1,17 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
+import { assertAdminApiAccess, getDbUserFromClerk, handleAuthError } from "@/lib/roleAuth";
 import { assertRazorpayServerConfiguration, razorpay } from "@/lib/razorpay";
 import { RazorpayPlanValidationError, validateRazorpayPlanMatch } from "@/lib/razorpay-plan";
 
 export const runtime = "nodejs";
+
+function getRequiredPermission(productType: string) {
+  if (productType === "MOCK_TEST") return "mocks" as const;
+  if (productType === "MOCK_BUNDLE") return "mock_bundles" as const;
+  if (productType === "GUIDANCE_SESSION") return "sessions" as const;
+  return null;
+}
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ planId: string }> },
 ) {
   try {
-    await assertAdminApiAccess(req.url, req.method, "courses");
+    if (!await getDbUserFromClerk()) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { planId } = await params;
     const body = await req.json();
     const razorpayPlanId = typeof body.razorpayPlanId === "string" ? body.razorpayPlanId.trim() : "";
@@ -19,6 +28,17 @@ export async function POST(
 
     const plan = await prisma.commerceBillingPlan.findUnique({ where: { id: planId } });
     if (!plan) return NextResponse.json({ error: "Billing plan not found" }, { status: 404 });
+    const requiredPermission = getRequiredPermission(plan.productType);
+    if (!requiredPermission) return NextResponse.json({ error: "Unsupported billing product" }, { status: 400 });
+    await assertAdminApiAccess(req.url, req.method, requiredPermission);
+    const latestPlan = await prisma.commerceBillingPlan.findFirst({
+      where: { productType: plan.productType, productId: plan.productId },
+      orderBy: { version: "desc" },
+      select: { id: true },
+    });
+    if (latestPlan?.id !== plan.id) {
+      return NextResponse.json({ error: "Only the latest billing-plan version can be activated" }, { status: 409 });
+    }
     if (plan.status === "INACTIVE") {
       return NextResponse.json({ error: "Inactive billing plans cannot be linked" }, { status: 409 });
     }
