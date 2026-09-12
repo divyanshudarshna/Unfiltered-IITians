@@ -145,6 +145,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
   const [loading, setLoading] = useState(false);
   const [linkingRazorpayPlan, setLinkingRazorpayPlan] = useState(false);
   const [creatingRazorpayPlan, setCreatingRazorpayPlan] = useState(false);
+  const [recoveringRazorpayPlan, setRecoveringRazorpayPlan] = useState(false);
   const [razorpayPlanId, setRazorpayPlanId] = useState(currentBillingPlan?.razorpayPlanId || "");
   const [loadingInclusions, setLoadingInclusions] = useState(true);
 
@@ -369,6 +370,34 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
     }
   };
 
+  const handleRecoverRazorpayPlanCreation = async () => {
+    if (!course || !currentBillingPlan) return;
+    if (!window.confirm("Confirm that Razorpay Plans has no matching plan for this draft. This only unlocks the local draft; it does not create a Razorpay plan.")) {
+      return;
+    }
+
+    setRecoveringRazorpayPlan(true);
+    try {
+      const response = await fetch(
+        `/api/admin/courses/${course.id}/billing-plans/${currentBillingPlan.id}/reset-creation`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirmedNoProviderPlan: true }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to recover Razorpay plan creation");
+
+      toast.success("Local plan creation lock cleared. Refreshing the course draft.");
+      onSuccess();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to recover Razorpay plan creation");
+    } finally {
+      setRecoveringRazorpayPlan(false);
+    }
+  };
+
   const getStatusColor = (status: PublishStatus) => {
     switch (status) {
       case PublishStatus.PUBLISHED:
@@ -575,6 +604,17 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                       className="w-full sm:w-auto"
                     >
                       {creatingRazorpayPlan ? "Creating in Razorpay..." : "Create & Activate Razorpay Plan"}
+                    </Button>
+                  )}
+                  {(currentBillingPlan.providerSyncState === "CREATING" || currentBillingPlan.providerSyncState === "CREATE_REVIEW_REQUIRED") && !currentBillingPlan.razorpayPlanId && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleRecoverRazorpayPlanCreation}
+                      disabled={creatingRazorpayPlan || linkingRazorpayPlan || recoveringRazorpayPlan}
+                      className="w-full sm:w-auto"
+                    >
+                      {recoveringRazorpayPlan ? "Resetting draft..." : "I checked Razorpay: reset uncreated draft"}
                     </Button>
                   )}
                   <p className="text-xs font-medium text-muted-foreground">Verify an existing Plan ID</p>

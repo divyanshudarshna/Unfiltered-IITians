@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   buildRazorpayPlanCreateInput,
   getRazorpayPlanCreationDecision,
+  getRazorpayPlanRecoveryDecision,
   RazorpayPlanValidationError,
   validateRazorpayPlanMatch,
 } from "../lib/razorpay-plan";
@@ -63,5 +64,11 @@ assert.equal(getRazorpayPlanCreationDecision({ status: "DRAFT", providerSyncStat
 assert.equal(getRazorpayPlanCreationDecision({ status: "ACTIVE", providerSyncState: "ACTIVE", razorpayPlanId: "plan_123" }), "ALREADY_LINKED");
 assert.equal(getRazorpayPlanCreationDecision({ status: "INACTIVE", providerSyncState: "PENDING", razorpayPlanId: null }), "BLOCKED");
 assert.equal(getRazorpayPlanCreationDecision({ status: "DRAFT", providerSyncState: "CREATING", razorpayPlanId: null }), "BLOCKED");
+
+assert.equal(getRazorpayPlanRecoveryDecision({ status: "DRAFT", providerSyncState: "CREATING", razorpayPlanId: null }), "RESET");
+assert.equal(getRazorpayPlanRecoveryDecision({ status: "DRAFT", providerSyncState: "CREATE_REVIEW_REQUIRED", razorpayPlanId: null }), "RESET");
+assert.equal(getRazorpayPlanRecoveryDecision({ status: "DRAFT", providerSyncState: "PENDING", razorpayPlanId: null }), "BLOCKED");
+assert.equal(getRazorpayPlanRecoveryDecision({ status: "ACTIVE", providerSyncState: "CREATING", razorpayPlanId: null }), "BLOCKED");
+assert.equal(getRazorpayPlanRecoveryDecision({ status: "DRAFT", providerSyncState: "CREATING", razorpayPlanId: "plan_123" }), "BLOCKED");
 
 console.log("razorpay plan tests passed");

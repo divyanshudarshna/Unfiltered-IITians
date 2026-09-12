@@ -84,3 +84,16 @@ export function getRazorpayPlanCreationDecision(plan: LocalPlanCreationState) {
   if (plan.status === "INACTIVE" || plan.providerSyncState !== "PENDING") return "BLOCKED" as const;
   return "CREATE" as const;
 }
+
+/**
+ * A creation lock can survive a network or deployment interruption before a
+ * provider Plan ID is recorded. Resetting is intentionally opt-in and only
+ * permitted after an administrator confirms Razorpay has no matching plan.
+ */
+export function getRazorpayPlanRecoveryDecision(plan: LocalPlanCreationState) {
+  if (plan.razorpayPlanId || plan.status !== "DRAFT") return "BLOCKED" as const;
+  if (plan.providerSyncState === "CREATING" || plan.providerSyncState === "CREATE_REVIEW_REQUIRED") {
+    return "RESET" as const;
+  }
+  return "BLOCKED" as const;
+}
