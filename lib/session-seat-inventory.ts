@@ -9,6 +9,38 @@ type TransactionClient = Prisma.TransactionClient;
 
 export class SessionSeatUnavailableError extends Error {}
 
+export function calculateSessionSeatAvailability(
+  capacity: number | null,
+  heldCount: number,
+  confirmedCount: number,
+) {
+  if (capacity === null) return null;
+  if (!Number.isInteger(capacity) || capacity < 0) {
+    throw new SessionSeatUnavailableError("Session capacity must be a non-negative whole number");
+  }
+  const occupiedSeats = heldCount + confirmedCount;
+  if (capacity < occupiedSeats) {
+    throw new SessionSeatUnavailableError("Session capacity cannot be lower than occupied seats");
+  }
+  return capacity - occupiedSeats;
+}
+
+export async function synchronizeSessionSeatCapacity(
+  tx: TransactionClient,
+  sessionId: string,
+  capacity: number | null,
+) {
+  const inventory = await tx.sessionSeatInventory.findUnique({ where: { sessionId } });
+  if (!inventory || inventory.capacity === capacity) return;
+  await tx.sessionSeatInventory.update({
+    where: { id: inventory.id },
+    data: {
+      capacity,
+      availableSeats: calculateSessionSeatAvailability(capacity, inventory.heldCount, inventory.confirmedCount),
+    },
+  });
+}
+
 async function getOrCreateInventory(
   tx: TransactionClient,
   session: { id: string; maxEnrollment: number | null },
@@ -91,9 +123,14 @@ async function releaseInventorySeat(
 
 export async function releaseConfirmedSessionSeat(
   tx: TransactionClient,
-  input: { checkoutId: string; now: Date },
+  input: { checkoutId: string; sessionId?: string; now: Date },
 ) {
-  const hold = await tx.sessionSeatHold.findUnique({ where: { checkoutId: input.checkoutId } });
+  const hold = await tx.sessionSeatHold.findFirst({
+    where: {
+      checkoutId: input.checkoutId,
+      ...(input.sessionId ? { sessionId: input.sessionId } : {}),
+    },
+  });
   if (!hold || hold.status !== "CONFIRMED") return false;
 
   const released = await tx.sessionSeatHold.updateMany({
@@ -175,21 +212,25 @@ export async function releaseSessionSeatHold(
   checkoutId: string,
   now: Date,
 ) {
-  const hold = await tx.sessionSeatHold.findUnique({ where: { checkoutId } });
-  if (!hold || hold.status !== "HELD") return;
-  await tx.sessionSeatHold.update({
-    where: { id: hold.id },
-    data: { status: "RELEASED", releasedAt: now },
-  });
-  await releaseInventorySeat(tx, hold.sessionId);
+  const holds = await tx.sessionSeatHold.findMany({ where: { checkoutId, status: "HELD" } });
+  for (const hold of holds) {
+    const released = await tx.sessionSeatHold.updateMany({
+      where: { id: hold.id, status: "HELD" },
+      data: { status: "RELEASED", releasedAt: now },
+    });
+    if (released.count === 1) await releaseInventorySeat(tx, hold.sessionId);
+  }
 }
 
 export async function confirmSessionSeatHold(
   tx: TransactionClient,
   checkoutId: string,
   capturedAt: Date,
+  sessionId?: string,
 ) {
-  const hold = await tx.sessionSeatHold.findUnique({ where: { checkoutId } });
+  const hold = await tx.sessionSeatHold.findFirst({
+    where: { checkoutId, ...(sessionId ? { sessionId } : {}) },
+  });
   if (!hold) return "REQUIRES_REVIEW" as const;
 
   const decision = getSeatHoldCaptureDecision({
@@ -229,4 +270,44 @@ export async function confirmSessionSeatHold(
     await releaseInventorySeat(tx, staleHold.sessionId);
   }
   return "REQUIRES_REVIEW" as const;
+}
+
+export async function confirmSessionSeatHolds(
+  tx: TransactionClient,
+  checkoutId: string,
+  sessionIds: string[],
+  capturedAt: Date,
+) {
+  const uniqueSessionIds = [...new Set(sessionIds)];
+  const holds = await tx.sessionSeatHold.findMany({
+    where: { checkoutId, sessionId: { in: uniqueSessionIds } },
+  });
+  const holdsBySession = new Map(holds.map((hold) => [hold.sessionId, hold]));
+
+  for (const sessionId of uniqueSessionIds) {
+    const hold = holdsBySession.get(sessionId);
+    if (!hold || getSeatHoldCaptureDecision({
+      status: hold.status as SessionSeatHoldStatus,
+      expiresAt: hold.expiresAt,
+      capturedAt,
+    }) === "REQUIRES_REVIEW") {
+      await releaseSessionSeatHold(tx, checkoutId, capturedAt);
+      for (const confirmedHold of holds.filter((value) => value.status === "CONFIRMED")) {
+        await releaseConfirmedSessionSeat(tx, {
+          checkoutId,
+          sessionId: confirmedHold.sessionId,
+          now: capturedAt,
+        });
+      }
+      return sessionId;
+    }
+  }
+
+  for (const sessionId of uniqueSessionIds) {
+    const decision = await confirmSessionSeatHold(tx, checkoutId, capturedAt, sessionId);
+    if (decision === "REQUIRES_REVIEW") {
+      throw new Error(`Session hold ${sessionId} changed during confirmation`);
+    }
+  }
+  return null;
 }

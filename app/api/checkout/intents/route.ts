@@ -30,6 +30,27 @@ export const runtime = "nodejs";
 
 const V2_CHECKOUT_ENABLED = process.env.V2_CHECKOUT_ENABLED === "true";
 
+const SERVER_PRODUCT_FLAGS: Record<CommerceProductType, string> = {
+  COURSE: "V2_COURSE_CHECKOUT_ENABLED",
+  MOCK_TEST: "V2_MOCK_CHECKOUT_ENABLED",
+  MOCK_BUNDLE: "V2_BUNDLE_CHECKOUT_ENABLED",
+  GUIDANCE_SESSION: "V2_SESSION_CHECKOUT_ENABLED",
+};
+
+function assertProductCheckoutEnabled(input: CheckoutIntentInput) {
+  const productFlag = SERVER_PRODUCT_FLAGS[input.productType as CommerceProductType];
+  if (process.env[productFlag] !== "true") {
+    throw new CommerceCheckoutInputError("Checkout is not enabled for this product yet");
+  }
+  if (isRecurringCheckout(input.checkoutType) && process.env.V2_RECURRING_CHECKOUT_ENABLED !== "true") {
+    throw new CommerceCheckoutInputError("Recurring checkout is not enabled yet");
+  }
+}
+
+function subscriptionSlotKey(userId: string, productType: CommerceProductType, productId: string) {
+  return `${userId}:${productType}:${productId}`;
+}
+
 type PreparedCheckout = {
   productType: CommerceProductType;
   checkoutType: CommerceCheckoutType;
@@ -58,6 +79,12 @@ function errorResponse(error: unknown) {
   }
   if (error instanceof SessionSeatUnavailableError) {
     return NextResponse.json({ error: error.message }, { status: 409 });
+  }
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    return NextResponse.json(
+      { error: "A checkout or subscription is already in progress", code: "CHECKOUT_CONFLICT" },
+      { status: 409 },
+    );
   }
 
   console.error("V2 checkout intent error:", error);
@@ -191,11 +218,59 @@ async function hasActiveV2Entitlement(
   }));
 }
 
+async function getCourseInclusionSnapshot(
+  inclusions: Array<{ inclusionType: "MOCK_TEST" | "MOCK_BUNDLE" | "SESSION"; inclusionId: string }>,
+  now: Date,
+) {
+  const directMockIds = inclusions
+    .filter((inclusion) => inclusion.inclusionType === "MOCK_TEST")
+    .map((inclusion) => inclusion.inclusionId);
+  const bundleIds = inclusions
+    .filter((inclusion) => inclusion.inclusionType === "MOCK_BUNDLE")
+    .map((inclusion) => inclusion.inclusionId);
+  const sessionIds = inclusions
+    .filter((inclusion) => inclusion.inclusionType === "SESSION")
+    .map((inclusion) => inclusion.inclusionId);
+
+  const [publishedDirectMocks, bundles, sessions] = await Promise.all([
+    prisma.mockTest.count({ where: { id: { in: directMockIds }, status: "PUBLISHED" } }),
+    prisma.mockBundle.findMany({
+      where: { id: { in: bundleIds }, status: "PUBLISHED" },
+      select: { id: true, mockIds: true },
+    }),
+    prisma.session.findMany({
+      where: {
+        id: { in: sessionIds },
+        status: "PUBLISHED",
+        OR: [{ expiryDate: null }, { expiryDate: { gt: now } }],
+      },
+      select: { id: true, maxEnrollment: true },
+    }),
+  ]);
+  if (
+    publishedDirectMocks !== directMockIds.length
+    || bundles.length !== bundleIds.length
+    || sessions.length !== sessionIds.length
+  ) {
+    throw new CommerceCheckoutInputError("A course inclusion is not currently available");
+  }
+
+  return {
+    includedMockIds: [...new Set([...directMockIds, ...bundles.flatMap((bundle) => bundle.mockIds)])],
+    includedBundleIds: bundleIds,
+    includedSessions: sessions.map((session) => ({ id: session.id, maxEnrollment: session.maxEnrollment })),
+  };
+}
+
 async function prepareCourseCheckout(input: CheckoutIntentInput, userId: string, now: Date): Promise<PreparedCheckout> {
-  const course = await prisma.course.findUnique({ where: { id: input.productId } });
+  const course = await prisma.course.findUnique({
+    where: { id: input.productId },
+    include: { inclusions: true },
+  });
   if (!course || course.status !== "PUBLISHED") {
     throw new CommerceCheckoutInputError("Course is not available for purchase");
   }
+  const inclusionSnapshot = await getCourseInclusionSnapshot(course.inclusions, now);
 
   if (isRecurringCheckout(input.checkoutType)) {
     if (input.couponCode) {
@@ -247,6 +322,7 @@ async function prepareCourseCheckout(input: CheckoutIntentInput, userId: string,
         currency: plan.currency,
         interval: plan.interval,
         totalCount: plan.totalCount,
+        ...inclusionSnapshot,
       },
     };
   }
@@ -311,6 +387,7 @@ async function prepareCourseCheckout(input: CheckoutIntentInput, userId: string,
       title: course.title,
       durationMonths: course.durationMonths,
       accessEndsAt: getCourseExpiryDate(now, course.durationMonths).toISOString(),
+      ...inclusionSnapshot,
       ...(couponSnapshot ? { coupon: couponSnapshot } : {}),
     },
   };
@@ -417,6 +494,9 @@ async function prepareOneTimeCheckout(input: CheckoutIntentInput, userId: string
     if (!mock || mock.status !== "PUBLISHED") {
       throw new CommerceCheckoutInputError("Mock test is not available for purchase");
     }
+    if (mock.billingMode === "RECURRING" && mock.subscriptionEnabled) {
+      throw new CommerceCheckoutInputError("This mock test requires recurring checkout");
+    }
     const amountPaise = parseRupeesToPaise(mock.actualPrice ?? mock.price);
     if (await hasActiveV2Entitlement(userId, "MOCK_TEST", mock.id, now)) {
       throw new CommerceCheckoutInputError("You already have access to this mock test");
@@ -438,6 +518,9 @@ async function prepareOneTimeCheckout(input: CheckoutIntentInput, userId: string
     const bundle = await prisma.mockBundle.findUnique({ where: { id: input.productId } });
     if (!bundle || bundle.status !== "PUBLISHED" || bundle.mockIds.length === 0) {
       throw new CommerceCheckoutInputError("Mock bundle is not available for purchase");
+    }
+    if (bundle.billingMode === "RECURRING" && bundle.subscriptionEnabled) {
+      throw new CommerceCheckoutInputError("This mock bundle requires recurring checkout");
     }
 
     const mockIds = [...new Set(bundle.mockIds)];
@@ -471,6 +554,9 @@ async function prepareOneTimeCheckout(input: CheckoutIntentInput, userId: string
   if (!session || session.status !== "PUBLISHED") {
     throw new CommerceCheckoutInputError("Guidance session is not available for purchase");
   }
+  if (session.billingMode === "RECURRING" && session.subscriptionEnabled) {
+    throw new CommerceCheckoutInputError("This guidance program requires recurring checkout");
+  }
   if (session.expiryDate && session.expiryDate <= now) {
     throw new CommerceCheckoutInputError("Guidance session has expired");
   }
@@ -480,9 +566,12 @@ async function prepareOneTimeCheckout(input: CheckoutIntentInput, userId: string
 
   const existingSessionEnrollment = await prisma.sessionEnrollment.findUnique({
     where: { sessionId_userId: { sessionId: session.id, userId } },
-    select: { paymentStatus: true },
+    select: { paymentStatus: true, accessEndsAt: true },
   });
-  if (existingSessionEnrollment?.paymentStatus === "SUCCESS") {
+  if (
+    existingSessionEnrollment?.paymentStatus === "SUCCESS"
+    && (existingSessionEnrollment.accessEndsAt === null || existingSessionEnrollment.accessEndsAt > now)
+  ) {
     throw new CommerceCheckoutInputError("You already have access to this guidance session");
   }
   if (existingSessionEnrollment?.paymentStatus === "PENDING") {
@@ -550,20 +639,35 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const input = parseCheckoutIntentInput(await req.json());
+    assertProductCheckoutEnabled(input);
     const now = new Date();
+    const idempotencyKey = input.idempotencyKey;
 
-    if (input.idempotencyKey) {
-      const existing = await prisma.commerceCheckout.findFirst({
-        where: {
-          userId: user.id,
-          productType: input.productType as CommerceProductType,
-          productId: input.productId,
-          checkoutType: input.checkoutType as CommerceCheckoutType,
-          idempotencyKey: input.idempotencyKey,
-          status: { in: ["CREATED", "PROVIDER_CREATED", "PENDING", "PAID", "REQUIRES_REVIEW"] },
-        },
-        orderBy: { createdAt: "desc" },
+    if (idempotencyKey) {
+      const claim = await prisma.commerceCheckoutClaim.findUnique({
+        where: { key: `${user.id}:${idempotencyKey}` },
       });
+      const existing = claim
+        ? await prisma.commerceCheckout.findUnique({ where: { id: claim.checkoutId } })
+        : await prisma.commerceCheckout.findFirst({ where: { userId: user.id, idempotencyKey } });
+      if (
+        existing
+        && (existing.productType !== input.productType
+          || existing.productId !== input.productId
+          || existing.checkoutType !== input.checkoutType)
+      ) {
+        return NextResponse.json(
+          { error: "This checkout key belongs to a different purchase", code: "CHECKOUT_KEY_MISMATCH" },
+          { status: 409 },
+        );
+      }
+      if (existing?.status === "FAILED" || existing?.status === "CANCELLED") {
+        return NextResponse.json({
+          error: "The previous checkout ended. Please try again.",
+          code: "CHECKOUT_TERMINAL",
+          checkout: checkoutResponse(existing),
+        }, { status: 409 });
+      }
       if (existing?.status === "REQUIRES_REVIEW") {
         return NextResponse.json(
           { error: "This checkout requires payment review", code: "CHECKOUT_REQUIRES_REVIEW" },
@@ -609,8 +713,11 @@ export async function POST(req: Request) {
           discountPaise: prepared.discountPaise,
           couponCode: prepared.couponCode,
           snapshot: prepared.snapshot as Prisma.InputJsonValue,
-          idempotencyKey: input.idempotencyKey,
+          idempotencyKey,
         },
+      });
+      await tx.commerceCheckoutClaim.create({
+        data: { key: `${user.id}:${idempotencyKey}`, checkoutId: checkout.id },
       });
 
       if (prepared.productType === "GUIDANCE_SESSION") {
@@ -623,6 +730,25 @@ export async function POST(req: Request) {
           session: { id: prepared.productId, maxEnrollment: sessionCapacity },
           now,
         });
+      }
+      if (prepared.productType === "COURSE") {
+        const includedSessions = Array.isArray(prepared.snapshot.includedSessions)
+          ? prepared.snapshot.includedSessions
+          : [];
+        for (const includedSession of includedSessions) {
+          if (!includedSession || typeof includedSession !== "object") continue;
+          const session = includedSession as { id?: unknown; maxEnrollment?: unknown };
+          if (typeof session.id !== "string") continue;
+          await acquireSessionSeatHold(tx, {
+            checkoutId: checkout.id,
+            userId: user.id,
+            session: {
+              id: session.id,
+              maxEnrollment: typeof session.maxEnrollment === "number" ? session.maxEnrollment : null,
+            },
+            now,
+          });
+        }
       }
 
       if (prepared.couponCode && prepared.generalCouponProductType) {
@@ -649,14 +775,25 @@ export async function POST(req: Request) {
       }
 
        if (isRecurringCheckout(prepared.checkoutType) && prepared.billingPlanId) {
+         await tx.commerceSubscriptionSlot.create({
+           data: {
+             key: subscriptionSlotKey(user.id, prepared.productType, prepared.productId),
+             userId: user.id,
+             productType: prepared.productType,
+             productId: prepared.productId,
+             checkoutId: checkout.id,
+           },
+         });
          if (prepared.checkoutType === "COURSE_RECURRING") {
            await tx.courseBillingSubscription.create({
              data: {
                userId: user.id,
                courseId: prepared.productId,
-               billingPlanId: prepared.billingPlanId,
-               razorpaySubscriptionId: `pending:${checkout.id}`,
-               providerStatus: "CREATED",
+                billingPlanId: prepared.billingPlanId,
+                originCheckoutId: checkout.id,
+                razorpaySubscriptionId: `pending:${checkout.id}`,
+                providerStatus: "CREATED",
+                entitlementSnapshot: prepared.snapshot as Prisma.InputJsonValue,
              },
            });
          } else {
@@ -677,10 +814,9 @@ export async function POST(req: Request) {
       return tx.commerceCheckout.findUniqueOrThrow({ where: { id: checkout.id } });
     });
 
-    assertRazorpayServerConfiguration();
-
     let providerCheckoutCreated = false;
     try {
+      assertRazorpayServerConfiguration();
        if (isRecurringCheckout(prepared.checkoutType)) {
         const providerSubscription = await razorpay.subscriptions.create({
           plan_id: prepared.razorpayPlanId!,
@@ -750,9 +886,10 @@ export async function POST(req: Request) {
                where: { razorpaySubscriptionId: `pending:${pendingCheckout.id}` },
                data: { providerStatus: "CANCELLED", cancelledAt: new Date() },
              });
-           }
+            }
+            await tx.commerceSubscriptionSlot.deleteMany({ where: { checkoutId: pendingCheckout.id } });
         }
-        if (prepared.productType === "GUIDANCE_SESSION" && !providerCheckoutCreated) {
+        if (!providerCheckoutCreated) {
           await releaseSessionSeatHold(tx, pendingCheckout.id, new Date());
         }
       }).catch((cleanupError) => console.error("Failed to mark V2 checkout provider failure:", cleanupError));

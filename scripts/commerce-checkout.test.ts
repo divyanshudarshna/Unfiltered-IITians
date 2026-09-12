@@ -30,6 +30,7 @@ assert.equal(
     productType: "COURSE",
     checkoutType: "COURSE_RECURRING",
     productId: "course-1",
+    idempotencyKey: "course-checkout-1",
   }).checkoutType,
   "COURSE_RECURRING",
 );
@@ -39,6 +40,7 @@ assert.equal(
     productType: "MOCK_TEST",
     productId: "mock-1",
     checkoutType: "RECURRING",
+    idempotencyKey: "mock-checkout-1",
   }).checkoutType,
   "RECURRING",
 );
@@ -46,6 +48,10 @@ assert.equal(
 assert.throws(
   () => parseCheckoutIntentInput({ productType: "MOCK_TEST", productId: "" }),
   (error) => error instanceof CommerceCheckoutInputError,
+);
+assert.throws(
+  () => parseCheckoutIntentInput({ productType: "MOCK_TEST", productId: "mock-1" }),
+  /idempotencyKey is required/,
 );
 assert.throws(() => parseRupeesToPaise("0.99"), /at least/);
 assert.throws(() => parseRupeesToPaise("10.123"), /up to two decimals/);

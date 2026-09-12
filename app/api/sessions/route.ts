@@ -1,11 +1,11 @@
 // app/api/sessions/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const url = new URL(req.url);
-    const clerkUserId = url.searchParams.get("userId"); // Clerk user ID from frontend
+    const { userId: clerkUserId } = await auth();
 
     let enrolledSessionIds: string[] = [];
 
@@ -18,9 +18,10 @@ export async function GET(req: Request) {
       if (user) {
         // Fetch sessions enrolled by the user with successful payment only
         const enrollments = await prisma.sessionEnrollment.findMany({
-          where: { 
+          where: {
             userId: user.id,
-            paymentStatus: "SUCCESS" // Only show successfully paid sessions
+            paymentStatus: "SUCCESS",
+            OR: [{ accessEndsAt: null }, { accessEndsAt: { gt: new Date() } }],
           },
           select: { sessionId: true, completedAt: true, enrolledAt: true },
         });
@@ -29,6 +30,7 @@ export async function GET(req: Request) {
     }
 
     const sessions = await prisma.session.findMany({
+      where: { status: "PUBLISHED" },
       orderBy: [
         { order: "asc" },
         { createdAt: "desc" }
@@ -52,10 +54,10 @@ export async function GET(req: Request) {
     }));
 
     return NextResponse.json({ sessions: sessionsData }, { status: 200 });
-  } catch (error: any) {
-    console.error("❌ Error fetching sessions:", error);
+  } catch (error: unknown) {
+    console.error("Error fetching sessions:", error);
     return NextResponse.json(
-      { error: "Failed to fetch sessions", details: error.message },
+      { error: "Failed to fetch sessions" },
       { status: 500 }
     );
   }

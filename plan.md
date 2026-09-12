@@ -505,9 +505,11 @@ Razorpay retries failed deliveries for a limited period and can disable an unhea
 ### 6. Configure One-Time Product Activation
 
 1. Enable V2 checkout one product at a time using server-side feature flags.
-    - The individual-mock pilot requires both `V2_CHECKOUT_ENABLED=true` and `NEXT_PUBLIC_V2_MOCK_CHECKOUT_ENABLED=true`; leave both unset until the webhook and database gates are complete. Monthly mock checkout additionally requires `NEXT_PUBLIC_V2_MOCK_SUBSCRIPTIONS_ENABLED=true` and an active, verified Razorpay plan.
-    - The mock-bundle pilot requires `V2_CHECKOUT_ENABLED=true` and `NEXT_PUBLIC_V2_BUNDLE_CHECKOUT_ENABLED=true`. Enable it only after the GeneralCouponReservation schema, coupon reservation/redeem lifecycle, and webhook processor are deployed together. Monthly bundle checkout additionally requires `NEXT_PUBLIC_V2_BUNDLE_SUBSCRIPTIONS_ENABLED=true` and an active, verified Razorpay plan.
-    - The course pilot requires `V2_CHECKOUT_ENABLED=true` and `NEXT_PUBLIC_V2_COURSE_CHECKOUT_ENABLED=true`. For a recurring course, also complete the local-plan **Verify & Activate** step before exposing checkout.
+    - Every pilot requires `V2_CHECKOUT_ENABLED=true` plus its private server gate: `V2_COURSE_CHECKOUT_ENABLED`, `V2_MOCK_CHECKOUT_ENABLED`, `V2_BUNDLE_CHECKOUT_ENABLED`, or `V2_SESSION_CHECKOUT_ENABLED`. Recurring checkout also requires `V2_RECURRING_CHECKOUT_ENABLED=true`.
+    - The individual-mock pilot additionally requires `NEXT_PUBLIC_V2_MOCK_CHECKOUT_ENABLED=true`; monthly mock checkout also requires `NEXT_PUBLIC_V2_MOCK_SUBSCRIPTIONS_ENABLED=true` and an active, verified Razorpay plan.
+    - The mock-bundle pilot additionally requires `NEXT_PUBLIC_V2_BUNDLE_CHECKOUT_ENABLED=true`. Enable it only after the GeneralCouponReservation schema, coupon reservation/redeem lifecycle, and webhook processor are deployed together. Monthly bundle checkout also requires `NEXT_PUBLIC_V2_BUNDLE_SUBSCRIPTIONS_ENABLED=true` and an active, verified Razorpay plan.
+    - The course pilot additionally requires `NEXT_PUBLIC_V2_COURSE_CHECKOUT_ENABLED=true`. For a recurring course, also complete the local-plan **Verify & Activate** step before exposing checkout.
+    - The ongoing guidance-program pilot additionally requires `NEXT_PUBLIC_V2_SESSION_CHECKOUT_ENABLED=true`; monthly guidance subscriptions also require `NEXT_PUBLIC_V2_SESSION_SUBSCRIPTIONS_ENABLED=true`, an active verified plan, working `CRON_SECRET`, and successful seat-release Cron verification.
     - Set `RAZORPAY_WEBHOOK_INGESTION_ENABLED=true` only when the signed endpoint, new database collections/indexes, and transactional fulfillment path are deployed together.
 2. Confirm the server derives the buyer from Clerk and calculates product price, bundle contents, session availability, and coupon behavior from the database.
 3. Confirm Razorpay Orders use integer INR paise and the local checkout snapshot stores the same amount/currency.

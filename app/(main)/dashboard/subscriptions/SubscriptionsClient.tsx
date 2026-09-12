@@ -25,55 +25,81 @@ interface SubscriptionsClientProps {
       course: {
         id: string;
         title: string;
-        description?: string;
+        description?: string | null;
         price: number;
-        actualPrice?: number;
+        actualPrice?: number | null;
         createdAt: Date;
         status: string;
       };
       enrolledAt: Date;
     }>;
     subscriptions?: Array<{
-      actualAmountPaid?: number | null;
+        actualAmountPaid?: number | null;
       mockTest?: {
         id: string;
         title: string;
-        description?: string;
+        description?: string | null;
         price: number;
         createdAt: Date;
-      };
+      } | null;
       mockBundle?: {
         id: string;
         title: string;
-        description?: string;
+        description?: string | null;
         mockIds?: string[];
         basePrice: number;
-        discountedPrice?: number;
+        discountedPrice?: number | null;
         createdAt: Date;
-      };
+      } | null;
       createdAt: Date;
     }>;
     sessionEnrollments?: Array<{
       session: {
         id: string;
         title: string;
-        description?: string;
+        description?: string | null;
         price: number;
-        discountedPrice?: number;
+        discountedPrice?: number | null;
         duration: number;
-        expiryDate?: Date;
+        expiryDate?: Date | null;
         createdAt: Date;
       };
       enrolledAt: Date;
     }>;
   };
+  recurringSubscriptions: Array<{
+    id: string;
+    title: string;
+    productType: string;
+    status: string;
+    amountPaise: number;
+    currentPeriodEnd: Date | null;
+    cancelAtPeriodEnd: boolean;
+  }>;
 }
 
 export default function SubscriptionsClient({ 
-  dbUser 
+  dbUser,
+  recurringSubscriptions,
 }: SubscriptionsClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("all");
+  const [cancellingSubscriptionId, setCancellingSubscriptionId] = useState<string | null>(null);
+
+  const cancelSubscription = async (subscriptionId: string) => {
+    if (!window.confirm("Cancel auto-renewal at the end of the current paid period?")) return;
+    setCancellingSubscriptionId(subscriptionId);
+    try {
+      const response = await fetch(`/api/billing/subscriptions/${subscriptionId}/cancel`, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to cancel subscription");
+      router.refresh();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Unable to cancel subscription");
+    } finally {
+      setCancellingSubscriptionId(null);
+    }
+  };
 
   const formatDate = (dateString: string | Date) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -330,6 +356,40 @@ export default function SubscriptionsClient({
             </p>
           </div>
         </div>
+
+        {recurringSubscriptions.length > 0 && (
+          <div className="mb-8 space-y-3">
+            <h2 className="text-xl font-semibold">Auto-renewing subscriptions</h2>
+            {recurringSubscriptions.map((subscription) => (
+              <Card key={subscription.id}>
+                <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium">{subscription.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {subscription.productType} · ₹{(subscription.amountPaise / 100).toFixed(2)}/month · {subscription.status.toLowerCase()}
+                    </p>
+                    {subscription.currentPeriodEnd && (
+                      <p className="text-xs text-muted-foreground">
+                        Paid access through {formatDate(subscription.currentPeriodEnd)}
+                      </p>
+                    )}
+                  </div>
+                  {subscription.cancelAtPeriodEnd ? (
+                    <Badge variant="secondary">Cancellation scheduled</Badge>
+                  ) : !["CANCELLED", "COMPLETED"].includes(subscription.status) ? (
+                    <Button
+                      variant="outline"
+                      disabled={cancellingSubscriptionId === subscription.id}
+                      onClick={() => void cancelSubscription(subscription.id)}
+                    >
+                      {cancellingSubscriptionId === subscription.id ? "Cancelling..." : "Cancel auto-renewal"}
+                    </Button>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

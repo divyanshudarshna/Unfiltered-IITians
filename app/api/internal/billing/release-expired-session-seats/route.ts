@@ -17,11 +17,18 @@ export async function GET(req: Request) {
   const candidates = await prisma.sessionEnrollment.findMany({
     where: {
       paymentStatus: "SUCCESS",
-      billingSubscriptionId: { not: null },
+      OR: [{ billingSubscriptionId: { not: null } }, { sourceCheckoutId: { not: null } }],
       accessEndsAt: { lte: now },
       seatReleasedAt: null,
     },
-    select: { id: true, sessionId: true, billingSubscriptionId: true, accessEndsAt: true, paymentStatus: true },
+    select: {
+      id: true,
+      sessionId: true,
+      billingSubscriptionId: true,
+      sourceCheckoutId: true,
+      accessEndsAt: true,
+      paymentStatus: true,
+    },
   });
 
   let released = 0;
@@ -30,14 +37,12 @@ export async function GET(req: Request) {
       const current = await tx.sessionEnrollment.findUniqueOrThrow({ where: { id: enrollment.id } });
       if (!shouldReleaseRecurringSessionSeat({ ...current, now })) return;
 
-      const subscription = await tx.commerceBillingSubscription.findUnique({
-        where: { id: current.billingSubscriptionId! },
-        select: { originCheckoutId: true },
-      });
-      if (!subscription?.originCheckoutId) return;
+      const checkoutId = current.sourceCheckoutId;
+      if (!checkoutId) return;
 
       const releasedSeat = await releaseConfirmedSessionSeat(tx, {
-        checkoutId: subscription.originCheckoutId,
+        checkoutId,
+        sessionId: current.sessionId,
         now,
       });
       if (!releasedSeat) return;
@@ -60,5 +65,33 @@ export async function GET(req: Request) {
     });
   }
 
-  return NextResponse.json({ released, checked: candidates.length, at: now.toISOString() });
+  const terminalStatuses = ["CANCELLED", "COMPLETED"] as const;
+  const [courseSubscriptions, commerceSubscriptions] = await Promise.all([
+    prisma.courseBillingSubscription.findMany({
+      where: {
+        providerStatus: { in: [...terminalStatuses] },
+        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { lte: now } }],
+      },
+      select: { originCheckoutId: true },
+    }),
+    prisma.commerceBillingSubscription.findMany({
+      where: {
+        providerStatus: { in: [...terminalStatuses] },
+        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { lte: now } }],
+      },
+      select: { originCheckoutId: true },
+    }),
+  ]);
+  const terminalCheckoutIds = [...courseSubscriptions, ...commerceSubscriptions]
+    .flatMap((subscription) => subscription.originCheckoutId ? [subscription.originCheckoutId] : []);
+  const releasedSubscriptionSlots = terminalCheckoutIds.length > 0
+    ? await prisma.commerceSubscriptionSlot.deleteMany({ where: { checkoutId: { in: terminalCheckoutIds } } })
+    : { count: 0 };
+
+  return NextResponse.json({
+    released,
+    checked: candidates.length,
+    releasedSubscriptionSlots: releasedSubscriptionSlots.count,
+    at: now.toISOString(),
+  });
 }

@@ -20,6 +20,14 @@ assert.equal(shouldReleaseRecurringSessionSeat({
 assert.equal(shouldReleaseRecurringSessionSeat({
   paymentStatus: "SUCCESS",
   billingSubscriptionId: null,
+  sourceCheckoutId: "course_checkout",
+  accessEndsAt: new Date("2026-01-01T00:00:00.000Z"),
+  seatReleasedAt: null,
+  now,
+}), true);
+assert.equal(shouldReleaseRecurringSessionSeat({
+  paymentStatus: "SUCCESS",
+  billingSubscriptionId: null,
   accessEndsAt: new Date("2026-01-01T00:00:00.000Z"),
   seatReleasedAt: null,
   now,

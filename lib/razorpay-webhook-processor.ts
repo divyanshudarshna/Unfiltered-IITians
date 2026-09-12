@@ -1,9 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getLaterAccessEnd } from "@/lib/commerce-entitlement";
+import { getEarlierAccessStart, getLaterAccessEnd } from "@/lib/commerce-entitlement";
 import { shouldMarkCheckoutFailed } from "@/lib/checkout-status";
+import { classifyWebhookProcessingError } from "@/lib/webhook-processing";
 import {
   confirmSessionSeatHold,
+  confirmSessionSeatHolds,
   releaseSessionSeatHold,
 } from "@/lib/session-seat-inventory";
 import {
@@ -98,8 +100,8 @@ async function upsertEntitlement(
       where: { id: existing.id },
       data: {
         status: "ACTIVE",
-        startsAt: input.startsAt,
-        endsAt: input.endsAt,
+        startsAt: getEarlierAccessStart(existing.startsAt, input.startsAt),
+        endsAt: getLaterAccessEnd(existing.endsAt, input.endsAt),
         lastPaymentId: input.lastPaymentId,
       },
     });
@@ -153,6 +155,8 @@ async function projectSessionEnrollment(
   paymentId: string,
   amountPaise: number,
   snapshot: Record<string, unknown>,
+  accessEndsAt?: Date,
+  sourceCheckoutId?: string,
 ) {
   const [user, enrollment] = await Promise.all([
     tx.user.findUnique({
@@ -177,6 +181,10 @@ async function projectSessionEnrollment(
     paymentStatus: "SUCCESS" as const,
     amountPaid: amountPaise / 100,
     completedAt: new Date(),
+    ...(accessEndsAt
+      ? { accessEndsAt: getLaterAccessEnd(enrollment?.accessEndsAt, accessEndsAt), seatReleasedAt: null }
+      : {}),
+    ...(sourceCheckoutId ? { sourceCheckoutId } : {}),
   };
 
   if (enrollment) {
@@ -186,6 +194,93 @@ async function projectSessionEnrollment(
   return tx.sessionEnrollment.create({
     data: { sessionId: checkout.productId, userId: checkout.userId, ...data },
   });
+}
+
+async function projectCourseInclusions(
+  tx: TransactionClient,
+  input: {
+    userId: string;
+    checkoutId: string | null;
+    snapshot: Record<string, unknown>;
+    sourceType: "RAZORPAY_PAYMENT" | "RAZORPAY_SUBSCRIPTION";
+    sourceId: string;
+    startsAt: Date;
+    endsAt: Date | null;
+    recordedPaymentId: string;
+    providerPaymentId: string;
+  },
+) {
+  const includedMockIds = Array.isArray(input.snapshot.includedMockIds)
+    ? input.snapshot.includedMockIds.filter((id): id is string => typeof id === "string")
+    : [];
+  const includedBundleIds = Array.isArray(input.snapshot.includedBundleIds)
+    ? input.snapshot.includedBundleIds.filter((id): id is string => typeof id === "string")
+    : [];
+  const includedSessions = Array.isArray(input.snapshot.includedSessions)
+    ? input.snapshot.includedSessions.flatMap((value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+      const id = (value as Record<string, unknown>).id;
+      return typeof id === "string" ? [id] : [];
+    })
+    : [];
+
+  if (includedSessions.length > 0 && !input.checkoutId) {
+    throw new Error(`Course inclusion source ${input.sourceId} has sessions but no checkout`);
+  }
+
+  const capturedAt = new Date();
+  const reviewedSessionId = includedSessions.length > 0
+    ? await confirmSessionSeatHolds(tx, input.checkoutId!, includedSessions, capturedAt)
+    : null;
+  if (reviewedSessionId) return reviewedSessionId;
+
+  for (const mockId of includedMockIds) {
+    await upsertEntitlement(tx, {
+      userId: input.userId,
+      resourceType: "MOCK_TEST",
+      resourceId: mockId,
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      lastPaymentId: input.recordedPaymentId,
+    });
+  }
+  for (const bundleId of includedBundleIds) {
+    await upsertEntitlement(tx, {
+      userId: input.userId,
+      resourceType: "MOCK_BUNDLE",
+      resourceId: bundleId,
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      lastPaymentId: input.recordedPaymentId,
+    });
+  }
+  for (const sessionId of includedSessions) {
+    await upsertEntitlement(tx, {
+      userId: input.userId,
+      resourceType: "GUIDANCE_SESSION",
+      resourceId: sessionId,
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      lastPaymentId: input.recordedPaymentId,
+    });
+    await projectSessionEnrollment(
+      tx,
+      { userId: input.userId, productId: sessionId, razorpayOrderId: null },
+      input.providerPaymentId,
+      0,
+      { studentPhone: "Included with course" },
+      input.endsAt ?? undefined,
+      input.checkoutId ?? undefined,
+    );
+  }
+
+  return null;
 }
 
 async function redeemGeneralCouponReservation(
@@ -339,11 +434,21 @@ async function projectGenericRecurringEntitlements(
   startsAt: Date,
   endsAt: Date,
   providerPaymentId: string,
+  amountPaise: number,
 ) {
   if (subscription.productType === "COURSE") {
     throw new Error(`Generic recurring subscription ${subscription.id} cannot be a course`);
   }
   const snapshot = parseSnapshot(subscription.entitlementSnapshot);
+  const guidanceCheckout = subscription.productType === "GUIDANCE_SESSION" && subscription.originCheckoutId
+    ? await tx.commerceCheckout.findUnique({ where: { id: subscription.originCheckoutId } })
+    : null;
+  if (subscription.productType === "GUIDANCE_SESSION") {
+    if (!guidanceCheckout) throw new Error(`Recurring guidance subscription ${subscription.id} has no checkout`);
+    const seatDecision = await confirmSessionSeatHold(tx, guidanceCheckout.id, new Date());
+    if (seatDecision === "REQUIRES_REVIEW") return guidanceCheckout.id;
+  }
+
   await upsertEntitlement(tx, {
     userId: subscription.userId,
     resourceType: subscription.productType,
@@ -371,20 +476,22 @@ async function projectGenericRecurringEntitlements(
     });
   }
 
-  if (subscription.productType === "GUIDANCE_SESSION" && subscription.originCheckoutId) {
-    const checkout = await tx.commerceCheckout.findUnique({ where: { id: subscription.originCheckoutId } });
-    if (!checkout) throw new Error(`Recurring guidance subscription ${subscription.id} has no checkout`);
-    const seatDecision = await confirmSessionSeatHold(tx, checkout.id, new Date());
-    if (seatDecision === "REQUIRES_REVIEW") {
-      await tx.commerceCheckout.update({ where: { id: checkout.id }, data: { status: "REQUIRES_REVIEW" } });
-      throw new Error(`Recurring guidance subscription ${subscription.id} requires session-seat review`);
-    }
-    await projectSessionEnrollment(tx, checkout, providerPaymentId, 0, snapshot);
+  if (subscription.productType === "GUIDANCE_SESSION" && guidanceCheckout) {
+    await projectSessionEnrollment(
+      tx,
+      guidanceCheckout,
+      providerPaymentId,
+      amountPaise,
+      snapshot,
+      endsAt,
+      subscription.originCheckoutId ?? undefined,
+    );
     await tx.sessionEnrollment.updateMany({
       where: { sessionId: subscription.productId, userId: subscription.userId },
-      data: { billingSubscriptionId: subscription.id, accessEndsAt: endsAt, seatReleasedAt: null },
+      data: { billingSubscriptionId: subscription.id, seatReleasedAt: null },
     });
   }
+  return null;
 }
 
 async function processCapturedPayment(
@@ -393,6 +500,9 @@ async function processCapturedPayment(
   eventId: string,
 ) {
   const payment = getRazorpayEntity(payload, "payment");
+  // Subscription charges also emit payment.captured. The corresponding
+  // subscription.charged event is the sole recurring entitlement authority.
+  if (getRazorpayString(payment, "subscription_id")) return null;
   const paymentId = getRazorpayString(payment, "id");
   const orderId = getRazorpayString(payment, "order_id");
   const amountPaise = getRazorpayAmount(payment);
@@ -459,6 +569,36 @@ async function processCapturedPayment(
     }
   }
 
+  if (checkout.productType === "COURSE") {
+    const inclusionReviewSessionId = await projectCourseInclusions(tx, {
+      userId: checkout.userId,
+      checkoutId: checkout.id,
+      snapshot,
+      sourceType: "RAZORPAY_PAYMENT",
+      sourceId: paymentId,
+      startsAt,
+      endsAt: accessEndsAt,
+      recordedPaymentId: recordedPayment.id,
+      providerPaymentId: paymentId,
+    });
+    if (inclusionReviewSessionId) {
+      await tx.commerceCheckout.update({
+        where: { id: checkout.id },
+        data: { status: "REQUIRES_REVIEW" },
+      });
+      await tx.billingOutbox.upsert({
+        where: { dedupeKey: `course-inclusion-review:${paymentId}` },
+        update: {},
+        create: {
+          dedupeKey: `course-inclusion-review:${paymentId}`,
+          action: "COURSE_INCLUSION_REVIEW_REQUIRED",
+          payload: { eventId, checkoutId: checkout.id, paymentId, sessionId: inclusionReviewSessionId },
+        },
+      });
+      return `Captured payment ${paymentId} requires course-inclusion review`;
+    }
+  }
+
   await tx.commerceCheckout.update({
     where: { id: checkout.id },
     data: { status: "PAID", paidAt: new Date() },
@@ -496,7 +636,15 @@ async function processCapturedPayment(
     await projectCourseEnrollment(tx, checkout.userId, checkout.productId, accessEndsAt);
   }
   if (checkout.productType === "GUIDANCE_SESSION") {
-    await projectSessionEnrollment(tx, checkout, paymentId, amountPaise, snapshot);
+    await projectSessionEnrollment(
+      tx,
+      checkout,
+      paymentId,
+      amountPaise,
+      snapshot,
+      parseDate(snapshot.sessionExpiryDate) ?? undefined,
+      checkout.id,
+    );
   }
   await redeemGeneralCouponReservation(tx, checkout, paymentId, snapshot);
 
@@ -518,8 +666,26 @@ async function processFailedPayment(
   payload: RazorpayWebhookPayload,
 ) {
   const payment = getRazorpayEntity(payload, "payment");
+  const providerSubscriptionId = getRazorpayString(payment, "subscription_id");
+  if (providerSubscriptionId) {
+    const courseSubscription = await findCourseSubscriptionForEvent(tx, payment, providerSubscriptionId);
+    const genericSubscription = courseSubscription
+      ? null
+      : await findCommerceSubscriptionForEvent(tx, payment, providerSubscriptionId);
+    const originCheckoutId = courseSubscription?.originCheckoutId ?? genericSubscription?.originCheckoutId;
+    if (!originCheckoutId) {
+      return getRazorpayNote(payment, "checkout_id")
+        ? `No V2 recurring subscription found for ${providerSubscriptionId}`
+        : null;
+    }
+
+    // A recurring payment can be retried by Razorpay. Subscription lifecycle
+    // events decide terminal state; a single failed charge must not tear down it.
+    return null;
+  }
+
   const orderId = getRazorpayString(payment, "order_id");
-  if (!orderId) return "Failed payment payload is missing its provider order";
+  if (!orderId) return "Failed payment payload is missing its provider order or subscription";
 
   const checkout = await findCheckoutForCapturedPayment(tx, payment, orderId);
   if (!checkout) return `No V2 checkout found for failed Razorpay order ${orderId}`;
@@ -530,9 +696,7 @@ async function processFailedPayment(
       data: { status: "FAILED" },
     });
     await releaseGeneralCouponReservation(tx, checkout.id);
-    if (checkout.productType === "GUIDANCE_SESSION") {
-      await releaseSessionSeatHold(tx, checkout.id, new Date());
-    }
+    await releaseSessionSeatHold(tx, checkout.id, new Date());
   }
 
   return null;
@@ -576,6 +740,20 @@ async function processSubscriptionEvent(
     });
   }
 
+  if (
+    isNewer
+    && (eventType === "subscription.cancelled" || eventType === "subscription.completed")
+    && !currentPeriodEnd
+    && subscription.originCheckoutId
+  ) {
+    await releaseSessionSeatHold(tx, subscription.originCheckoutId, eventAt);
+    await tx.commerceSubscriptionSlot.deleteMany({ where: { checkoutId: subscription.originCheckoutId } });
+    await tx.commerceCheckout.updateMany({
+      where: { id: subscription.originCheckoutId, status: { not: "PAID" } },
+      data: { status: "CANCELLED" },
+    });
+  }
+
   if (eventType !== "subscription.charged") return null;
 
   const payment = getRazorpayEntity(payload, "payment");
@@ -605,6 +783,41 @@ async function processSubscriptionEvent(
         providerCapturedAt: getRazorpayUnixDate(payment, "created_at") ?? new Date(),
       },
     });
+  }
+
+  const inclusionReviewSessionId = await projectCourseInclusions(tx, {
+    userId: subscription.userId,
+    checkoutId: subscription.originCheckoutId,
+    snapshot: parseSnapshot(subscription.entitlementSnapshot),
+    sourceType: "RAZORPAY_SUBSCRIPTION",
+    sourceId: subscription.id,
+    startsAt: currentPeriodStart ?? new Date(),
+    endsAt: currentPeriodEnd,
+    recordedPaymentId: recordedPayment.id,
+    providerPaymentId: paymentId,
+  });
+  if (inclusionReviewSessionId) {
+    if (subscription.originCheckoutId) {
+      await tx.commerceCheckout.update({
+        where: { id: subscription.originCheckoutId },
+        data: { status: "REQUIRES_REVIEW" },
+      });
+    }
+    await tx.billingOutbox.upsert({
+      where: { dedupeKey: `course-inclusion-review:${paymentId}` },
+      update: {},
+      create: {
+        dedupeKey: `course-inclusion-review:${paymentId}`,
+        action: "COURSE_INCLUSION_REVIEW_REQUIRED",
+        payload: {
+          eventId,
+          subscriptionId: subscription.id,
+          paymentId,
+          sessionId: inclusionReviewSessionId,
+        },
+      },
+    });
+    return `Charged subscription ${providerSubscriptionId} requires course-inclusion review`;
   }
 
   await upsertEntitlement(tx, {
@@ -663,6 +876,19 @@ async function processGenericSubscriptionEvent(
       },
     });
   }
+  if (
+    isNewer
+    && (eventType === "subscription.cancelled" || eventType === "subscription.completed")
+    && !currentPeriodEnd
+    && subscription.originCheckoutId
+  ) {
+    await releaseSessionSeatHold(tx, subscription.originCheckoutId, eventAt);
+    await tx.commerceSubscriptionSlot.deleteMany({ where: { checkoutId: subscription.originCheckoutId } });
+    await tx.commerceCheckout.updateMany({
+      where: { id: subscription.originCheckoutId, status: { not: "PAID" } },
+      data: { status: "CANCELLED" },
+    });
+  }
   if (eventType !== "subscription.charged") return null;
 
   const payment = getRazorpayEntity(payload, "payment");
@@ -694,14 +920,28 @@ async function processGenericSubscriptionEvent(
     });
   }
 
-  await projectGenericRecurringEntitlements(
+  const reviewCheckoutId = await projectGenericRecurringEntitlements(
     tx,
     subscription,
     recordedPayment.id,
     currentPeriodStart ?? new Date(),
     currentPeriodEnd,
     paymentId,
+    amountPaise,
   );
+  if (reviewCheckoutId) {
+    await tx.commerceCheckout.update({ where: { id: reviewCheckoutId }, data: { status: "REQUIRES_REVIEW" } });
+    await tx.billingOutbox.upsert({
+      where: { dedupeKey: `session-seat-review:${paymentId}` },
+      update: {},
+      create: {
+        dedupeKey: `session-seat-review:${paymentId}`,
+        action: "SESSION_SEAT_REVIEW_REQUIRED",
+        payload: { eventId, subscriptionId: subscription.id, paymentId },
+      },
+    });
+    return `Recurring guidance subscription ${providerSubscriptionId} requires session-seat review`;
+  }
   if (subscription.originCheckoutId) {
     await tx.commerceCheckout.update({
       where: { id: subscription.originCheckoutId },
@@ -797,10 +1037,15 @@ export async function processRazorpayWebhookEvent(input: {
         processingError = await processRefundEvent(tx, input.payload, input.eventType, input.eventId);
       }
 
+      const decision = classifyWebhookProcessingError(processingError);
+      if (decision === "RETRY") {
+        throw new Error(processingError ?? "Webhook processing must be retried");
+      }
+
       await tx.razorpayWebhookEvent.update({
         where: { providerEventId: input.eventId },
         data: {
-          status: processingError ? "IGNORED" : "PROCESSED",
+          status: decision === "ACKNOWLEDGE_REVIEW" ? "FAILED" : "PROCESSED",
           processingError,
           processedAt: new Date(),
         },

@@ -100,9 +100,53 @@ export default async function SubscriptionsPage() {
     redirect("/unauthorized");
   }
 
+  const [courseBillingSubscriptions, commerceBillingSubscriptions] = await Promise.all([
+    prisma.courseBillingSubscription.findMany({
+      where: { userId: dbUser.id },
+      include: { course: { select: { title: true } }, billingPlan: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.commerceBillingSubscription.findMany({
+      where: { userId: dbUser.id },
+      include: { billingPlan: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  const productIds = commerceBillingSubscriptions.reduce<Record<string, string[]>>((ids, subscription) => {
+    ids[subscription.productType] = [...(ids[subscription.productType] ?? []), subscription.productId];
+    return ids;
+  }, {});
+  const [mocks, bundles, sessions] = await Promise.all([
+    prisma.mockTest.findMany({ where: { id: { in: productIds.MOCK_TEST ?? [] } }, select: { id: true, title: true } }),
+    prisma.mockBundle.findMany({ where: { id: { in: productIds.MOCK_BUNDLE ?? [] } }, select: { id: true, title: true } }),
+    prisma.session.findMany({ where: { id: { in: productIds.GUIDANCE_SESSION ?? [] } }, select: { id: true, title: true } }),
+  ]);
+  const productTitles = new Map([...mocks, ...bundles, ...sessions].map((product) => [product.id, product.title]));
+  const recurringSubscriptions = [
+    ...courseBillingSubscriptions.map((subscription) => ({
+      id: subscription.id,
+      title: subscription.course.title,
+      productType: "Course",
+      status: subscription.providerStatus,
+      amountPaise: subscription.billingPlan.amountPaise,
+      currentPeriodEnd: subscription.currentPeriodEnd,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+    })),
+    ...commerceBillingSubscriptions.map((subscription) => ({
+      id: subscription.id,
+      title: productTitles.get(subscription.productId) ?? "Subscription",
+      productType: subscription.productType.replaceAll("_", " "),
+      status: subscription.providerStatus,
+      amountPaise: subscription.billingPlan.amountPaise,
+      currentPeriodEnd: subscription.currentPeriodEnd,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+    })),
+  ];
+
   return (
     <SubscriptionsClient
-      dbUser={dbUser as any}
+      dbUser={dbUser}
+      recurringSubscriptions={recurringSubscriptions}
     />
   );
 }

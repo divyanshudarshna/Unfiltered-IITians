@@ -12,7 +12,7 @@ export type CheckoutIntentInput = {
   productId: string;
   couponCode: string | null;
   studentPhone: string | null;
-  idempotencyKey: string | null;
+  idempotencyKey: string;
 };
 
 export class CommerceCheckoutInputError extends Error {
@@ -71,6 +71,8 @@ export function parseCheckoutIntentInput(body: unknown): CheckoutIntentInput {
 
   const productId = optionalText(input.productId, "productId", 100);
   if (!productId) throw new CommerceCheckoutInputError("productId is required");
+  const idempotencyKey = optionalText(input.idempotencyKey, "idempotencyKey", 100);
+  if (!idempotencyKey) throw new CommerceCheckoutInputError("idempotencyKey is required");
 
   const requestedCheckoutType = input.checkoutType ?? "ONE_TIME";
   if (
@@ -94,6 +96,6 @@ export function parseCheckoutIntentInput(body: unknown): CheckoutIntentInput {
     productId,
     couponCode: optionalText(input.couponCode, "couponCode", 100),
     studentPhone: optionalText(input.studentPhone, "studentPhone", 32),
-    idempotencyKey: optionalText(input.idempotencyKey, "idempotencyKey", 100),
+    idempotencyKey,
   };
 }

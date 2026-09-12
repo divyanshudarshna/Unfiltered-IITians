@@ -9,6 +9,10 @@ import {
   type CommerceBillingConfig,
 } from '@/lib/commerce-billing';
 import { createOrVersionCommerceBillingPlan } from '@/lib/commerce-billing-plan';
+import {
+  SessionSeatUnavailableError,
+  synchronizeSessionSeatCapacity,
+} from '@/lib/session-seat-inventory';
 
 export async function GET(
   req: NextRequest,
@@ -86,6 +90,8 @@ export async function PUT(
     }
     
     const session = await prisma.$transaction(async (tx) => {
+      const nextCapacity = body.maxEnrollment ? parseInt(body.maxEnrollment) : null;
+      await synchronizeSessionSeatCapacity(tx, id, nextCapacity);
       const updated = await tx.session.update({
         where: { id },
         data: {
@@ -96,7 +102,7 @@ export async function PUT(
         status: body.status,
         price: parseFloat(body.price) || 0,
         discountedPrice: body.discountedPrice ? parseFloat(body.discountedPrice) : null,
-        maxEnrollment: body.maxEnrollment ? parseInt(body.maxEnrollment) : null,
+        maxEnrollment: nextCapacity,
         type: body.type,
         duration: parseInt(body.duration),
         expiryDate: getSessionExpiryDate(body.expiryDate),
@@ -125,6 +131,9 @@ export async function PUT(
     if (authResponse) return authResponse;
     if (error instanceof CommerceBillingInputError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof SessionSeatUnavailableError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
     }
     console.error('Error updating session:', error);
     return NextResponse.json(

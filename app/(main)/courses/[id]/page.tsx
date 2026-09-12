@@ -277,7 +277,10 @@ export default function CourseDetailPage() {
       }),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Unable to create checkout");
+    if (!response.ok) {
+      if (data.code === "CHECKOUT_TERMINAL") window.sessionStorage.removeItem(storageKey);
+      throw new Error(data.error || "Unable to create checkout");
+    }
     if (data.checkout?.status === "PAID" && data.checkout?.id) {
       await waitForV2Fulfillment(data.checkout.id, storageKey);
       return;

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  getEarlierAccessStart,
   getLaterAccessEnd,
   isEntitlementActiveAt,
 } from "../lib/commerce-entitlement";
@@ -36,5 +37,14 @@ assert.deepEqual(
   new Date("2026-10-01T00:00:00.000Z"),
 );
 assert.equal(getLaterAccessEnd(null, null), null);
+
+assert.deepEqual(
+  getEarlierAccessStart(new Date("2026-09-01T00:00:00.000Z"), new Date("2026-10-01T00:00:00.000Z")),
+  new Date("2026-09-01T00:00:00.000Z"),
+);
+assert.deepEqual(
+  getEarlierAccessStart(new Date("2026-11-01T00:00:00.000Z"), new Date("2026-10-01T00:00:00.000Z")),
+  new Date("2026-10-01T00:00:00.000Z"),
+);
 
 console.log("commerce entitlement tests passed");

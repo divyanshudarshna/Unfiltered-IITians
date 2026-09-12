@@ -28,7 +28,7 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, recu
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const waitForV2Fulfillment = async (checkoutId: string) => {
+  const waitForV2Fulfillment = async (checkoutId: string, storageKey: string) => {
     toast.loading("Payment received. Confirming access...");
 
     for (let attempt = 0; attempt < checkoutPollAttempts; attempt += 1) {
@@ -44,7 +44,7 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, recu
       const decision = getCheckoutPollingDecision(data.checkout.status, data.entitlement.active);
 
       if (decision === "FULFILLED") {
-        window.sessionStorage.removeItem(mockCheckoutStorageKey(mockTestId));
+        window.sessionStorage.removeItem(storageKey);
         toast.dismiss();
         toast.success("Payment confirmed. Mock access is now active.");
         onPurchaseSuccess?.();
@@ -53,14 +53,14 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, recu
       }
 
       if (decision === "FAILED") {
-        window.sessionStorage.removeItem(mockCheckoutStorageKey(mockTestId));
+        window.sessionStorage.removeItem(storageKey);
         toast.dismiss();
         toast.error("This checkout could not be completed.");
         return;
       }
 
       if (decision === "REQUIRES_REVIEW") {
-        window.sessionStorage.removeItem(mockCheckoutStorageKey(mockTestId));
+        window.sessionStorage.removeItem(storageKey);
         toast.dismiss();
         toast.error("Your payment needs review. Please contact support with your payment details.");
         return;
@@ -87,10 +87,11 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, recu
     });
     const data = await res.json();
     if (!res.ok) {
+      if (data.code === "CHECKOUT_TERMINAL") window.sessionStorage.removeItem(storageKey);
       throw new Error(data.error || "Unable to create checkout");
     }
     if (data.checkout?.status === "PAID" && data.checkout?.id) {
-      await waitForV2Fulfillment(data.checkout.id);
+      await waitForV2Fulfillment(data.checkout.id, storageKey);
       return;
     }
     if (!data.checkout?.id) throw new Error("Payment provider did not return a checkout");
@@ -107,7 +108,7 @@ export const BuyMockButton = ({ mockTestId, clerkUserId, mockTitle, amount, recu
           ? { amount: data.order.amount, currency: data.order.currency, order_id: data.order.id }
           : (() => { throw new Error("Payment provider did not return a checkout order"); })()),
       handler: () => {
-        void waitForV2Fulfillment(data.checkout.id);
+        void waitForV2Fulfillment(data.checkout.id, storageKey);
       },
       theme: { color: "#6366F1" },
     });

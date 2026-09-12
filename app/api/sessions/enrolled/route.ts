@@ -8,12 +8,14 @@ export async function GET() {
     const user = await currentUser();
     if (!user) return NextResponse.json({ sessionIds: [] });
 
+    const now = new Date();
     const dbUser = await prisma.user.findUnique({
       where: { clerkUserId: user.id },
       include: { 
         sessionEnrollments: {
           where: {
-            paymentStatus: "SUCCESS" // ✅ Only include successfully paid enrollments
+            paymentStatus: "SUCCESS",
+            OR: [{ accessEndsAt: null }, { accessEndsAt: { gt: now } }],
           }
         }
       },

@@ -32,11 +32,14 @@ export async function GET(
       },
     });
 
-    const isEnrolled = enrollment?.paymentStatus === "SUCCESS";
+    const now = new Date();
+    const isEnrolled = enrollment?.paymentStatus === "SUCCESS"
+      && (enrollment.accessEndsAt === null || enrollment.accessEndsAt > now);
 
     return NextResponse.json({
       isEnrolled,
       paymentStatus: enrollment?.paymentStatus || null,
+      accessEndsAt: enrollment?.accessEndsAt ?? null,
     });
   } catch (error) {
     console.error("Error checking enrollment status:", error);

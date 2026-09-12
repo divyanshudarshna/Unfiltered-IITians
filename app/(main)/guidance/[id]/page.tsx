@@ -52,6 +52,9 @@ interface Session {
   createdAt: string;
   updatedAt: string;
   testimonials?: GuidanceTestimonial[];
+  billingMode: "ONE_TIME" | "RECURRING";
+  subscriptionEnabled: boolean;
+  recurringPlan?: { amountPaise: number; currency: string; interval: string; totalCount: number } | null;
 }
 
 interface EnrollmentStatus {
@@ -191,7 +194,7 @@ export default function SessionPage() {
     toast.info('Coupon removed');
   };
 
-  const usePublicCoupon = (code: string) => {
+  const selectPublicCoupon = (code: string) => {
     const normalizedCode = code.trim().toUpperCase();
     setCouponCode(normalizedCode);
     validateCoupon(normalizedCode);
@@ -381,6 +384,7 @@ export default function SessionPage() {
   }
 
   const isDiscounted = session.discountedPrice < session.price;
+  const isRecurringProgram = session.billingMode === "RECURRING" && session.subscriptionEnabled;
   const discountPercentage = isDiscounted
     ? Math.round(
         ((session.price - session.discountedPrice) / session.price) * 100
@@ -511,7 +515,9 @@ export default function SessionPage() {
                     </div>
                   )}
                   <p className="text-purple-100 text-sm">
-                    {sessionHasExpiry
+                    {isRecurringProgram && session.recurringPlan
+                      ? `₹${(session.recurringPlan.amountPaise / 100).toFixed(2)} per month • ${session.recurringPlan.totalCount} billing cycles`
+                      : sessionHasExpiry
                       ? `One-time payment • Valid until ${sessionExpiryLabel}`
                       : "One time session"}
                   </p>
@@ -542,8 +548,8 @@ export default function SessionPage() {
                     </div>
                   ) : (
                     <>
-                      {/* Coupon Code Section */}
-                      {!appliedCoupon?.valid && (
+                      {/* Recurring plans cannot use one-time coupons. */}
+                      {!isRecurringProgram && !appliedCoupon?.valid && (
                         <div className="bg-blue-50/20 border border-blue-400/30 rounded-lg p-4 mb-4">
                           <div className="flex items-center gap-2 mb-3">
                             <Badge className="bg-yellow-600 text-white text-xs px-2 py-1">
@@ -625,7 +631,7 @@ export default function SessionPage() {
                                   <button
                                     key={coupon.id}
                                     type="button"
-                                    onClick={() => usePublicCoupon(coupon.code)}
+                                    onClick={() => selectPublicCoupon(coupon.code)}
                                     disabled={isCouponLoading}
                                     className="flex items-center justify-between rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-left transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
                                   >
@@ -689,6 +695,9 @@ export default function SessionPage() {
                           title={session.title}
                           amount={getFinalPrice()}
                           studentPhone={phone}
+                          recurringPlan={session.billingMode === "RECURRING" && session.subscriptionEnabled
+                            ? session.recurringPlan ?? undefined
+                            : undefined}
                           disabled={phone.length !== 10 || !!phoneError}
                           onPurchaseSuccess={() => {
                             toast.success("🎉 Session enrolled successfully!");

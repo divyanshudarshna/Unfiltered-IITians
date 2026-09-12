@@ -8,11 +8,13 @@ import { getCheckoutPollingDecision, type CheckoutPollingStatus } from "@/lib/ch
 
 const v2BundleCheckoutEnabled = process.env.NEXT_PUBLIC_V2_BUNDLE_CHECKOUT_ENABLED === "true";
 const v2BundleSubscriptionEnabled = process.env.NEXT_PUBLIC_V2_BUNDLE_SUBSCRIPTIONS_ENABLED === "true";
+const v2SessionCheckoutEnabled = process.env.NEXT_PUBLIC_V2_SESSION_CHECKOUT_ENABLED === "true";
+const v2SessionSubscriptionEnabled = process.env.NEXT_PUBLIC_V2_SESSION_SUBSCRIPTIONS_ENABLED === "true";
 const checkoutPollIntervalMs = 2_000;
 const checkoutPollAttempts = 24;
 
-function bundleCheckoutStorageKey(bundleId: string) {
-  return `v2-bundle-checkout:${bundleId}`;
+function checkoutStorageKey(itemType: "mockBundle" | "session", itemId: string) {
+  return `v2-${itemType}-checkout:${itemId}`;
 }
 
 interface BuyButtonProps {
@@ -45,7 +47,7 @@ export const BuyButton = ({
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const waitForV2Fulfillment = async (checkoutId: string) => {
+  const waitForV2Fulfillment = async (checkoutId: string, storageKey: string) => {
     toast.loading("Payment received. Confirming access...", { id: "verify-payment" });
 
     for (let attempt = 0; attempt < checkoutPollAttempts; attempt += 1) {
@@ -59,19 +61,19 @@ export const BuyButton = ({
       };
       const decision = getCheckoutPollingDecision(data.checkout.status, data.entitlement.active);
       if (decision === "FULFILLED") {
-        window.sessionStorage.removeItem(bundleCheckoutStorageKey(itemId));
+        window.sessionStorage.removeItem(storageKey);
         toast.success("Payment confirmed. Bundle access is now active.", { id: "verify-payment" });
         onPurchaseSuccess?.();
         router.refresh();
         return;
       }
       if (decision === "FAILED") {
-        window.sessionStorage.removeItem(bundleCheckoutStorageKey(itemId));
+        window.sessionStorage.removeItem(storageKey);
         toast.error("This checkout could not be completed.", { id: "verify-payment" });
         return;
       }
       if (decision === "REQUIRES_REVIEW") {
-        window.sessionStorage.removeItem(bundleCheckoutStorageKey(itemId));
+        window.sessionStorage.removeItem(storageKey);
         toast.error("Your payment needs review. Please contact support with your payment details.", { id: "verify-payment" });
         return;
       }
@@ -80,26 +82,31 @@ export const BuyButton = ({
     toast.info("Payment is still being confirmed. Your access will appear automatically once confirmed.", { id: "verify-payment" });
   };
 
-  const handleV2BundleCheckout = async (checkoutType: "ONE_TIME" | "RECURRING") => {
-    const storageKey = `${bundleCheckoutStorageKey(itemId)}:${checkoutType.toLowerCase()}`;
-    const idempotencyKey = window.sessionStorage.getItem(storageKey) ?? `bundle:${itemId}:${checkoutType}:${crypto.randomUUID()}`;
+  const handleV2Checkout = async (checkoutType: "ONE_TIME" | "RECURRING") => {
+    const v2ItemType = itemType === "session" ? "session" : "mockBundle";
+    const storageKey = `${checkoutStorageKey(v2ItemType, itemId)}:${checkoutType.toLowerCase()}`;
+    const idempotencyKey = window.sessionStorage.getItem(storageKey) ?? `${v2ItemType}:${itemId}:${checkoutType}:${crypto.randomUUID()}`;
     window.sessionStorage.setItem(storageKey, idempotencyKey);
 
     const response = await fetch("/api/checkout/intents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        productType: "MOCK_BUNDLE",
+        productType: itemType === "session" ? "GUIDANCE_SESSION" : "MOCK_BUNDLE",
         productId: itemId,
         checkoutType,
         ...(checkoutType === "ONE_TIME" ? { couponCode } : {}),
+        ...(itemType === "session" ? { studentPhone } : {}),
         idempotencyKey,
       }),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Unable to create checkout");
+    if (!response.ok) {
+      if (data.code === "CHECKOUT_TERMINAL") window.sessionStorage.removeItem(storageKey);
+      throw new Error(data.error || "Unable to create checkout");
+    }
     if (data.checkout?.status === "PAID" && data.checkout?.id) {
-      await waitForV2Fulfillment(data.checkout.id);
+      await waitForV2Fulfillment(data.checkout.id, storageKey);
       return;
     }
     if (!data.checkout?.id) throw new Error("Payment provider did not return a checkout");
@@ -116,7 +123,7 @@ export const BuyButton = ({
           ? { amount: data.order.amount, currency: data.order.currency, order_id: data.order.id }
           : (() => { throw new Error("Payment provider did not return a checkout order"); })()),
       handler: () => {
-        void waitForV2Fulfillment(data.checkout.id);
+        void waitForV2Fulfillment(data.checkout.id, storageKey);
       },
       theme: { color: "#6366F1" },
     });
@@ -143,8 +150,8 @@ export const BuyButton = ({
       setLoading(true);
       toast.loading("Creating payment order...", { id: "payment-process" });
 
-      if (itemType === "mockBundle" && v2BundleCheckoutEnabled) {
-        await handleV2BundleCheckout("ONE_TIME");
+      if ((itemType === "mockBundle" && v2BundleCheckoutEnabled) || (itemType === "session" && v2SessionCheckoutEnabled)) {
+        await handleV2Checkout("ONE_TIME");
         toast.dismiss("payment-process");
         return;
       }
@@ -197,11 +204,11 @@ export const BuyButton = ({
   };
 
   const handleSubscribe = async () => {
-    if (itemType !== "mockBundle" || !recurringPlan) return;
+    if (!recurringPlan || (itemType !== "mockBundle" && itemType !== "session")) return;
     try {
       setLoading(true);
       toast.loading("Creating monthly subscription...", { id: "payment-process" });
-      await handleV2BundleCheckout("RECURRING");
+      await handleV2Checkout("RECURRING");
       toast.dismiss("payment-process");
     } catch (error) {
       console.error("Error creating bundle subscription:", error);
@@ -211,7 +218,10 @@ export const BuyButton = ({
     }
   };
 
-  const canSubscribe = itemType === "mockBundle" && v2BundleCheckoutEnabled && v2BundleSubscriptionEnabled && recurringPlan;
+  const canSubscribe = recurringPlan && (
+    (itemType === "mockBundle" && v2BundleCheckoutEnabled && v2BundleSubscriptionEnabled)
+    || (itemType === "session" && v2SessionCheckoutEnabled && v2SessionSubscriptionEnabled)
+  );
 
   const verifyPayment = async (response: RazorpayResponse) => {
     try {

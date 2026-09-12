@@ -19,3 +19,7 @@ export function getLaterAccessEnd(
   if (existingEnd === null || candidateEnd === null) return null;
   return existingEnd > candidateEnd ? existingEnd : candidateEnd;
 }
+
+export function getEarlierAccessStart(existingStart: Date, candidateStart: Date) {
+  return existingStart < candidateStart ? existingStart : candidateStart;
+}

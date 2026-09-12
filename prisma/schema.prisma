@@ -337,11 +337,33 @@ model CommerceCheckout {
 
   user User @relation(fields: [userId], references: [id])
 
+  @@index([userId, idempotencyKey])
   @@index([userId, status, createdAt])
   @@index([productType, productId])
   @@index([razorpayOrderId])
   @@index([razorpaySubscriptionId])
-  @@index([idempotencyKey])
+}
+
+model CommerceCheckoutClaim {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  key        String   @unique
+  checkoutId String   @unique @db.ObjectId
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model CommerceSubscriptionSlot {
+  id          String              @id @default(auto()) @map("_id") @db.ObjectId
+  key         String              @unique
+  userId      String              @db.ObjectId
+  productType CommerceProductType
+  productId   String
+  checkoutId  String              @unique @db.ObjectId
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([userId, productType, productId])
 }
 
 model CourseBillingSubscription {
@@ -349,6 +371,7 @@ model CourseBillingSubscription {
   userId                 String                           @db.ObjectId
   courseId               String                           @db.ObjectId
   billingPlanId          String                           @db.ObjectId
+  originCheckoutId       String?                          @db.ObjectId
   razorpaySubscriptionId String                           @unique
   providerStatus         CourseSubscriptionProviderStatus @default(CREATED)
   currentPeriodStart     DateTime?
@@ -357,6 +380,7 @@ model CourseBillingSubscription {
   cancelAtPeriodEnd      Boolean                          @default(false)
   cancelledAt            DateTime?
   lastProviderEventAt    DateTime?
+  entitlementSnapshot    Json?
   createdAt              DateTime                         @default(now())
   updatedAt              DateTime                         @updatedAt
 
@@ -366,6 +390,7 @@ model CourseBillingSubscription {
 
   @@index([userId, courseId, providerStatus])
   @@index([courseId, providerStatus])
+  @@index([originCheckoutId])
 }
 
 // Generic recurring billing records are additive. CourseBillingPlan and
@@ -1013,7 +1038,7 @@ model SessionSeatInventory {
 
 model SessionSeatHold {
   id               String                @id @default(auto()) @map("_id") @db.ObjectId
-  checkoutId       String                @unique @db.ObjectId
+  checkoutId       String                @db.ObjectId
   sessionId        String                @db.ObjectId
   userId           String                @db.ObjectId
   status           SessionSeatHoldStatus @default(HELD)
@@ -1028,6 +1053,8 @@ model SessionSeatHold {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, userId])
+  @@unique([checkoutId, sessionId])
+  @@index([checkoutId])
   @@index([sessionId, status, expiresAt])
   @@index([userId, sessionId, status])
 }
@@ -1069,6 +1096,7 @@ model SessionEnrollment {
   enrolledAt            DateTime      @default(now())
   completedAt           DateTime?
   billingSubscriptionId String?
+  sourceCheckoutId      String?       @db.ObjectId
   accessEndsAt          DateTime?
   seatReleasedAt        DateTime?
 
@@ -1080,6 +1108,7 @@ model SessionEnrollment {
   @@index([userId])
   @@index([sessionId])
   @@index([paymentStatus])
+  @@index([sourceCheckoutId])
   @@index([enrolledAt])
 }
 
