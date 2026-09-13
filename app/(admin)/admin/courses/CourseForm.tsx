@@ -496,9 +496,9 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                   <DollarSign className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold">Recurring Subscription</h3>
+                  <h3 className="text-lg font-semibold">Monthly Payment Option</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Configure a local plan draft. A Razorpay plan is created separately after deployment checks.
+                    Add a monthly subscription alongside the course&apos;s existing one-time enrollment option.
                   </p>
                 </div>
               </div>
@@ -512,9 +512,9 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                   className="mt-0.5 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
                 <div>
-                  <div className="font-medium">Enable monthly auto-renewing subscription</div>
+                  <div className="font-medium">Offer monthly auto-renewing subscription</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Students will only see this after a verified Razorpay plan is configured and enabled.
+                    Students can choose either one-time access for the course duration or this monthly plan after Razorpay verification.
                   </p>
                 </div>
               </label>

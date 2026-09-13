@@ -1,7 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getEarlierAccessStart, getLaterAccessEnd } from "@/lib/commerce-entitlement";
-import { shouldMarkCheckoutFailed } from "@/lib/checkout-status";
 import { classifyWebhookProcessingError } from "@/lib/webhook-processing";
 import {
   confirmSessionSeatHold,
@@ -325,19 +324,6 @@ async function redeemGeneralCouponReservation(
   });
 }
 
-async function releaseGeneralCouponReservation(tx: TransactionClient, checkoutId: string) {
-  const reservation = await tx.generalCouponReservation.findUnique({ where: { checkoutId } });
-  if (!reservation || reservation.status !== "RESERVED") return;
-  await tx.generalCouponReservation.update({
-    where: { id: reservation.id },
-    data: { status: "RELEASED", releasedAt: new Date() },
-  });
-  await tx.generalCoupon.update({
-    where: { id: reservation.couponId },
-    data: { reservedCount: { decrement: 1 } },
-  });
-}
-
 async function findCheckoutForCapturedPayment(
   tx: TransactionClient,
   payment: RazorpayEntity | null,
@@ -539,6 +525,10 @@ async function processCapturedPayment(
     });
   }
 
+  if (await markLateCheckoutPaymentForReview(tx, checkout.id, paymentId, eventId)) {
+    return `Captured payment ${paymentId} belongs to a cancelled checkout`;
+  }
+
   const snapshot = parseSnapshot(checkout.snapshot);
   const startsAt = new Date();
   const accessEndsAt = parseDate(snapshot.accessEndsAt);
@@ -661,6 +651,35 @@ async function processCapturedPayment(
   return null;
 }
 
+async function markLateCheckoutPaymentForReview(
+  tx: TransactionClient,
+  checkoutId: string | null,
+  paymentId: string,
+  eventId: string,
+) {
+  if (!checkoutId) return false;
+  const checkout = await tx.commerceCheckout.findUnique({
+    where: { id: checkoutId },
+    select: { status: true },
+  });
+  if (checkout?.status !== "FAILED" && checkout?.status !== "CANCELLED") return false;
+
+  await tx.commerceCheckout.update({
+    where: { id: checkoutId },
+    data: { status: "REQUIRES_REVIEW" },
+  });
+  await tx.billingOutbox.upsert({
+    where: { dedupeKey: `late-payment-review:${paymentId}` },
+    update: {},
+    create: {
+      dedupeKey: `late-payment-review:${paymentId}`,
+      action: "LATE_PAYMENT_REVIEW_REQUIRED",
+      payload: { eventId, checkoutId, paymentId },
+    },
+  });
+  return true;
+}
+
 async function processFailedPayment(
   tx: TransactionClient,
   payload: RazorpayWebhookPayload,
@@ -690,15 +709,9 @@ async function processFailedPayment(
   const checkout = await findCheckoutForCapturedPayment(tx, payment, orderId);
   if (!checkout) return `No V2 checkout found for failed Razorpay order ${orderId}`;
 
-  if (shouldMarkCheckoutFailed(checkout.status)) {
-    await tx.commerceCheckout.update({
-      where: { id: checkout.id },
-      data: { status: "FAILED" },
-    });
-    await releaseGeneralCouponReservation(tx, checkout.id);
-    await releaseSessionSeatHold(tx, checkout.id, new Date());
-  }
-
+  // A Razorpay Order can receive another payment attempt after one attempt
+  // fails. Keep the checkout and its reservations intact until provider
+  // reconciliation proves that the order was abandoned or completed.
   return null;
 }
 
@@ -783,6 +796,10 @@ async function processSubscriptionEvent(
         providerCapturedAt: getRazorpayUnixDate(payment, "created_at") ?? new Date(),
       },
     });
+  }
+
+  if (await markLateCheckoutPaymentForReview(tx, subscription.originCheckoutId, paymentId, eventId)) {
+    return `Charged subscription ${providerSubscriptionId} belongs to a cancelled checkout`;
   }
 
   const inclusionReviewSessionId = await projectCourseInclusions(tx, {
@@ -918,6 +935,10 @@ async function processGenericSubscriptionEvent(
         providerCapturedAt: getRazorpayUnixDate(payment, "created_at") ?? new Date(),
       },
     });
+  }
+
+  if (await markLateCheckoutPaymentForReview(tx, subscription.originCheckoutId, paymentId, eventId)) {
+    return `Charged subscription ${providerSubscriptionId} belongs to a cancelled checkout`;
   }
 
   const reviewCheckoutId = await projectGenericRecurringEntitlements(

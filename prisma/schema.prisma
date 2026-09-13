@@ -354,16 +354,19 @@ model CommerceCheckoutClaim {
 }
 
 model CommerceSubscriptionSlot {
-  id          String              @id @default(auto()) @map("_id") @db.ObjectId
-  key         String              @unique
-  userId      String              @db.ObjectId
-  productType CommerceProductType
-  productId   String
-  checkoutId  String              @unique @db.ObjectId
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id           String              @id @default(auto()) @map("_id") @db.ObjectId
+  key          String              @unique
+  userId       String              @db.ObjectId
+  productType  CommerceProductType
+  productId    String
+  checkoutId   String              @unique @db.ObjectId
+  releaseAfter DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
   @@index([userId, productType, productId])
+  @@index([productType, releaseAfter])
+  @@index([productType, updatedAt])
 }
 
 model CourseBillingSubscription {

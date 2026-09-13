@@ -25,6 +25,7 @@ import {
   releaseSessionSeatHold,
   SessionSeatUnavailableError,
 } from "@/lib/session-seat-inventory";
+import { COURSE_CHECKOUT_STALE_MS } from "@/lib/course-checkout-reconciliation";
 
 export const runtime = "nodejs";
 
@@ -271,6 +272,31 @@ async function prepareCourseCheckout(input: CheckoutIntentInput, userId: string,
     throw new CommerceCheckoutInputError("Course is not available for purchase");
   }
   const inclusionSnapshot = await getCourseInclusionSnapshot(course.inclusions, now);
+  const [legacyEnrollment, activeEntitlement, existingSubscription] = await Promise.all([
+    prisma.enrollment.findFirst({
+      where: {
+        userId,
+        courseId: course.id,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: { id: true },
+    }),
+    hasActiveV2Entitlement(userId, "COURSE", course.id, now),
+    prisma.courseBillingSubscription.findFirst({
+      where: {
+        userId,
+        courseId: course.id,
+        providerStatus: { in: ["CREATED", "AUTHENTICATED", "ACTIVE", "PENDING", "HALTED", "PAUSED"] },
+      },
+      select: { id: true },
+    }),
+  ]);
+  if (legacyEnrollment || activeEntitlement) {
+    throw new CommerceCheckoutInputError("You already have access to this course");
+  }
+  if (existingSubscription) {
+    throw new CommerceCheckoutInputError("You already have a recurring subscription for this course");
+  }
 
   if (isRecurringCheckout(input.checkoutType)) {
     if (input.couponCode) {
@@ -286,18 +312,6 @@ async function prepareCourseCheckout(input: CheckoutIntentInput, userId: string,
     });
     if (!plan?.razorpayPlanId || plan.providerSyncState !== "ACTIVE") {
       throw new CommerceCheckoutInputError("This course subscription is not ready for checkout");
-    }
-
-    const existingSubscription = await prisma.courseBillingSubscription.findFirst({
-      where: {
-        userId,
-        courseId: course.id,
-        providerStatus: { in: ["CREATED", "AUTHENTICATED", "ACTIVE", "PENDING", "HALTED", "PAUSED"] },
-      },
-      select: { id: true },
-    });
-    if (existingSubscription) {
-      throw new CommerceCheckoutInputError("You already have a recurring subscription for this course");
     }
 
     return {
@@ -325,25 +339,6 @@ async function prepareCourseCheckout(input: CheckoutIntentInput, userId: string,
         ...inclusionSnapshot,
       },
     };
-  }
-
-  if (course.billingMode === "RECURRING" && course.subscriptionEnabled) {
-    throw new CommerceCheckoutInputError("This course requires recurring checkout");
-  }
-
-  const [legacyEnrollment, activeEntitlement] = await Promise.all([
-    prisma.enrollment.findFirst({
-      where: {
-        userId,
-        courseId: course.id,
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      },
-      select: { id: true },
-    }),
-    hasActiveV2Entitlement(userId, "COURSE", course.id, now),
-  ]);
-  if (legacyEnrollment || activeEntitlement) {
-    throw new CommerceCheckoutInputError("You already have access to this course");
   }
 
   const originalAmountPaise = parseRupeesToPaise(course.actualPrice ?? course.price);
@@ -774,42 +769,50 @@ export async function POST(req: Request) {
         });
       }
 
-       if (isRecurringCheckout(prepared.checkoutType) && prepared.billingPlanId) {
-         await tx.commerceSubscriptionSlot.create({
+      if (prepared.productType === "COURSE" || (isRecurringCheckout(prepared.checkoutType) && prepared.billingPlanId)) {
+          await tx.commerceSubscriptionSlot.create({
            data: {
              key: subscriptionSlotKey(user.id, prepared.productType, prepared.productId),
              userId: user.id,
              productType: prepared.productType,
-             productId: prepared.productId,
-             checkoutId: checkout.id,
-           },
-         });
-         if (prepared.checkoutType === "COURSE_RECURRING") {
-           await tx.courseBillingSubscription.create({
-             data: {
-               userId: user.id,
-               courseId: prepared.productId,
-                billingPlanId: prepared.billingPlanId,
+              productId: prepared.productId,
+              checkoutId: checkout.id,
+              releaseAfter: prepared.checkoutType === "ONE_TIME"
+                && typeof prepared.snapshot.accessEndsAt === "string"
+                ? new Date(prepared.snapshot.accessEndsAt)
+                : null,
+            },
+          });
+          if (prepared.checkoutType === "COURSE_RECURRING") {
+            const billingPlanId = prepared.billingPlanId;
+            if (!billingPlanId) throw new CommerceCheckoutInputError("Course subscription plan is missing");
+            await tx.courseBillingSubscription.create({
+              data: {
+                userId: user.id,
+                courseId: prepared.productId,
+                billingPlanId,
                 originCheckoutId: checkout.id,
                 razorpaySubscriptionId: `pending:${checkout.id}`,
                 providerStatus: "CREATED",
                 entitlementSnapshot: prepared.snapshot as Prisma.InputJsonValue,
-             },
-           });
-         } else {
-           await tx.commerceBillingSubscription.create({
-             data: {
-               userId: user.id,
-               productType: prepared.productType,
-               productId: prepared.productId,
-               billingPlanId: prepared.billingPlanId,
+              },
+            });
+          } else if (prepared.checkoutType === "RECURRING") {
+            const billingPlanId = prepared.billingPlanId;
+            if (!billingPlanId) throw new CommerceCheckoutInputError("Subscription plan is missing");
+            await tx.commerceBillingSubscription.create({
+              data: {
+                userId: user.id,
+                productType: prepared.productType,
+                productId: prepared.productId,
+                billingPlanId,
                originCheckoutId: checkout.id,
                razorpaySubscriptionId: `pending:${checkout.id}`,
                providerStatus: "CREATED",
                entitlementSnapshot: prepared.snapshot as Prisma.InputJsonValue,
              },
            });
-         }
+      }
       }
       return tx.commerceCheckout.findUniqueOrThrow({ where: { id: checkout.id } });
     });
@@ -821,6 +824,9 @@ export async function POST(req: Request) {
         const providerSubscription = await razorpay.subscriptions.create({
           plan_id: prepared.razorpayPlanId!,
           total_count: prepared.totalCount!,
+          ...(prepared.checkoutType === "COURSE_RECURRING"
+            ? { expire_by: Math.floor((Date.now() + COURSE_CHECKOUT_STALE_MS) / 1000) }
+            : {}),
           customer_notify: 1,
            notes: {
              checkout_id: pendingCheckout.id,
@@ -875,14 +881,14 @@ export async function POST(req: Request) {
           where: { id: pendingCheckout.id },
           data: { status: providerCheckoutCreated ? "REQUIRES_REVIEW" : "FAILED" },
         });
-         if (isRecurringCheckout(prepared.checkoutType) && !providerCheckoutCreated) {
+        if ((prepared.productType === "COURSE" || isRecurringCheckout(prepared.checkoutType)) && !providerCheckoutCreated) {
            if (prepared.checkoutType === "COURSE_RECURRING") {
              await tx.courseBillingSubscription.update({
                where: { razorpaySubscriptionId: `pending:${pendingCheckout.id}` },
                data: { providerStatus: "CANCELLED", cancelledAt: new Date() },
              });
-           } else {
-             await tx.commerceBillingSubscription.update({
+            } else if (prepared.checkoutType === "RECURRING") {
+              await tx.commerceBillingSubscription.update({
                where: { razorpaySubscriptionId: `pending:${pendingCheckout.id}` },
                data: { providerStatus: "CANCELLED", cancelledAt: new Date() },
              });

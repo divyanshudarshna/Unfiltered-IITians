@@ -6,6 +6,7 @@ import { useAuth, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -16,8 +17,14 @@ import {
 } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle, Clock, Users, Shield, Award, FileText, Video, HelpCircle, Target, Package, MessageSquare, Timer, Star, Globe, Linkedin, Twitter, BookOpen, GraduationCap, FlaskConical, ZoomIn, X } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle, Clock, CreditCard, Users, Shield, Award, FileText, Video, HelpCircle, Target, Package, MessageSquare, Timer, Star, Globe, Linkedin, Twitter, BookOpen, GraduationCap, FlaskConical, RefreshCw, Sparkles, ZoomIn, X } from "lucide-react";
 import { getCheckoutPollingDecision, type CheckoutPollingStatus } from "@/lib/checkout-status";
+import {
+  getCourseCheckoutAvailability,
+  calculateCourseOneTimePricePaise,
+  getDefaultCourseCheckoutType,
+  type CourseCheckoutType,
+} from "@/lib/course-checkout-options";
 import type { RazorpayResponse } from "@/types/razorpay";
 
 const v2CourseCheckoutEnabled = process.env.NEXT_PUBLIC_V2_COURSE_CHECKOUT_ENABLED === "true";
@@ -127,10 +134,12 @@ export default function CourseDetailPage() {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [loading, setLoading] = useState(false);
+  const checkoutInProgressRef = useRef(false);
   const [couponLoading, setCouponLoading] = useState(false);
   const [publicCoupons, setPublicCoupons] = useState<Array<{id:string;code:string;discountPct:number;validTill:string;usageCount:number}>>([]);
   const [publicLoading, setPublicLoading] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<{ url: string; name: string } | null>(null);
+  const [selectedCheckoutType, setSelectedCheckoutType] = useState<CourseCheckoutType>(getDefaultCourseCheckoutType());
 
   const courseCheckoutStorageKey = (courseId: string, checkoutType: "ONE_TIME" | "COURSE_RECURRING") =>
     `v2-course-checkout:${courseId}:${checkoutType}`;
@@ -177,11 +186,15 @@ export default function CourseDetailPage() {
   const basePrice = course?.actualPrice ?? course?.price ?? 0;
 
   // Calculate final price
-  const finalPrice = appliedCoupon
-    ? basePrice - Math.round((appliedCoupon.discountPct / 100) * basePrice)
-    : basePrice;
+  const oneTimePrice = calculateCourseOneTimePricePaise(basePrice, appliedCoupon?.discountPct);
+  const finalPrice = oneTimePrice.totalPaise / 100;
   const subscriptionConfigured = course?.subscriptionEnabled === true;
-  const subscriptionCheckoutAvailable = Boolean(course?.recurringPlan && v2CourseCheckoutEnabled);
+  const checkoutAvailability = getCourseCheckoutAvailability({
+    subscriptionEnabled: subscriptionConfigured,
+    recurringPlanAvailable: Boolean(course?.recurringPlan),
+  });
+  const monthlyPrice = (course?.recurringPlan?.amountPaise ?? 0) / 100;
+  const subscriptionTotal = monthlyPrice * (course?.recurringPlan?.totalCount ?? 0);
 
   // Apply coupon
   const applyCouponWithCode = async (codeToApply: string) => {
@@ -199,11 +212,12 @@ export default function CourseDetailPage() {
       const data = await res.json();
 
       if (data.valid) {
+        const pricing = calculateCourseOneTimePricePaise(basePrice, data.discountPct);
         setAppliedCoupon({
           code: codeToApply,
           discountPct: data.discountPct,
-          discountAmount: Math.round((data.discountPct / 100) * basePrice),
-          newPrice: basePrice - Math.round((data.discountPct / 100) * basePrice),
+          discountAmount: pricing.discountPaise / 100,
+          newPrice: pricing.totalPaise / 100,
         });
         setCouponCode(codeToApply);
         toast.success(`Coupon applied! ${data.discountPct}% discount`);
@@ -287,53 +301,78 @@ export default function CourseDetailPage() {
     }
     if (!data.checkout?.id) throw new Error("Payment provider did not return a checkout");
 
-    const options = checkoutType === "COURSE_RECURRING"
-      ? {
+    await new Promise<void>((resolve, reject) => {
+      let paymentConfirmationStarted = false;
+      const onCheckoutConfirmed = async () => {
+        paymentConfirmationStarted = true;
+        try {
+          await waitForV2Fulfillment(data.checkout.id, storageKey);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      };
+      const options = checkoutType === "COURSE_RECURRING"
+        ? {
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
           name: "Course Subscription",
           description: course.title,
           subscription_id: data.subscription?.id,
-          handler: () => { void waitForV2Fulfillment(data.checkout.id, storageKey); },
+          handler: onCheckoutConfirmed,
           theme: { color: "#4f46e5" },
+          modal: {
+            ondismiss: () => {
+              if (!paymentConfirmationStarted) resolve();
+            },
+          },
         }
-      : {
+        : {
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
           amount: data.order?.amount,
           currency: data.order?.currency,
           name: "Course Enrollment",
           description: course.title,
           order_id: data.order?.id,
-          handler: () => { void waitForV2Fulfillment(data.checkout.id, storageKey); },
+          handler: onCheckoutConfirmed,
           theme: { color: "#4f46e5" },
+          modal: {
+            ondismiss: () => {
+              if (!paymentConfirmationStarted) resolve();
+            },
+          },
         };
-    if ((checkoutType === "COURSE_RECURRING" && !data.subscription?.id) || (checkoutType === "ONE_TIME" && !data.order?.id)) {
-      throw new Error("Payment provider did not return checkout details");
-    }
-    new window.Razorpay(options).open();
+      if ((checkoutType === "COURSE_RECURRING" && !data.subscription?.id) || (checkoutType === "ONE_TIME" && !data.order?.id)) {
+        reject(new Error("Payment provider did not return checkout details"));
+        return;
+      }
+      new window.Razorpay(options).open();
+    });
   };
 
   // Checkout
   const handleCheckout = async () => {
+    if (checkoutInProgressRef.current) return;
     if (!course || !userId) {
       router.push(`/sign-in?redirect=/courses/${course?.id}`);
       return;
     }
 
-    if (subscriptionConfigured && !course.recurringPlan) {
-      toast.error("This subscription is being configured. Please try again after its Razorpay plan is verified.");
+    if (selectedCheckoutType === "COURSE_RECURRING" && !checkoutAvailability.recurring) {
+      toast.error("This monthly plan is still being configured. Please choose one-time payment or try again later.");
       return;
     }
 
     if (subscriptionConfigured && !v2CourseCheckoutEnabled) {
-      toast.error("Course subscriptions are not live yet. Please try again later.");
+      toast.error("Verified course checkout is not live yet. Please try again later.");
       return;
     }
 
-  setLoading(true);
+    checkoutInProgressRef.current = true;
+    setLoading(true);
 
   try {
     if (v2CourseCheckoutEnabled) {
-      await handleV2Checkout(course.recurringPlan ? "COURSE_RECURRING" : "ONE_TIME");
+      await handleV2Checkout(selectedCheckoutType);
       return;
     }
     const res = await fetch(`/api/courses/${course.id}/razorpay`, {
@@ -416,6 +455,7 @@ export default function CourseDetailPage() {
     console.error("Checkout error:", err);
     toast.error(err instanceof Error ? err.message : "Failed to initiate payment");
   } finally {
+    checkoutInProgressRef.current = false;
     setLoading(false);
   }
 };
@@ -683,138 +723,227 @@ export default function CourseDetailPage() {
 
         {/* ── Right: Sticky Checkout ── */}
         <div className="lg:col-span-2 space-y-4 lg:sticky lg:top-6 self-start">
-          <Card className="shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Order Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {subscriptionConfigured && !course.recurringPlan ? (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                  Monthly subscription setup is in progress. Enrollment will open after the Razorpay plan is verified.
-                </div>
-              ) : course.recurringPlan ? (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Monthly subscription</span>
-                    <span className="font-medium">₹{(course.recurringPlan.amountPaise / 100).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-muted-foreground">
-                    <span className="text-sm">Billing cycles</span>
-                    <span className="text-sm">{course.recurringPlan.totalCount} months</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between items-center font-bold text-lg">
-                    <span>Total plan value</span>
-                    <span className="text-green-600 dark:text-green-400">₹{((course.recurringPlan.amountPaise / 100) * course.recurringPlan.totalCount).toFixed(2)}</span>
-                  </div>
-                </div>
-              ) : (
-              <div className="space-y-2">
-                {course.price > basePrice && (
-                  <div className="flex justify-between items-center text-muted-foreground">
-                    <span className="text-sm line-through">Original Price</span>
-                    <span className="text-sm line-through">₹{course.price}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Base Price</span>
-                  <span className="font-medium">₹{basePrice}</span>
-                </div>
-                {appliedCoupon && (
-                  <div className="flex justify-between items-center text-green-600">
-                    <span className="text-sm">Discount {appliedCoupon.discountPct}%</span>
-                    <span className="text-sm">-₹{appliedCoupon.discountAmount}</span>
-                  </div>
-                )}
-                <Separator />
-                <div className="flex justify-between items-center font-bold text-lg">
-                  <span>Total</span>
-                  <span className="text-green-600 dark:text-green-400">₹{finalPrice}</span>
-                </div>
+          <Card className="overflow-hidden border-indigo-100 shadow-xl shadow-indigo-950/5 dark:border-indigo-900/70 dark:shadow-black/20">
+            <div className="h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500" />
+            <CardHeader className="space-y-1 pb-4">
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-xl">Choose your payment</CardTitle>
+                <Badge variant="secondary" className="border border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">
+                  Secure checkout
+                </Badge>
               </div>
+              <CardDescription>Pick the option that works best for you.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {subscriptionConfigured && (
+                <RadioGroup
+                  value={selectedCheckoutType}
+                  onValueChange={(value) => setSelectedCheckoutType(value as CourseCheckoutType)}
+                  aria-label="Course payment option"
+                  className="grid gap-3"
+                >
+                  <Label
+                    onClick={() => {
+                      if (!loading) setSelectedCheckoutType("ONE_TIME");
+                    }}
+                    className={`group relative flex cursor-pointer items-start rounded-xl border p-4 text-left transition-all focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 ${
+                      loading ? "cursor-wait" : ""
+                    } ${
+                      selectedCheckoutType === "ONE_TIME"
+                        ? "border-indigo-500 bg-indigo-50/80 shadow-sm ring-1 ring-indigo-500 dark:bg-indigo-950/35"
+                        : "border-border bg-card hover:border-indigo-300 hover:bg-indigo-50/30 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/20"
+                    }`}
+                  >
+                    <RadioGroupItem value="ONE_TIME" disabled={loading} className="sr-only" />
+                    <span className="flex w-full items-start gap-3">
+                      <span className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${selectedCheckoutType === "ONE_TIME" ? "bg-indigo-600 text-white" : "bg-muted text-muted-foreground"}`}>
+                        <CreditCard className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="font-semibold">One-time payment</span>
+                          {selectedCheckoutType === "ONE_TIME" && <Check className="size-5 text-indigo-600 dark:text-indigo-400" />}
+                        </span>
+                        <span className="mt-1 block text-2xl font-bold tracking-tight">₹{finalPrice.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          Pay once for {course.durationMonths} months of course access. Coupons may apply.
+                        </span>
+                      </span>
+                    </span>
+                  </Label>
+
+                  <Label
+                    data-disabled={loading || !checkoutAvailability.recurring ? "true" : undefined}
+                    onClick={() => {
+                      if (!loading && checkoutAvailability.recurring) setSelectedCheckoutType("COURSE_RECURRING");
+                    }}
+                    className={`group relative rounded-xl border p-4 text-left transition-all focus-within:ring-2 focus-within:ring-violet-500 focus-within:ring-offset-2 ${
+                      selectedCheckoutType === "COURSE_RECURRING"
+                        ? "border-violet-500 bg-violet-50/80 shadow-sm ring-1 ring-violet-500 dark:bg-violet-950/35"
+                        : "border-border bg-card hover:border-violet-300 hover:bg-violet-50/30 dark:hover:border-violet-800 dark:hover:bg-violet-950/20"
+                    }`}
+                  >
+                    <RadioGroupItem value="COURSE_RECURRING" disabled={loading || !checkoutAvailability.recurring} className="sr-only" />
+                    <span className="absolute right-3 top-0 -translate-y-1/2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+                      Flexible
+                    </span>
+                    <span className="flex items-start gap-3">
+                      <span className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${selectedCheckoutType === "COURSE_RECURRING" ? "bg-violet-600 text-white" : "bg-muted text-muted-foreground"}`}>
+                        <RefreshCw className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="font-semibold">Monthly subscription</span>
+                          {selectedCheckoutType === "COURSE_RECURRING" && <Check className="size-5 text-violet-600 dark:text-violet-400" />}
+                        </span>
+                        {course.recurringPlan ? (
+                          <>
+                            <span className="mt-1 block text-2xl font-bold tracking-tight">
+                              ₹{monthlyPrice.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              <span className="text-sm font-medium text-muted-foreground"> / month</span>
+                            </span>
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              Auto-renews for up to {course.recurringPlan.totalCount} monthly cycles. Total scheduled value ₹{subscriptionTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
+                            </span>
+                          </>
+                        ) : (
+                          <span className="mt-2 block text-xs font-medium text-amber-700 dark:text-amber-300">
+                            Monthly plan verification is in progress.
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                  </Label>
+                </RadioGroup>
               )}
 
-                {!subscriptionConfigured && (
-                  <div className="space-y-3 pt-2">
-                    <Label htmlFor="coupon">Apply Coupon</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="coupon"
-                        placeholder="Enter coupon code"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value)}
-                        disabled={!!appliedCoupon}
-                        className="flex-1"
-                      />
-                      {appliedCoupon ? (
-                        <Button onClick={removeCoupon} variant="outline" size="sm">Remove</Button>
-                      ) : (
-                        <Button onClick={applyCoupon} variant="outline" size="sm" disabled={couponLoading || !couponCode.trim()}>
-                          {couponLoading ? "Applying..." : "Apply"}
-                        </Button>
-                      )}
+              {selectedCheckoutType === "ONE_TIME" ? (
+                <div className="space-y-3 rounded-xl bg-muted/35 p-4">
+                  {course.price > basePrice && (
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>Regular price</span>
+                      <span className="line-through">₹{course.price.toLocaleString("en-IN")}</span>
                     </div>
-                    {appliedCoupon && (
-                      <div className="text-sm text-green-600 flex items-center gap-1">
-                        <CheckCircle className="h-4 w-4" /> Coupon &quot;{appliedCoupon.code}&quot; applied
-                      </div>
-                    )}
-                    <div className="pt-2">
-                      <h4 className="text-sm font-semibold mb-2">Available Coupons</h4>
-                      {publicLoading ? (
-                        <div className="text-sm text-muted-foreground">Checking for offers...</div>
-                      ) : publicCoupons.length > 0 ? (
-                        <div className="grid gap-2">
-                          {publicCoupons.map((pc) => (
-                            <div key={pc.id}
-                              className="flex items-center justify-between p-3 rounded-md border border-border bg-muted/30 hover:bg-muted/50 transition-colors">
-                              <div>
-                                <div className="text-sm font-semibold">{pc.code}</div>
-                                <div className="text-xs text-emerald-500 dark:text-emerald-400">{pc.discountPct}% off</div>
-                                <div className="text-xs text-muted-foreground mt-0.5">
-                                  Expires: {new Date(pc.validTill).toLocaleDateString()}
-                                </div>
-                              </div>
-                              <Button size="sm" variant="outline" onClick={() => applyCouponWithCode(pc.code)} disabled={couponLoading}>
-                                {couponLoading ? "..." : "Apply"}
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-muted-foreground">No public coupons available.</div>
-                      )}
-                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Course access</span>
+                    <span className="font-medium">₹{basePrice.toLocaleString("en-IN")}</span>
                   </div>
-                )}
+                  {appliedCoupon && (
+                    <div className="flex items-center justify-between text-sm text-emerald-600 dark:text-emerald-400">
+                      <span>Coupon ({appliedCoupon.discountPct}% off)</span>
+                      <span>-₹{(oneTimePrice.discountPaise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  <Separator />
+                  <div className="flex items-end justify-between gap-3">
+                    <span className="font-semibold">Pay today</span>
+                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">₹{finalPrice.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              ) : course.recurringPlan ? (
+                <div className="space-y-3 rounded-xl bg-violet-50/60 p-4 dark:bg-violet-950/25">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Due today</span>
+                    <span className="font-semibold">₹{monthlyPrice.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Billing schedule</span>
+                    <span>{course.recurringPlan.totalCount} monthly cycles</span>
+                  </div>
+                  <Separator />
+                  <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+                    <Sparkles className="mt-0.5 size-3.5 shrink-0 text-violet-500" />
+                    Access follows successful monthly payments. You can stop auto-renewal from your subscription dashboard.
+                  </p>
+                </div>
+              ) : null}
+
+              {selectedCheckoutType === "ONE_TIME" && (
+                <div className="space-y-3">
+                  <Label htmlFor="coupon">Have a coupon?</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="coupon"
+                      placeholder="Enter coupon code"
+                      value={couponCode}
+                      onChange={(event) => setCouponCode(event.target.value)}
+                      disabled={Boolean(appliedCoupon)}
+                      className="flex-1"
+                    />
+                    {appliedCoupon ? (
+                      <Button onClick={removeCoupon} variant="outline" size="sm">Remove</Button>
+                    ) : (
+                      <Button onClick={applyCoupon} variant="outline" size="sm" disabled={couponLoading || !couponCode.trim()}>
+                        {couponLoading ? "Applying..." : "Apply"}
+                      </Button>
+                    )}
+                  </div>
+                  {appliedCoupon && (
+                    <div className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle className="size-4" /> Coupon &quot;{appliedCoupon.code}&quot; applied
+                    </div>
+                  )}
+                  {publicLoading ? (
+                    <p className="text-xs text-muted-foreground">Checking available offers...</p>
+                  ) : publicCoupons.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {publicCoupons.map((publicCoupon) => (
+                        <button
+                          key={publicCoupon.id}
+                          type="button"
+                          onClick={() => applyCouponWithCode(publicCoupon.code)}
+                          disabled={couponLoading}
+                          className="rounded-full border border-dashed border-emerald-400/70 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/50"
+                        >
+                          {publicCoupon.code} · {publicCoupon.discountPct}% off
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {subscriptionConfigured && !v2CourseCheckoutEnabled && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                  Verified checkout is not live yet. Payment will open after the secure checkout and webhook flags are enabled together.
+                </div>
+              )}
             </CardContent>
-            <CardFooter className="pt-0">
-              <div className="grid w-full gap-3">
-                {course.hasFreePreview && (
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push(`/courses/${course.id}/preview`)}
-                    className="w-full border-emerald-500/60 text-emerald-600 hover:bg-emerald-500/10"
-                  >
-                    <Video className="mr-2 h-4 w-4" /> Start free preview
-                  </Button>
-                )}
+            <CardFooter className="grid gap-3 border-t bg-muted/15 pt-5">
+              {course.hasFreePreview && (
                 <Button
-                  onClick={handleCheckout}
-                  disabled={loading || (subscriptionConfigured && !subscriptionCheckoutAvailable)}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-3 text-base font-semibold"
+                  variant="outline"
+                  onClick={() => router.push(`/courses/${course.id}/preview`)}
+                  className="w-full border-emerald-500/60 text-emerald-600 hover:bg-emerald-500/10"
                 >
-                  {loading
-                    ? "Processing..."
-                    : subscriptionConfigured && !course.recurringPlan
-                      ? "Subscription setup in progress"
-                      : subscriptionConfigured && !v2CourseCheckoutEnabled
-                        ? "Subscriptions not live yet"
-                        : course.recurringPlan
-                          ? `Subscribe for ₹${(course.recurringPlan.amountPaise / 100).toFixed(2)}/month`
-                          : `Pay ₹${finalPrice}`}
+                  <Video className="mr-2 size-4" /> Start free preview
                 </Button>
-              </div>
+              )}
+              <Button
+                onClick={handleCheckout}
+                disabled={
+                  loading
+                  || (subscriptionConfigured && !v2CourseCheckoutEnabled)
+                  || (selectedCheckoutType === "COURSE_RECURRING" && !checkoutAvailability.recurring)
+                }
+                className="w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 py-6 text-base font-semibold text-white shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5 hover:from-indigo-700 hover:via-violet-700 hover:to-purple-700 hover:shadow-xl disabled:translate-y-0 disabled:shadow-none"
+              >
+                {loading
+                  ? "Opening secure checkout..."
+                  : subscriptionConfigured && !v2CourseCheckoutEnabled
+                    ? "Verified checkout not live yet"
+                    : selectedCheckoutType === "COURSE_RECURRING"
+                      ? course.recurringPlan
+                        ? `Start monthly plan · ₹${monthlyPrice.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : "Monthly plan setup in progress"
+                      : `Pay once · ₹${finalPrice.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              </Button>
+              <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+                {v2CourseCheckoutEnabled
+                  ? "Payments are verified by Razorpay webhooks before course access is granted."
+                  : "Payment is securely verified before course access is granted."}
+              </p>
             </CardFooter>
           </Card>
 

@@ -21,6 +21,9 @@ export interface RazorpayOptions {
     email?: string;
     contact?: string;
   };
+  modal?: {
+    ondismiss?: () => void;
+  };
 }
 
 export interface RazorpayInstance {
