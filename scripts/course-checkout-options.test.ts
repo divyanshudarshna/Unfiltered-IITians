@@ -3,6 +3,7 @@ import {
   calculateCourseOneTimePricePaise,
   getCourseCheckoutAvailability,
   getDefaultCourseCheckoutType,
+  isCourseCheckoutLaunchEnabled,
 } from "../lib/course-checkout-options";
 
 assert.deepEqual(
@@ -18,6 +19,9 @@ assert.deepEqual(
   { oneTime: true, recurring: false },
 );
 assert.equal(getDefaultCourseCheckoutType(), "ONE_TIME");
+assert.equal(isCourseCheckoutLaunchEnabled("ONE_TIME", false), true);
+assert.equal(isCourseCheckoutLaunchEnabled("COURSE_RECURRING", false), false);
+assert.equal(isCourseCheckoutLaunchEnabled("COURSE_RECURRING", true), true);
 assert.deepEqual(calculateCourseOneTimePricePaise(999, 33), {
   originalPaise: 99_900,
   discountPaise: 32_967,

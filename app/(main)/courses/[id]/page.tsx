@@ -23,6 +23,7 @@ import {
   getCourseCheckoutAvailability,
   calculateCourseOneTimePricePaise,
   getDefaultCourseCheckoutType,
+  isCourseCheckoutLaunchEnabled,
   type CourseCheckoutType,
 } from "@/lib/course-checkout-options";
 import type { RazorpayResponse } from "@/types/razorpay";
@@ -362,8 +363,8 @@ export default function CourseDetailPage() {
       return;
     }
 
-    if (subscriptionConfigured && !v2CourseCheckoutEnabled) {
-      toast.error("Verified course checkout is not live yet. Please try again later.");
+    if (!isCourseCheckoutLaunchEnabled(selectedCheckoutType, v2CourseCheckoutEnabled)) {
+      toast.error("Monthly subscriptions are not live yet. Please choose one-time payment or try again later.");
       return;
     }
 
@@ -904,9 +905,9 @@ export default function CourseDetailPage() {
                 </div>
               )}
 
-              {subscriptionConfigured && !v2CourseCheckoutEnabled && (
+              {selectedCheckoutType === "COURSE_RECURRING" && !v2CourseCheckoutEnabled && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                  Verified checkout is not live yet. Payment will open after the secure checkout and webhook flags are enabled together.
+                  Monthly subscriptions are not live yet. You can still choose one-time payment above.
                 </div>
               )}
             </CardContent>
@@ -924,15 +925,15 @@ export default function CourseDetailPage() {
                 onClick={handleCheckout}
                 disabled={
                   loading
-                  || (subscriptionConfigured && !v2CourseCheckoutEnabled)
+                  || !isCourseCheckoutLaunchEnabled(selectedCheckoutType, v2CourseCheckoutEnabled)
                   || (selectedCheckoutType === "COURSE_RECURRING" && !checkoutAvailability.recurring)
                 }
                 className="w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 py-6 text-base font-semibold text-white shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5 hover:from-indigo-700 hover:via-violet-700 hover:to-purple-700 hover:shadow-xl disabled:translate-y-0 disabled:shadow-none"
               >
                 {loading
                   ? "Opening secure checkout..."
-                  : subscriptionConfigured && !v2CourseCheckoutEnabled
-                    ? "Verified checkout not live yet"
+                  : !isCourseCheckoutLaunchEnabled(selectedCheckoutType, v2CourseCheckoutEnabled)
+                    ? "Monthly subscriptions not live yet"
                     : selectedCheckoutType === "COURSE_RECURRING"
                       ? course.recurringPlan
                         ? `Start monthly plan · ₹${monthlyPrice.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
