@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, IndianRupee, Users, User, ArrowRight } from "lucide-react";
+import Testimonials from "@/components/Testimonials";
 
 interface Session {
   id: string;
@@ -62,7 +63,7 @@ export default function GuidanceSessionsList({
         } else {
           setEnrolledSessionIds([]);
         }
-      } catch (err) {
+      } catch {
         // console.error("❌ Error fetching sessions or enrollments:", err);
         setEnrolledSessionIds([]);
       } finally {
@@ -74,16 +75,12 @@ export default function GuidanceSessionsList({
   }, [user]);
 
   const handleEnrollOrRedirect = (sessionId: string) => {
-    if (user) {
-      if (enrolledSessionIds?.includes(sessionId)) {
-        const encodedName = encodeURIComponent(user.firstName || "user");
-        router.push(`/${encodedName}/dashboard`);
-      } else {
-        router.push(`/guidance/${sessionId}`);
-      }
+    if (user && enrolledSessionIds?.includes(sessionId)) {
+      const encodedName = encodeURIComponent(user.firstName || "user");
+      router.push(`/${encodedName}/dashboard`);
     } else {
-      const returnTo = encodeURIComponent(`/guidance`);
-      router.push(`/sign-in?redirectUrl=${returnTo}`);
+      // Details and student reviews are public; authentication is required only at checkout.
+      router.push(`/guidance/${sessionId}`);
     }
   };
 
@@ -190,7 +187,7 @@ export default function GuidanceSessionsList({
 
                     <CardContent className="relative z-5">
                       <div className="mt-4 mb-4 text-sm font-semibold text-gray-900 dark:text-gray-300">
-                        What you'll get:
+                        What you&apos;ll get:
                       </div>
                       <ul className="space-y-2.5 text-sm">
                         {[
@@ -256,7 +253,7 @@ export default function GuidanceSessionsList({
       </>
     ) : (
       <>
-        Enroll Now
+        View Session Details
         <ArrowRight className="h-4 w-4" />
       </>
     )}
@@ -294,15 +291,11 @@ export default function GuidanceSessionsList({
 
       {showTestimonials && (
         <div className="mt-16">
-          {require("@/components/Testimonials").default && (
-            <div>
-              {require("@/components/Testimonials").default({
-                button: true,
-                title: testimonialsTitle,
-                description: testimonialsDescription,
-              })}
-            </div>
-          )}
+          <Testimonials
+            button
+            title={testimonialsTitle}
+            description={testimonialsDescription}
+          />
         </div>
       )}
     </div>

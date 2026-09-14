@@ -15,6 +15,10 @@ assert.equal(
   "RETRY",
 );
 assert.equal(
+  classifyWebhookProcessingError("Captured payment pay_123 is missing its signed event timestamp"),
+  "RETRY",
+);
+assert.equal(
   classifyWebhookProcessingError("Payment pay_123 amount or currency does not match checkout checkout_123"),
   "ACKNOWLEDGE_REVIEW",
 );

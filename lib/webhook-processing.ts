@@ -9,6 +9,7 @@ const RETRYABLE_PREFIXES = [
 export function classifyWebhookProcessingError(error: string | null): WebhookProcessingDecision {
   if (!error) return "PROCESSED";
   return RETRYABLE_PREFIXES.some((prefix) => error.startsWith(prefix))
+    || error.includes("missing its signed event timestamp")
     ? "RETRY"
     : "ACKNOWLEDGE_REVIEW";
 }

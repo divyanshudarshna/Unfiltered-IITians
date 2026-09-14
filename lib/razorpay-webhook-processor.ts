@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getEarlierAccessStart, getLaterAccessEnd } from "@/lib/commerce-entitlement";
 import { classifyWebhookProcessingError } from "@/lib/webhook-processing";
 import {
+  getCapturedCourseAccessWindow,
+  getGuidanceAccessEnd,
+  getRecurringAccessStart,
+} from "@/lib/purchase-access-window";
+import {
   confirmSessionSeatHold,
   confirmSessionSeatHolds,
   releaseSessionSeatHold,
@@ -14,6 +19,7 @@ import {
   getRazorpayNote,
   getRazorpayString,
   getRazorpayUnixDate,
+  getRazorpayWebhookCreatedAt,
   type RazorpayEntity,
   type RazorpayWebhookPayload,
 } from "@/lib/razorpay-event";
@@ -40,12 +46,6 @@ function parseSnapshot(snapshot: unknown): Record<string, unknown> {
   return snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)
     ? snapshot as Record<string, unknown>
     : {};
-}
-
-function parseDate(value: unknown) {
-  if (typeof value !== "string" && typeof value !== "number") return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function subscriptionStatusForEvent(eventType: string, entity: RazorpayEntity) {
@@ -126,6 +126,7 @@ async function projectCourseEnrollment(
   userId: string,
   courseId: string,
   accessEndsAt: Date | null,
+  accessStartsAt: Date,
 ) {
   const enrollment = await tx.enrollment.findFirst({
     where: { userId, courseId },
@@ -140,7 +141,7 @@ async function projectCourseEnrollment(
   }
 
   return tx.enrollment.create({
-    data: { userId, courseId, expiresAt: accessEndsAt },
+    data: { userId, courseId, enrolledAt: accessStartsAt, expiresAt: accessEndsAt },
   });
 }
 
@@ -156,6 +157,7 @@ async function projectSessionEnrollment(
   snapshot: Record<string, unknown>,
   accessEndsAt?: Date,
   sourceCheckoutId?: string,
+  accessStartsAt?: Date,
 ) {
   const [user, enrollment] = await Promise.all([
     tx.user.findUnique({
@@ -171,6 +173,11 @@ async function projectSessionEnrollment(
   const studentPhone = typeof snapshot.studentPhone === "string" && snapshot.studentPhone.trim()
     ? snapshot.studentPhone.trim()
     : user.phoneNumber ?? "Not provided";
+  const shouldResetEnrollmentStart = Boolean(
+    accessStartsAt
+    && sourceCheckoutId
+    && enrollment?.sourceCheckoutId !== sourceCheckoutId,
+  );
   const data = {
     studentName: user.name?.trim() || "Student",
     studentEmail: user.email,
@@ -179,11 +186,12 @@ async function projectSessionEnrollment(
     razorpayPaymentId: paymentId,
     paymentStatus: "SUCCESS" as const,
     amountPaid: amountPaise / 100,
-    completedAt: new Date(),
+    completedAt: accessStartsAt ?? new Date(),
     ...(accessEndsAt
       ? { accessEndsAt: getLaterAccessEnd(enrollment?.accessEndsAt, accessEndsAt), seatReleasedAt: null }
       : {}),
     ...(sourceCheckoutId ? { sourceCheckoutId } : {}),
+    ...(shouldResetEnrollmentStart ? { enrolledAt: accessStartsAt } : {}),
   };
 
   if (enrollment) {
@@ -191,7 +199,12 @@ async function projectSessionEnrollment(
   }
 
   return tx.sessionEnrollment.create({
-    data: { sessionId: checkout.productId, userId: checkout.userId, ...data },
+    data: {
+      sessionId: checkout.productId,
+      userId: checkout.userId,
+      ...data,
+      ...(accessStartsAt ? { enrolledAt: accessStartsAt } : {}),
+    },
   });
 }
 
@@ -276,6 +289,7 @@ async function projectCourseInclusions(
       { studentPhone: "Included with course" },
       input.endsAt ?? undefined,
       input.checkoutId ?? undefined,
+      input.startsAt,
     );
   }
 
@@ -471,6 +485,7 @@ async function projectGenericRecurringEntitlements(
       snapshot,
       endsAt,
       subscription.originCheckoutId ?? undefined,
+      startsAt,
     );
     await tx.sessionEnrollment.updateMany({
       where: { sessionId: subscription.productId, userId: subscription.userId },
@@ -496,6 +511,8 @@ async function processCapturedPayment(
   if (!paymentId || !orderId || amountPaise === null || !currency) {
     return "Captured payment payload is missing a provider ID, order, amount, or currency";
   }
+  const providerCapturedAt = getRazorpayWebhookCreatedAt(payload);
+  if (!providerCapturedAt) return `Captured payment ${paymentId} is missing its signed event timestamp`;
 
   const checkout = await findCheckoutForCapturedPayment(tx, payment, orderId);
   if (!checkout) return `No V2 checkout found for Razorpay order ${orderId}`;
@@ -520,8 +537,13 @@ async function processCapturedPayment(
         amountPaise,
         currency,
         status: "CAPTURED",
-        providerCapturedAt: getRazorpayUnixDate(payment, "created_at") ?? new Date(),
+        providerCapturedAt,
       },
+    });
+  } else if (!recordedPayment.providerCapturedAt) {
+    recordedPayment = await tx.commercePayment.update({
+      where: { id: recordedPayment.id },
+      data: { providerCapturedAt },
     });
   }
 
@@ -530,8 +552,34 @@ async function processCapturedPayment(
   }
 
   const snapshot = parseSnapshot(checkout.snapshot);
-  const startsAt = new Date();
-  const accessEndsAt = parseDate(snapshot.accessEndsAt);
+  const capturedAt = providerCapturedAt;
+  let startsAt = capturedAt;
+  let accessEndsAt: Date | null = null;
+
+  if (checkout.productType === "COURSE") {
+    const accessWindow = getCapturedCourseAccessWindow(snapshot, capturedAt);
+    startsAt = accessWindow.startsAt;
+    accessEndsAt = accessWindow.endsAt;
+  } else if (checkout.productType === "GUIDANCE_SESSION") {
+    accessEndsAt = getGuidanceAccessEnd(snapshot);
+    if (accessEndsAt && accessEndsAt <= capturedAt) {
+      await releaseSessionSeatHold(tx, checkout.id, capturedAt);
+      await tx.commerceCheckout.update({
+        where: { id: checkout.id },
+        data: { status: "REQUIRES_REVIEW" },
+      });
+      await tx.billingOutbox.upsert({
+        where: { dedupeKey: `expired-session-review:${paymentId}` },
+        update: {},
+        create: {
+          dedupeKey: `expired-session-review:${paymentId}`,
+          action: "SESSION_SEAT_REVIEW_REQUIRED",
+          payload: { eventId, checkoutId: checkout.id, paymentId, reason: "SESSION_EXPIRED" },
+        },
+      });
+      return `Captured payment ${paymentId} belongs to an expired guidance session`;
+    }
+  }
 
   if (checkout.productType === "GUIDANCE_SESSION") {
     const seatDecision = await confirmSessionSeatHold(
@@ -591,8 +639,15 @@ async function processCapturedPayment(
 
   await tx.commerceCheckout.update({
     where: { id: checkout.id },
-    data: { status: "PAID", paidAt: new Date() },
+    data: { status: "PAID", paidAt: capturedAt },
   });
+
+  if (checkout.productType === "COURSE") {
+    await tx.commerceSubscriptionSlot.updateMany({
+      where: { checkoutId: checkout.id },
+      data: { releaseAfter: accessEndsAt },
+    });
+  }
 
   const resourceType = checkout.productType;
   await upsertEntitlement(tx, {
@@ -623,7 +678,7 @@ async function processCapturedPayment(
   }
 
   if (checkout.productType === "COURSE") {
-    await projectCourseEnrollment(tx, checkout.userId, checkout.productId, accessEndsAt);
+    await projectCourseEnrollment(tx, checkout.userId, checkout.productId, accessEndsAt, startsAt);
   }
   if (checkout.productType === "GUIDANCE_SESSION") {
     await projectSessionEnrollment(
@@ -632,8 +687,9 @@ async function processCapturedPayment(
       paymentId,
       amountPaise,
       snapshot,
-      parseDate(snapshot.sessionExpiryDate) ?? undefined,
+      accessEndsAt ?? undefined,
       checkout.id,
+      startsAt,
     );
   }
   await redeemGeneralCouponReservation(tx, checkout, paymentId, snapshot);
@@ -776,6 +832,8 @@ async function processSubscriptionEvent(
   if (!paymentId || amountPaise === null || !currentPeriodEnd) {
     return `Charged subscription ${providerSubscriptionId} has incomplete payment or period data`;
   }
+  const providerCapturedAt = getRazorpayWebhookCreatedAt(payload);
+  if (!providerCapturedAt) return `Charged subscription ${providerSubscriptionId} is missing its signed event timestamp`;
 
   const plan = await tx.courseBillingPlan.findUnique({ where: { id: subscription.billingPlanId } });
   if (!plan || plan.amountPaise !== amountPaise || plan.currency !== currency) {
@@ -793,8 +851,13 @@ async function processSubscriptionEvent(
         amountPaise,
         currency,
         status: "CAPTURED",
-        providerCapturedAt: getRazorpayUnixDate(payment, "created_at") ?? new Date(),
+        providerCapturedAt,
       },
+    });
+  } else if (!recordedPayment.providerCapturedAt) {
+    recordedPayment = await tx.commercePayment.update({
+      where: { id: recordedPayment.id },
+      data: { providerCapturedAt },
     });
   }
 
@@ -802,13 +865,19 @@ async function processSubscriptionEvent(
     return `Charged subscription ${providerSubscriptionId} belongs to a cancelled checkout`;
   }
 
+  const subscriptionStartsAt = getRecurringAccessStart(
+    providerCapturedAt,
+    currentPeriodStart,
+    new Date(),
+  );
+
   const inclusionReviewSessionId = await projectCourseInclusions(tx, {
     userId: subscription.userId,
     checkoutId: subscription.originCheckoutId,
     snapshot: parseSnapshot(subscription.entitlementSnapshot),
     sourceType: "RAZORPAY_SUBSCRIPTION",
     sourceId: subscription.id,
-    startsAt: currentPeriodStart ?? new Date(),
+    startsAt: subscriptionStartsAt,
     endsAt: currentPeriodEnd,
     recordedPaymentId: recordedPayment.id,
     providerPaymentId: paymentId,
@@ -843,11 +912,26 @@ async function processSubscriptionEvent(
     resourceId: subscription.courseId,
     sourceType: "RAZORPAY_SUBSCRIPTION",
     sourceId: subscription.id,
-    startsAt: currentPeriodStart ?? new Date(),
+    startsAt: subscriptionStartsAt,
     endsAt: currentPeriodEnd,
     lastPaymentId: recordedPayment.id,
   });
-  await projectCourseEnrollment(tx, subscription.userId, subscription.courseId, currentPeriodEnd);
+  await projectCourseEnrollment(
+    tx,
+    subscription.userId,
+    subscription.courseId,
+    currentPeriodEnd,
+    subscriptionStartsAt,
+  );
+  if (subscription.originCheckoutId) {
+    await tx.commerceCheckout.update({
+      where: { id: subscription.originCheckoutId },
+      data: {
+        status: "PAID",
+        paidAt: providerCapturedAt,
+      },
+    });
+  }
 
   await tx.billingOutbox.upsert({
     where: { dedupeKey: `subscription-charged:${paymentId}` },
@@ -915,6 +999,8 @@ async function processGenericSubscriptionEvent(
   if (!paymentId || amountPaise === null || !currentPeriodEnd) {
     return `Charged subscription ${providerSubscriptionId} has incomplete payment or period data`;
   }
+  const providerCapturedAt = getRazorpayWebhookCreatedAt(payload);
+  if (!providerCapturedAt) return `Charged subscription ${providerSubscriptionId} is missing its signed event timestamp`;
   const plan = await tx.commerceBillingPlan.findUnique({ where: { id: subscription.billingPlanId } });
   if (!plan || plan.amountPaise !== amountPaise || plan.currency !== currency) {
     return `Charged subscription ${providerSubscriptionId} does not match its local plan`;
@@ -932,8 +1018,13 @@ async function processGenericSubscriptionEvent(
         amountPaise,
         currency,
         status: "CAPTURED",
-        providerCapturedAt: getRazorpayUnixDate(payment, "created_at") ?? new Date(),
+        providerCapturedAt,
       },
+    });
+  } else if (!recordedPayment.providerCapturedAt) {
+    recordedPayment = await tx.commercePayment.update({
+      where: { id: recordedPayment.id },
+      data: { providerCapturedAt },
     });
   }
 
@@ -941,11 +1032,17 @@ async function processGenericSubscriptionEvent(
     return `Charged subscription ${providerSubscriptionId} belongs to a cancelled checkout`;
   }
 
+  const subscriptionStartsAt = getRecurringAccessStart(
+    providerCapturedAt,
+    currentPeriodStart,
+    new Date(),
+  );
+
   const reviewCheckoutId = await projectGenericRecurringEntitlements(
     tx,
     subscription,
     recordedPayment.id,
-    currentPeriodStart ?? new Date(),
+    subscriptionStartsAt,
     currentPeriodEnd,
     paymentId,
     amountPaise,
@@ -966,7 +1063,10 @@ async function processGenericSubscriptionEvent(
   if (subscription.originCheckoutId) {
     await tx.commerceCheckout.update({
       where: { id: subscription.originCheckoutId },
-      data: { status: "PAID", paidAt: new Date() },
+      data: {
+        status: "PAID",
+        paidAt: providerCapturedAt,
+      },
     });
   }
   await tx.billingOutbox.upsert({

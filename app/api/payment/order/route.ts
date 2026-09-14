@@ -2,12 +2,30 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { razorpay } from "@/lib/razorpay";
+import { getDbUserFromClerk } from "@/lib/roleAuth";
 import crypto from "crypto";
+import type { Session } from "@prisma/client";
+
+interface LegacySubscriptionDraft {
+  mockTestId: string | null;
+  mockBundleId: string | null;
+  originalPrice: number;
+  actualAmountPaid: number;
+  discountApplied: number;
+}
+
+interface LegacySessionEnrollmentDraft {
+  sessionId: string;
+  userId: string;
+  studentName: string;
+  studentEmail: string;
+  studentPhone: string;
+  accessEndsAt: Date | null;
+}
 
 export async function POST(req: Request) {
   try {
     const {
-      clerkUserId,
       itemId,
       itemType,
       mockIds,
@@ -15,25 +33,23 @@ export async function POST(req: Request) {
       amount: frontendAmount, // ✅ receive frontend amount (discounted price)
     } = await req.json();
 
-    if (!clerkUserId || !itemId || !itemType) {
+    if (!itemId || !itemType) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { clerkUserId },
-    });
+    const user = await getDbUserFromClerk();
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     let amount = 0;
-    let subscriptionData: any[] = [];
-    let enrollmentData: any[] = [];
-    let sessionRecord: any = null;
+    let subscriptionData: LegacySubscriptionDraft[] = [];
+    const enrollmentData: LegacySessionEnrollmentDraft[] = [];
+    let sessionRecord: Session | null = null;
 
     // --- 1) Mock Test Purchase ---
     if (itemType === "mockTest") {
@@ -113,11 +129,20 @@ export async function POST(req: Request) {
         where: { id: itemId },
       });
 
-      if (!sessionRecord || !sessionRecord.price) {
+      if (!sessionRecord || sessionRecord.status !== "PUBLISHED" || !sessionRecord.price) {
         return NextResponse.json(
           { error: "Invalid or free session" },
           { status: 400 }
         );
+      }
+      if (sessionRecord.billingMode === "RECURRING" && sessionRecord.subscriptionEnabled) {
+        return NextResponse.json(
+          { error: "This guidance program requires recurring checkout" },
+          { status: 409 },
+        );
+      }
+      if (sessionRecord.expiryDate && sessionRecord.expiryDate <= new Date()) {
+        return NextResponse.json({ error: "This guidance session has expired" }, { status: 409 });
       }
 
       if (!studentPhone) {
@@ -162,9 +187,10 @@ export async function POST(req: Request) {
       enrollmentData.push({
         sessionId: sessionRecord.id,
         userId: user.id,
-        studentName: user.name,
+        studentName: user.name || "Student",
         studentEmail: user.email,
         studentPhone,
+        accessEndsAt: sessionRecord.expiryDate,
       });
     }
 
@@ -207,10 +233,11 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ order }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("❌ Razorpay Order Error:", err);
+    const message = err instanceof Error ? err.message : "Server error";
     return NextResponse.json(
-      { error: err?.description || "Server error" },
+      { error: message },
       { status: 500 }
     );
   }

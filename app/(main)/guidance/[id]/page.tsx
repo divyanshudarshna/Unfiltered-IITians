@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { BuyButton } from "@/components/BuyButton";
 import { useUser } from "@clerk/nextjs";
 import { formatSessionExpiryDate, hasSessionExpiry } from "@/lib/guidance-session-expiry";
+import { getGuidanceSessionPricing } from "@/lib/guidance-session-pricing";
 import {
   Clock,
   Users,
@@ -44,7 +45,7 @@ interface Session {
   tags: string[];
   status: string;
   price: number;
-  discountedPrice: number;
+  discountedPrice: number | null;
   maxEnrollment: number | null;
   type: string;
   duration: number;
@@ -155,7 +156,7 @@ export default function SessionPage() {
           userId: user.id,
           productType: 'GUIDANCE_SESSION',
           productId: session.id,
-          orderValue: session.discountedPrice,
+          orderValue: getGuidanceSessionPricing(session.price, session.discountedPrice).effectivePrice,
         }),
       });
 
@@ -205,7 +206,9 @@ export default function SessionPage() {
     if (appliedCoupon?.valid && appliedCoupon.discount) {
       return appliedCoupon.discount.finalPrice;
     }
-    return session?.discountedPrice || 0;
+    return session
+      ? getGuidanceSessionPricing(session.price, session.discountedPrice).effectivePrice
+      : 0;
   };
 
   const getSavings = () => {
@@ -264,7 +267,9 @@ export default function SessionPage() {
         const params = new URLSearchParams({
           productType: 'GUIDANCE_SESSION',
           productId: session.id,
-          orderValue: String(session.discountedPrice),
+          orderValue: String(
+            getGuidanceSessionPricing(session.price, session.discountedPrice).effectivePrice,
+          ),
         });
         const response = await fetch(`/api/general-coupons/public?${params.toString()}`);
 
@@ -383,13 +388,15 @@ export default function SessionPage() {
     );
   }
 
-  const isDiscounted = session.discountedPrice < session.price;
+  const { effectivePrice: effectiveSessionPrice, isDiscounted, discountPercentage } =
+    getGuidanceSessionPricing(session.price, session.discountedPrice);
   const isRecurringProgram = session.billingMode === "RECURRING" && session.subscriptionEnabled;
-  const discountPercentage = isDiscounted
-    ? Math.round(
-        ((session.price - session.discountedPrice) / session.price) * 100
-      )
-    : 0;
+  const showOneTimeDiscount = !isRecurringProgram && isDiscounted;
+  const checkoutDisplayPrice = isRecurringProgram && session.recurringPlan
+    ? session.recurringPlan.amountPaise / 100
+    : appliedCoupon?.valid
+      ? getFinalPrice()
+      : effectiveSessionPrice;
   const sessionHasExpiry = hasSessionExpiry(session.expiryDate);
   const sessionExpiryLabel = formatSessionExpiryDate(session.expiryDate);
   const SessionTypeIcon = session.type === "ONE_ON_ONE" ? User : Users;
@@ -476,7 +483,7 @@ export default function SessionPage() {
                   <h3 className="text-xl font-bold">Enroll Now</h3>
                   <Star className="h-5 w-5 text-yellow-300" />
                 </div>
-                {isDiscounted && (
+                {showOneTimeDiscount && (
                   <Badge className="bg-green-800 hover:bg-emerald-600 border-0 px-3 py-1 text-sm">
                     🎉 {discountPercentage}% OFF
                   </Badge>
@@ -488,9 +495,9 @@ export default function SessionPage() {
                 <div className="text-center space-y-2">
                   <div className="flex items-center justify-center gap-3">
                     <span className="text-4xl font-bold text-emerald-400">
-                      ₹{getFinalPrice()}
+                      ₹{checkoutDisplayPrice.toFixed(2)}
                     </span>
-                    {isDiscounted && (
+                    {showOneTimeDiscount && (
                       <span className="text-lg line-through text-purple-200">
                         ₹{session.price}
                       </span>
@@ -694,6 +701,7 @@ export default function SessionPage() {
                           itemType="session"
                           title={session.title}
                           amount={getFinalPrice()}
+                          couponCode={appliedCoupon?.valid ? appliedCoupon.coupon?.code : undefined}
                           studentPhone={phone}
                           recurringPlan={session.billingMode === "RECURRING" && session.subscriptionEnabled
                             ? session.recurringPlan ?? undefined
@@ -706,7 +714,7 @@ export default function SessionPage() {
                         />
                       ) : (
                         <Button
-                          disabled
+                          onClick={() => router.push(`/sign-in?redirectUrl=${encodeURIComponent(`/guidance/${session.id}`)}`)}
                           className="w-full bg-white/30 text-purple-100 border-white/30 hover:bg-white/40 font-semibold py-3 rounded-xl"
                         >
                           Please sign in to enroll

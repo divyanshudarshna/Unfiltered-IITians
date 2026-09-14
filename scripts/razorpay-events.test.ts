@@ -6,10 +6,12 @@ import {
   getRazorpayNote,
   getRazorpayString,
   getRazorpayUnixDate,
+  getRazorpayWebhookCreatedAt,
 } from "../lib/razorpay-event";
 
 const payload = {
   event: "subscription.charged",
+  created_at: 1700000100,
   payload: {
     subscription: {
       entity: {
@@ -35,7 +37,9 @@ assert.equal(getRazorpayString(subscription, "id"), "sub_live_123");
 assert.equal(getRazorpayAmount(getRazorpayEntity(payload, "payment")), 49900);
 assert.equal(getRazorpayString(getRazorpayEntity(payload, "payment"), "currency"), "INR");
 assert.equal(getRazorpayUnixDate(subscription, "current_start")?.getTime(), 1700000000000);
-assert.equal(getRazorpayEventDate(payload).getTime(), 1700000000000);
+assert.equal(getRazorpayEventDate(payload).getTime(), 1700000100000);
+assert.equal(getRazorpayWebhookCreatedAt(payload)?.getTime(), 1700000100000);
+assert.equal(getRazorpayWebhookCreatedAt({ event: "payment.captured" }), null);
 assert.equal(getRazorpayEntity(payload, "refund"), null);
 assert.equal(getRazorpayAmount({ amount: "49900" }), null);
 assert.equal(getRazorpayNote(subscription, "checkout_id"), "checkout_123");

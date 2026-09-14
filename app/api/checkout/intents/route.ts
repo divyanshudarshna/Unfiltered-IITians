@@ -7,7 +7,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getDbUserFromClerk } from "@/lib/roleAuth";
-import { getCourseExpiryDate } from "@/lib/course-expiry";
+import { getGuidanceSessionPricing } from "@/lib/guidance-session-pricing";
 import { assertRazorpayServerConfiguration, razorpay } from "@/lib/razorpay";
 import {
   CommerceCheckoutInputError,
@@ -381,7 +381,6 @@ async function prepareCourseCheckout(input: CheckoutIntentInput, userId: string,
       courseId: course.id,
       title: course.title,
       durationMonths: course.durationMonths,
-      accessEndsAt: getCourseExpiryDate(now, course.durationMonths).toISOString(),
       ...inclusionSnapshot,
       ...(couponSnapshot ? { coupon: couponSnapshot } : {}),
     },
@@ -573,7 +572,8 @@ async function prepareOneTimeCheckout(input: CheckoutIntentInput, userId: string
     throw new CommerceCheckoutInputError("A guidance-session checkout is already in progress");
   }
 
-  const amountPaise = parseRupeesToPaise(session.discountedPrice ?? session.price);
+  const sessionPricing = getGuidanceSessionPricing(session.price, session.discountedPrice);
+  const amountPaise = parseRupeesToPaise(sessionPricing.effectivePrice);
   if (await hasActiveV2Entitlement(userId, "GUIDANCE_SESSION", session.id, now)) {
     throw new CommerceCheckoutInputError("You already have access to this guidance session");
   }
@@ -582,6 +582,7 @@ async function prepareOneTimeCheckout(input: CheckoutIntentInput, userId: string
     checkoutType: "ONE_TIME",
     productId: session.id,
     amountPaise,
+    // General coupons stack on the configured selling price, matching the UI.
     originalAmountPaise: amountPaise,
     discountPaise: 0,
     couponCode: input.couponCode,
@@ -777,10 +778,9 @@ export async function POST(req: Request) {
              productType: prepared.productType,
               productId: prepared.productId,
               checkoutId: checkout.id,
-              releaseAfter: prepared.checkoutType === "ONE_TIME"
-                && typeof prepared.snapshot.accessEndsAt === "string"
-                ? new Date(prepared.snapshot.accessEndsAt)
-                : null,
+               // One-time course expiry is anchored to the captured payment,
+               // so the webhook sets this after Razorpay confirms payment.
+               releaseAfter: null,
             },
           });
           if (prepared.checkoutType === "COURSE_RECURRING") {

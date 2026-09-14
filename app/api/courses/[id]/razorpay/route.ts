@@ -2,31 +2,26 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { razorpay } from "@/lib/razorpay";
 import { getCourseExpiryDate } from "@/lib/course-expiry";
+import { getDbUserFromClerk } from "@/lib/roleAuth";
 import crypto from "crypto";
+import type { Coupon } from "@prisma/client";
 
 interface Params {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function POST(req: Request, { params }: Params) {
   try {
-    const { clerkUserId, couponCode } = await req.json();
-
-    if (!clerkUserId) {
-      return NextResponse.json({ error: "Missing clerkUserId" }, { status: 400 });
-    }
-
-    // ✅ Find user
-    const user = await prisma.user.findUnique({
-      where: { clerkUserId },
-    });
+    const { couponCode } = await req.json();
+    const { id } = await params;
+    const user = await getDbUserFromClerk();
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // ✅ Find course
     const course = await prisma.course.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
     if (!course) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
@@ -53,7 +48,7 @@ export async function POST(req: Request, { params }: Params) {
 
     // ✅ Base price = actualPrice (fallback to price)
     let finalPrice = course.actualPrice ?? course.price;
-    let appliedCoupon: any = null;
+    let appliedCoupon: Coupon | null = null;
     let discountAmount = 0;
 
     // ✅ Apply coupon if provided
@@ -98,7 +93,12 @@ export async function POST(req: Request, { params }: Params) {
     });
 
     // Store coupon and discount info in response for frontend
-    const responseData: any = { 
+    const responseData: {
+      order: typeof order;
+      finalPrice: number;
+      subscriptionId: string;
+      couponData?: { couponId: string; code: string; discountAmount: number; discountPct: number };
+    } = {
       order, 
       finalPrice,
       subscriptionId: subscription.id 
@@ -114,10 +114,11 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     return NextResponse.json(responseData, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("❌ Razorpay Order Error:", err);
+    const message = err instanceof Error ? err.message : "Failed to create Razorpay order";
     return NextResponse.json(
-      { error: err?.description || err.message || "Failed to create Razorpay order" },
+      { error: message },
       { status: 500 }
     );
   }

@@ -2,6 +2,7 @@ export type RazorpayEntity = Record<string, unknown>;
 
 export type RazorpayWebhookPayload = {
   event: string;
+  created_at?: number;
   payload?: Record<string, { entity?: RazorpayEntity } | undefined>;
 };
 
@@ -39,8 +40,17 @@ export function getRazorpayUnixDate(entity: RazorpayEntity | null, key: string) 
     : null;
 }
 
+export function getRazorpayWebhookCreatedAt(payload: RazorpayWebhookPayload) {
+  return typeof payload.created_at === "number"
+    && Number.isSafeInteger(payload.created_at)
+    && payload.created_at > 0
+    ? new Date(payload.created_at * 1000)
+    : null;
+}
+
 export function getRazorpayEventDate(payload: RazorpayWebhookPayload) {
   return (
+    getRazorpayWebhookCreatedAt(payload) ??
     getRazorpayUnixDate(getRazorpayEntity(payload, "payment"), "created_at") ??
     getRazorpayUnixDate(getRazorpayEntity(payload, "subscription"), "created_at") ??
     getRazorpayUnixDate(getRazorpayEntity(payload, "refund"), "created_at") ??
