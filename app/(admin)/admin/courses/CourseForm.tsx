@@ -29,7 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { calculateCourseSubscriptionTotalPaise } from "@/lib/course-billing";
+import { calculateCourseSubscriptionTotalPaise, getCourseBillingPlanChange, parseRupeesToPaise } from "@/lib/course-billing";
 
 interface Course {
   id: string;
@@ -120,6 +120,19 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
     if (!form.subscriptionEnabled) return null;
     try {
       return calculateCourseSubscriptionTotalPaise(form.subscriptionAmount, form.subscriptionTotalCount);
+    } catch {
+      return null;
+    }
+  })();
+
+  const subscriptionPlanChange = (() => {
+    if (!form.subscriptionEnabled || tentativeSubscriptionTotalPaise === null) return null;
+    try {
+      return getCourseBillingPlanChange(currentBillingPlan, {
+        amountPaise: parseRupeesToPaise(form.subscriptionAmount),
+        interval: "monthly",
+        totalCount: Number(form.subscriptionTotalCount),
+      });
     } catch {
       return null;
     }
@@ -582,10 +595,18 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground md:col-span-3">
-                    Amounts are stored as paise on the server. Changing price or cycles creates a new local plan version; existing subscribers are not changed automatically.
-                  </p>
-                </div>
+                   <p className="text-xs text-muted-foreground md:col-span-3">
+                     Amounts are stored as paise on the server. Changing price or cycles creates a new local plan version; existing subscribers are not changed automatically.
+                   </p>
+                   {course && subscriptionPlanChange?.changed && (
+                     <div className="md:col-span-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+                       <p className="font-semibold">New plan version ready to stage: v{subscriptionPlanChange.nextVersion}</p>
+                       <p className="mt-1 text-xs leading-relaxed opacity-90">
+                         Save this course to create a draft with the new monthly terms. Existing subscribers retain their existing plan and Razorpay subscription. After saving, reopen the course and activate only the new draft plan for future subscribers.
+                       </p>
+                     </div>
+                   )}
+                 </div>
               )}
 
               {form.subscriptionEnabled && course && currentBillingPlan && (
@@ -1024,7 +1045,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                 ) : (
                   <>
                     <Save className="h-4 w-4" />
-                    <span>{course ? "Update Course" : "Create Course"}</span>
+                    <span>{course && subscriptionPlanChange?.changed ? `Save & create plan v${subscriptionPlanChange.nextVersion}` : course ? "Update Course" : "Create Course"}</span>
                   </>
                 )}
               </Button>

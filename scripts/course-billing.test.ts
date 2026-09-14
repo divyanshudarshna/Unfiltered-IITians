@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   calculateCourseSubscriptionTotalPaise,
   CourseBillingInputError,
+  getCourseBillingPlanChange,
   isSameCourseBillingPlan,
   normalizeCourseBillingInput,
   parseRupeesToPaise,
@@ -41,6 +42,21 @@ assert.equal(
     recurring,
   ),
   true,
+);
+
+assert.deepEqual(
+  getCourseBillingPlanChange(
+    { version: 1, amountPaise: 69900, currency: "INR", interval: "monthly", totalCount: 12 },
+    { amountPaise: 69900, interval: "monthly", totalCount: 12 },
+  ),
+  { changed: false, nextVersion: null },
+);
+assert.deepEqual(
+  getCourseBillingPlanChange(
+    { version: 1, amountPaise: 69900, currency: "INR", interval: "monthly", totalCount: 12 },
+    { amountPaise: 79900, interval: "monthly", totalCount: 12 },
+  ),
+  { changed: true, nextVersion: 2 },
 );
 assert.equal(
   isSameCourseBillingPlan(

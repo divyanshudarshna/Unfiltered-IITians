@@ -120,3 +120,18 @@ export function isSameCourseBillingPlan(
     plan.totalCount === config.totalCount
   );
 }
+
+export function getCourseBillingPlanChange(
+  currentPlan: { version: number; amountPaise: number; currency: string; interval: string; totalCount: number } | undefined,
+  proposedPlan: { amountPaise: number; interval: "monthly"; totalCount: number },
+) {
+  if (!currentPlan || !isSameCourseBillingPlan(currentPlan, {
+    billingMode: "RECURRING",
+    subscriptionEnabled: true,
+    ...proposedPlan,
+  })) {
+    return { changed: true, nextVersion: (currentPlan?.version ?? 0) + 1 };
+  }
+
+  return { changed: false, nextVersion: null };
+}
