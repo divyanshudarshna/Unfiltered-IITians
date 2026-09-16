@@ -294,7 +294,9 @@ export default function CourseList({
               subscriptionEnabled: course.subscriptionEnabled,
               recurringPlan: course.recurringPlan,
             });
-            const { amountRupees, regularRupees, discountPercent } = pricing;
+            const { amountRupees, regularRupees, discountPercent, oneTimeOption } = pricing;
+            const offerDiscountPercent =
+              oneTimeOption?.discountPercent ?? discountPercent;
 
               return (
                 <Card
@@ -302,10 +304,10 @@ export default function CourseList({
                   className="overflow-hidden flex flex-col h-full transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border-0 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 group relative"
                 >
                   {/* Discount Badge */}
-                  {!isEnrolled && discountPercent > 0 && (
+                  {!isEnrolled && offerDiscountPercent > 0 && (
                     <div className="absolute top-4 right-4 z-10">
                       <Badge className="bg-gradient-to-r from-red-500 to-pink-600 text-white">
-                        {discountPercent}% OFF
+                        {offerDiscountPercent}% OFF
                       </Badge>
                     </div>
                   )}
@@ -362,8 +364,65 @@ export default function CourseList({
 
                   <CardContent className="pb-3 flex-grow">
                     {/* Pricing */}
-                    <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 rounded-lg">
-                      {discountPercent > 0 ? (
+                    <div className="mb-4 overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-blue-50/70 p-3 shadow-sm dark:border-slate-700 dark:from-slate-800 dark:to-slate-800/70">
+                      {pricing.kind === "RECURRING" && oneTimeOption ? (
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                              Choose your payment
+                            </span>
+                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                              2 options
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="rounded-lg border border-blue-300 bg-white/90 p-2.5 ring-1 ring-blue-100 dark:border-blue-600 dark:bg-slate-900/70 dark:ring-blue-900">
+                              <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                                Monthly plan
+                              </div>
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-xl font-extrabold text-slate-950 dark:text-white">
+                                  {formatPrice(amountRupees)}
+                                </span>
+                                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                  /month
+                                </span>
+                              </div>
+                              <p className="mt-1 text-[10px] leading-tight text-slate-500 dark:text-slate-400">
+                                Spread the cost monthly
+                              </p>
+                            </div>
+
+                            <div className="relative rounded-lg border border-emerald-300 bg-emerald-50/80 p-2.5 dark:border-emerald-700 dark:bg-emerald-950/20">
+                              <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                                One-time payment
+                              </div>
+                              <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                                <span className="text-xl font-extrabold text-slate-950 dark:text-white">
+                                  {oneTimeOption.amountRupees > 0
+                                    ? formatPrice(oneTimeOption.amountRupees)
+                                    : "Free"}
+                                </span>
+                                {oneTimeOption.regularRupees && (
+                                  <span className="text-[10px] text-slate-500 line-through dark:text-slate-400">
+                                    {formatPrice(oneTimeOption.regularRupees)}
+                                  </span>
+                                )}
+                              </div>
+                              {oneTimeOption.savingsRupees > 0 ? (
+                                <p className="mt-1 text-[10px] font-semibold leading-tight text-emerald-700 dark:text-emerald-400">
+                                  Save {formatPrice(oneTimeOption.savingsRupees)} | {oneTimeOption.discountPercent}% off
+                                </p>
+                              ) : (
+                                <p className="mt-1 text-[10px] leading-tight text-slate-500 dark:text-slate-400">
+                                  Pay once for full access
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : discountPercent > 0 ? (
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-2xl font-bold text-gray-900 dark:text-white">
