@@ -38,7 +38,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!isLoaded || !user) return;
     fetch("/api/admin/roles/me")
-      .then((response) => response.ok ? response.json() : null)
+      .then((response) => {
+        if (!response.ok) throw new Error("Unable to verify admin access");
+        return response.json();
+      })
       .then((roleAccess) => setAccess(roleAccess))
       .catch(() => setAccess({ role: "STUDENT", permissions: [] }));
   }, [isLoaded, user]);
@@ -53,7 +56,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [access, pathname, router]);
 
-  if (!isLoaded || !user) {
+  const permission = pathname ? getPermissionForPath(pathname) : null;
+  const isAllowed = access?.role === "ADMIN" ||
+    (permission !== null && access?.permissions.includes(permission));
+
+  if (!isLoaded || !user || !access || !isAllowed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

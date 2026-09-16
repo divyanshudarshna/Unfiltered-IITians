@@ -1,10 +1,12 @@
 // app/api/admin/courses/inclusion-options/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 // ================== GET INCLUSION OPTIONS ==================
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    await assertAdminApiAccess(req.url, req.method);
     // Fetch all available options for course inclusions
     const [mockTests, mockBundles, sessions] = await Promise.all([
       // Get published mock tests
@@ -92,6 +94,8 @@ export async function GET() {
     });
 
   } catch (error) {
+    const authResponse = handleAuthError(error);
+    if (authResponse) return authResponse;
     console.error("❌ Fetch Inclusion Options Error:", error);
     return NextResponse.json({ error: "Failed to fetch inclusion options" }, { status: 500 });
   }

@@ -159,7 +159,6 @@ export default function ContentsPage() {
                 onSuccess={() => {
                   setOpen(false);
                   fetchContents();
-                  toast.success("Content created successfully");
                 }}
               />
             </DialogContent>
@@ -245,7 +244,6 @@ export default function ContentsPage() {
               courseId={courseId as string} 
               contents={contents} 
               refresh={fetchContents} 
-              lectureCounts={lectureCounts}
             />
           )}
         </CardContent>

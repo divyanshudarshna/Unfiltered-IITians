@@ -4,6 +4,7 @@ import { InclusionType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 import { CourseBillingInputError, normalizeCourseBillingInput } from "@/lib/course-billing";
+import { CacheKeys, invalidateCache } from "@/lib/cache";
 
 // ================== CREATE COURSE ==================
 export async function POST(req: Request) {
@@ -22,8 +23,22 @@ export async function POST(req: Request) {
       inclusions, // ✅ NEW: Array of inclusions { type, id }
      } = body;
 
-    if (!title || !price || !durationMonths) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (typeof title !== "string" || !title.trim()) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    }
+    if (!Number.isInteger(Number(price)) || Number(price) < 0) {
+      return NextResponse.json({ error: "Price must be a non-negative whole number" }, { status: 400 });
+    }
+    if (!Number.isInteger(Number(durationMonths)) || Number(durationMonths) < 1) {
+      return NextResponse.json({ error: "Duration must be a positive whole number" }, { status: 400 });
+    }
+    if (actualPrice !== null && actualPrice !== undefined && actualPrice !== "" &&
+      (!Number.isInteger(Number(actualPrice)) || Number(actualPrice) < 0)) {
+      return NextResponse.json({ error: "Discounted price must be a non-negative whole number" }, { status: 400 });
+    }
+    const validStatuses = ['DRAFT', 'PUBLISHED', 'ARCHIVED'];
+    if (status && !validStatuses.includes(status)) {
+      return NextResponse.json({ error: "Invalid course status" }, { status: 400 });
     }
 
     const billing = normalizeCourseBillingInput(body);
@@ -47,11 +62,11 @@ export async function POST(req: Request) {
       // Create the course
       const course = await tx.course.create({
         data: {
-          title,
-          description,
-          price,
-          actualPrice,
-          durationMonths,
+          title: title.trim(),
+          description: typeof description === "string" ? description.trim() || null : null,
+          price: Number(price),
+          actualPrice: actualPrice === null || actualPrice === undefined || actualPrice === "" ? null : Number(actualPrice),
+          durationMonths: Number(durationMonths),
           status: status || "DRAFT",
           courseType: validatedCourseType,
           order: courseOrder,
@@ -98,6 +113,7 @@ export async function POST(req: Request) {
       });
     });
 
+    await invalidateCache(CacheKeys.courses.list());
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     const authResponse = handleAuthError(err);
@@ -132,6 +148,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json(courses);
   } catch (err) {
+    const authResponse = handleAuthError(err);
+    if (authResponse) return authResponse;
     console.error("❌ List Courses Error:", err);
     return NextResponse.json({ error: "Failed to fetch courses" }, { status: 500 });
   }

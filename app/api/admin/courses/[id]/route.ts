@@ -4,6 +4,7 @@ import { InclusionType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 import { verifySecurityPassword } from "@/lib/securityPassword";
+import { CacheKeys, invalidateCache } from "@/lib/cache";
 import {
   CourseBillingInputError,
   hasCourseBillingInput,
@@ -13,7 +14,7 @@ import {
 } from "@/lib/course-billing";
 
 interface Params {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 interface CourseInclusionInput {
@@ -25,8 +26,9 @@ interface CourseInclusionInput {
 export async function GET(req: Request, { params }: Params) {
   try {
     await assertAdminApiAccess(req.url, req.method);
+    const { id } = await params;
     const course = await prisma.course.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         contents: { include: { lectures: true, quiz: true } },
         coupons: true,
@@ -52,8 +54,9 @@ export async function GET(req: Request, { params }: Params) {
 export async function PUT(req: Request, { params }: Params) {
   try {
     await assertAdminApiAccess(req.url, req.method);
+    const { id } = await params;
     // Validate ObjectId format first
-    if (!/^[0-9a-fA-F]{24}$/.test(params.id)) {
+    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json({ error: "Invalid course ID format" }, { status: 400 });
     }
 
@@ -76,18 +79,28 @@ export async function PUT(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
 
-    if (!price || Number.isNaN(Number(price)) || Number(price) < 0) {
-      return NextResponse.json({ error: "Valid price is required" }, { status: 400 });
+    if (!Number.isInteger(Number(price)) || Number(price) < 0) {
+      return NextResponse.json({ error: "Price must be a non-negative whole number" }, { status: 400 });
     }
 
-    if (!durationMonths || Number.isNaN(Number(durationMonths)) || Number(durationMonths) < 1) {
-      return NextResponse.json({ error: "Valid duration is required" }, { status: 400 });
+    if (!Number.isInteger(Number(durationMonths)) || Number(durationMonths) < 1) {
+      return NextResponse.json({ error: "Duration must be a positive whole number" }, { status: 400 });
+    }
+
+    if (actualPrice !== null && actualPrice !== undefined && actualPrice !== "" &&
+      (!Number.isInteger(Number(actualPrice)) || Number(actualPrice) < 0)) {
+      return NextResponse.json({ error: "Discounted price must be a non-negative whole number" }, { status: 400 });
+    }
+
+    if (order !== null && order !== undefined && order !== "" &&
+      (!Number.isInteger(Number(order)) || Number(order) < 1)) {
+      return NextResponse.json({ error: "Order must be a positive whole number" }, { status: 400 });
     }
 
     // ✅ Validate status - ensure it's a valid PublishStatus enum value
     const validStatuses = ['DRAFT', 'PUBLISHED', 'ARCHIVED'];
     if (status && !validStatuses.includes(status)) {
-      console.warn(`Invalid status "${status}" provided, defaulting to DRAFT`);
+      return NextResponse.json({ error: "Invalid course status" }, { status: 400 });
     }
 
     // ✅ Validate courseType - ensure it's a valid CourseType enum value
@@ -96,7 +109,7 @@ export async function PUT(req: Request, { params }: Params) {
 
     // Validate course exists first
     const existingCourse = await prisma.course.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!existingCourse) {
@@ -110,7 +123,7 @@ export async function PUT(req: Request, { params }: Params) {
     // Use transaction to update course and inclusions together
     const result = await prisma.$transaction(async (tx) => {
       const latestPlan = await tx.courseBillingPlan.findFirst({
-        where: { courseId: params.id },
+        where: { courseId: id },
         orderBy: { version: "desc" },
       });
       const effectiveBilling = billing ?? {
@@ -123,12 +136,12 @@ export async function PUT(req: Request, { params }: Params) {
 
       // Update the course
       await tx.course.update({
-        where: { id: params.id },
+          where: { id },
         data: { 
           title: title?.trim(), 
           description: description?.trim() || null, 
           price: Number(price), 
-          actualPrice: actualPrice ? Number(actualPrice) : null, 
+          actualPrice: actualPrice === null || actualPrice === undefined || actualPrice === "" ? null : Number(actualPrice),
            durationMonths: Number(durationMonths),
            status: status && validStatuses.includes(status) ? status : 'DRAFT', // ✅ Use validated status
            ...(validCourseType && { courseType: validCourseType }), // ✅ Only update if provided
@@ -143,7 +156,7 @@ export async function PUT(req: Request, { params }: Params) {
         try {
           // Delete existing inclusions
           await tx.courseInclusion.deleteMany({
-            where: { courseId: params.id }
+            where: { courseId: id }
           });
 
           // Create new inclusions if any
@@ -164,7 +177,7 @@ export async function PUT(req: Request, { params }: Params) {
               }
 
               return {
-                courseId: params.id,
+                courseId: id,
                 inclusionType: inclusion.type as InclusionType,
                 inclusionId: inclusion.id,
               };
@@ -185,7 +198,7 @@ export async function PUT(req: Request, { params }: Params) {
            if (!latestPlan || !isSameCourseBillingPlan(latestPlan, effectiveBilling)) {
              await tx.courseBillingPlan.create({
                data: {
-                 courseId: params.id,
+                  courseId: id,
                  version: (latestPlan?.version ?? 0) + 1,
                  status: "DRAFT",
                  amountPaise: effectiveBilling.amountPaise,
@@ -200,7 +213,7 @@ export async function PUT(req: Request, { params }: Params) {
 
         // Return updated course with inclusions
        const finalCourse = await tx.course.findUnique({
-         where: { id: params.id },
+          where: { id },
          include: {
            inclusions: true,
            billingPlans: { orderBy: { version: "desc" } },
@@ -210,6 +223,10 @@ export async function PUT(req: Request, { params }: Params) {
       return finalCourse;
     });
 
+    await Promise.all([
+      invalidateCache(CacheKeys.courses.list()),
+      invalidateCache(CacheKeys.courses.detail(id)),
+    ]);
     return NextResponse.json(result);
    } catch (err: unknown) {
     const authResponse = handleAuthError(err);
@@ -231,6 +248,7 @@ export async function DELETE(req: Request, { params }: Params) {
   try {
     // Enforce role based access: instructors cannot delete courses
     await assertAdminApiAccess(req.url, req.method);
+    const { id } = await params;
 
     const body = await req.json().catch(() => ({}));
     const passwordResult = verifySecurityPassword(
@@ -244,19 +262,23 @@ export async function DELETE(req: Request, { params }: Params) {
       );
     }
 
-    if (!/^[0-9a-fA-F]{24}$/.test(params.id)) {
+    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json({ error: "Invalid course ID format" }, { status: 400 });
     }
 
     const course = await prisma.course.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true },
     });
     if (!course) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
-    await prisma.course.delete({ where: { id: params.id } });
+    await prisma.course.delete({ where: { id } });
+    await Promise.all([
+      invalidateCache(CacheKeys.courses.list()),
+      invalidateCache(CacheKeys.courses.detail(id)),
+    ]);
     return NextResponse.json({ success: true });
    } catch (err: unknown) {
     const authResponse = handleAuthError(err);

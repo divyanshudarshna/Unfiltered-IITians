@@ -25,8 +25,16 @@ export async function GET() {
             price: true,
             actualPrice: true,
             durationMonths: true,
+            billingMode: true,
+            subscriptionEnabled: true,
             order: true,
             courseType: true,
+            billingPlans: {
+              where: { status: "ACTIVE", providerSyncState: "ACTIVE" },
+              orderBy: { version: "desc" },
+              take: 1,
+              select: { amountPaise: true, interval: true, totalCount: true },
+            },
             contents: {
               select: {
                 lectures: {
@@ -55,8 +63,9 @@ export async function GET() {
         });
 
         // Flatten instructor badge data
-        return rows.map(({ courseInstructors, contents, ...rest }) => ({
+        return rows.map(({ courseInstructors, contents, billingPlans, ...rest }) => ({
           ...rest,
+          recurringPlan: billingPlans[0] ?? null,
           instructors: courseInstructors.map((ci) => ci.instructor),
           hasFreePreview: contents.some((content) => content.lectures.length > 0),
           firstFreeLectureId: contents.flatMap((content) => content.lectures)[0]?.id ?? null,

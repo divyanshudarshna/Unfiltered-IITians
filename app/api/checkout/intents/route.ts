@@ -142,6 +142,11 @@ async function applyGeneralCoupon(
     if (claim.count !== 1) {
       throw new GeneralCouponCheckoutError("Coupon availability changed. Please try again");
     }
+  } else {
+    await tx.generalCoupon.update({
+      where: { id: coupon.id },
+      data: { reservedCount: { increment: 1 } },
+    });
   }
 
   const result = evaluateGeneralCouponForCheckout({

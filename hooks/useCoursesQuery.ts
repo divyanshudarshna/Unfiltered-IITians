@@ -17,6 +17,13 @@ interface Course {
   status: string;
   price?: number;
   actualPrice?: number;
+  billingMode?: "ONE_TIME" | "RECURRING";
+  subscriptionEnabled?: boolean;
+  recurringPlan?: {
+    amountPaise: number;
+    interval: string;
+    totalCount: number;
+  } | null;
   durationMonths?: number;
   enrolledStudents?: number;
   courseType?: string;

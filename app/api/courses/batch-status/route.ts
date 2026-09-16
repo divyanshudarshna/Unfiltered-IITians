@@ -5,6 +5,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getCached, setCached, CacheKeys } from "@/lib/cache";
+import { getCourseAccessStatus } from "@/lib/course-access-status";
+
+type CachedCourseAccess = ReturnType<typeof getCourseAccessStatus> & {
+  enrolledAt?: Date | string | null;
+};
 
 export async function POST(req: Request) {
   try {
@@ -13,7 +18,7 @@ export async function POST(req: Request) {
     // ✅ Allow unauthenticated requests (return all courses with no enrollment status)
     const { courseIds } = await req.json();
 
-    if (!Array.isArray(courseIds) || courseIds.length === 0) {
+    if (!Array.isArray(courseIds) || courseIds.length === 0 || courseIds.some((id) => typeof id !== "string")) {
       return NextResponse.json({ error: "courseIds array is required" }, { status: 400 });
     }
 
@@ -40,32 +45,55 @@ export async function POST(req: Request) {
 
     // ✅ Try to get from cache first
     const cacheKey = CacheKeys.courses.batchStatus(user.id);
-    let enrollmentMap = await getCached<Record<string, any>>(cacheKey);
+    let enrollmentMap = await getCached<Record<string, CachedCourseAccess>>(cacheKey);
 
     if (!enrollmentMap) {
-      // ✅ Batch fetch all enrollments for this user
-      const enrollments = await prisma.enrollment.findMany({
-        where: {
-          userId: user.id,
-          courseId: { in: courseIds }
-        },
-        select: {
-          courseId: true,
-          expiresAt: true,
-          enrolledAt: true
+      const now = new Date();
+      // Query all access rows because this user-level cache is reused across course lists.
+      const [enrollments, entitlements] = await Promise.all([
+        prisma.enrollment.findMany({
+          where: { userId: user.id },
+          select: { courseId: true, expiresAt: true, enrolledAt: true },
+        }),
+        prisma.entitlement.findMany({
+          where: {
+            userId: user.id,
+            resourceType: "COURSE",
+            status: "ACTIVE",
+            startsAt: { lte: now },
+            OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+          },
+          select: { resourceId: true, endsAt: true },
+        }),
+      ]);
+
+      const entitlementEndsByCourse = new Map<string, Date | null>();
+      for (const entitlement of entitlements) {
+        const existing = entitlementEndsByCourse.get(entitlement.resourceId);
+        if (existing === null || entitlement.endsAt === null) {
+          entitlementEndsByCourse.set(entitlement.resourceId, null);
+        } else if (!existing || entitlement.endsAt > existing) {
+          entitlementEndsByCourse.set(entitlement.resourceId, entitlement.endsAt);
         }
-      });
+      }
 
       // ✅ Create a map for O(1) lookups
       enrollmentMap = {};
-      enrollments.forEach(enrollment => {
+      enrollments.forEach((enrollment) => {
+        const access = getCourseAccessStatus({
+          enrollmentExpiresAt: enrollment.expiresAt,
+          entitlementEndsAt: entitlementEndsByCourse.get(enrollment.courseId),
+          now,
+        });
         enrollmentMap![enrollment.courseId] = {
-          isEnrolled: true,
-          hasAccess: !enrollment.expiresAt || new Date(enrollment.expiresAt) > new Date(),
-          expiresAt: enrollment.expiresAt,
+          ...access,
           enrolledAt: enrollment.enrolledAt
         };
       });
+      for (const [courseId, endsAt] of entitlementEndsByCourse) {
+        if (enrollmentMap[courseId]) continue;
+        enrollmentMap[courseId] = getCourseAccessStatus({ entitlementEndsAt: endsAt, now });
+      }
 
       // ✅ Cache for 30 seconds (user-specific data, short TTL)
       await setCached(cacheKey, enrollmentMap, 30);

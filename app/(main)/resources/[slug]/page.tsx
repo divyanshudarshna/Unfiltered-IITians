@@ -11,8 +11,8 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   
-  const material = await prisma.material.findUnique({
-    where: { slug: String(slug) },
+  const material = await prisma.material.findFirst({
+    where: { slug: String(slug), published: true },
     include: { subject: true },
   });
 
@@ -52,8 +52,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function MaterialDetailPage({ params }: Props) {
   const { slug } = await params;
 
-  const material = await prisma.material.findUnique({
-    where: { slug: String(slug) },
+  const material = await prisma.material.findFirst({
+    where: { slug: String(slug), published: true },
     include: { subject: true },
   });
 

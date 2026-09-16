@@ -30,6 +30,7 @@ import {
   PlayCircle,
 } from "lucide-react";
 import { useCoursesQuery, useBatchStatusQuery } from "@/hooks/useCoursesQuery";
+import { getCourseCatalogPricing } from "@/lib/course-catalog-pricing";
 
 interface Course {
   id: string;
@@ -37,6 +38,13 @@ interface Course {
   description?: string;
   price?: number;
   actualPrice?: number;
+  billingMode?: "ONE_TIME" | "RECURRING";
+  subscriptionEnabled?: boolean;
+  recurringPlan?: {
+    amountPaise: number;
+    interval: string;
+    totalCount: number;
+  } | null;
   durationMonths?: number;
   enrolledStudents?: number;
   status: string;
@@ -141,8 +149,8 @@ export default function CourseList({
       // Convert batch status response to enrollment status format
       Object.entries(batchStatusData).forEach(([courseId, status]) => {
         statuses[courseId] = {
-          isEnrolled: status.isEnrolled,
-          canEnroll: !status.isEnrolled,
+          isEnrolled: status.hasAccess,
+          canEnroll: !status.hasAccess,
         };
       });
     } else {
@@ -183,19 +191,6 @@ export default function CourseList({
       currency: "INR",
       maximumFractionDigits: 0,
     }).format(price);
-
-  // Price normalization helper
-  const getPriceDetails = (price: number, actualPrice?: number) => {
-    if (!actualPrice)
-      return { discounted: price, regular: null, discountPercent: 0 };
-    const regular = Math.max(price, actualPrice);
-    const discounted = Math.min(price, actualPrice);
-    const discountPercent =
-      regular > discounted
-        ? Math.round(((regular - discounted) / regular) * 100)
-        : 0;
-    return { regular, discounted, discountPercent };
-  };
 
   if (error) {
     return (
@@ -292,10 +287,14 @@ export default function CourseList({
             };
             const isEnrolled = enrollmentStatus.isEnrolled;
 
-            const { regular, discounted, discountPercent } = getPriceDetails(
-              course.price || 0,
-              course.actualPrice
-              );
+            const pricing = getCourseCatalogPricing({
+              price: course.price || 0,
+              actualPrice: course.actualPrice,
+              billingMode: course.billingMode,
+              subscriptionEnabled: course.subscriptionEnabled,
+              recurringPlan: course.recurringPlan,
+            });
+            const { amountRupees, regularRupees, discountPercent } = pricing;
 
               return (
                 <Card
@@ -368,18 +367,18 @@ export default function CourseList({
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                              {formatPrice(discounted)}
+                              {formatPrice(amountRupees)}
                             </span>
-                            {regular && (
+                            {regularRupees && (
                               <span className="text-sm text-muted-foreground line-through">
-                                {formatPrice(regular)}
+                                {formatPrice(regularRupees)}
                               </span>
                             )}
                             <Badge
                               variant="outline"
                               className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                             >
-                              Save {formatPrice((regular || 0) - discounted)}
+                              Save {formatPrice((regularRupees || 0) - amountRupees)}
                             </Badge>
                           </div>
                           <div className="text-xs text-green-600 font-medium">
@@ -389,8 +388,13 @@ export default function CourseList({
                       ) : (
                         <div className="flex items-center gap-2">
                           <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                            {discounted > 0 ? formatPrice(discounted) : "Free"}
+                            {amountRupees > 0 ? formatPrice(amountRupees) : "Free"}
                           </span>
+                          {pricing.suffix && (
+                            <span className="text-sm font-medium text-muted-foreground">
+                              {pricing.suffix}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -445,7 +449,7 @@ export default function CourseList({
         className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
       >
         <Link href={`/courses/${course.id}`}>
-          {discounted > 0 ? "Enroll Now" : "Start Free"}{" "}
+          {amountRupees > 0 ? "Enroll Now" : "Start Free"}{" "}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Link>
       </Button>

@@ -30,6 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { calculateCourseSubscriptionTotalPaise, getCourseBillingPlanChange, parseRupeesToPaise } from "@/lib/course-billing";
+import { ApiResponseError, readApiResponse } from "@/lib/api-response";
 
 interface Course {
   id: string;
@@ -296,11 +297,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
         body: JSON.stringify(sanitizedData),
       });
       
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("Failed to save course", { status: res.status });
-        throw new Error(errorData.details || errorData.error || "Failed to save course");
-      }
+      await readApiResponse(res, "Failed to save course");
 
       toast.success(course ? "Course updated successfully!" : "Course created successfully!");
       onSuccess();
@@ -335,8 +332,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
           body: JSON.stringify({ razorpayPlanId: razorpayPlanId.trim() }),
         },
       );
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Unable to verify Razorpay plan");
+      await readApiResponse(response, "Unable to verify Razorpay plan");
 
       toast.success("Razorpay plan verified and recurring checkout activated.");
       onSuccess();
@@ -367,16 +363,19 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
         `/api/admin/courses/${course.id}/billing-plans/${currentBillingPlan.id}/create-razorpay`,
         { method: "POST" },
       );
-      const data = await response.json();
-      if (!response.ok) {
-        if (typeof data.razorpayPlanId === "string") setRazorpayPlanId(data.razorpayPlanId);
-        throw new Error(data.error || "Unable to create Razorpay plan");
-      }
+      const data = await readApiResponse<{ billingPlan: { razorpayPlanId?: string | null } }>(
+        response,
+        "Unable to create Razorpay plan",
+      );
 
       setRazorpayPlanId(data.billingPlan.razorpayPlanId || "");
       toast.success("Razorpay plan created, verified, and activated.");
       onSuccess();
     } catch (error) {
+      if (error instanceof ApiResponseError && error.body && typeof error.body === "object") {
+        const razorpayPlanId = (error.body as { razorpayPlanId?: unknown }).razorpayPlanId;
+        if (typeof razorpayPlanId === "string") setRazorpayPlanId(razorpayPlanId);
+      }
       toast.error(error instanceof Error ? error.message : "Unable to create Razorpay plan");
     } finally {
       setCreatingRazorpayPlan(false);
@@ -399,8 +398,7 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
           body: JSON.stringify({ confirmedNoProviderPlan: true }),
         },
       );
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Unable to recover Razorpay plan creation");
+      await readApiResponse(response, "Unable to recover Razorpay plan creation");
 
       toast.success("Local plan creation lock cleared. Refreshing the course draft.");
       onSuccess();
@@ -692,8 +690,8 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                       onChange={handleChange} 
                       required 
                       min="0"
-                      step="0.01"
-                      placeholder="0.00"
+                      step="1"
+                      placeholder="0"
                       className="focus-visible:ring-primary h-11 pl-10 border-gray-300 dark:border-gray-600 dark:bg-gray-800/50"
                     />
                   </div>
@@ -714,10 +712,9 @@ export default function CourseForm({ onSuccess, course }: CourseFormProps) {
                       name="actualPrice" 
                       value={form.actualPrice} 
                       onChange={handleChange} 
-                      required 
                       min="0"
-                      step="0.01"
-                      placeholder="0.00"
+                      step="1"
+                      placeholder="0"
                       className="focus-visible:ring-primary h-11 pl-10 border-gray-300 dark:border-gray-600 dark:bg-gray-800/50"
                     />
                   </div>

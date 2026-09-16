@@ -18,6 +18,7 @@ import {
   XCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { getCourseCatalogPricing } from "@/lib/course-catalog-pricing";
 
 interface SubscriptionsClientProps {
   dbUser: {
@@ -118,22 +119,26 @@ export default function SubscriptionsClient({
   };
 
   // Process all subscriptions
-  const courses = (dbUser.enrollments || []).map((enrollment, index) => ({
-    id: `course-${enrollment.course.id}-${index}`,
-    itemId: enrollment.course.id,
-    title: enrollment.course.title,
-    description: enrollment.course.description,
-    price: enrollment.course.price,
-    originalPrice: enrollment.course.actualPrice,
-    purchaseDate: enrollment.enrolledAt,
-    type: 'course',
-    status: enrollment.course.status,
-    mockCount: undefined,
-    duration: undefined,
-    expiryDate: undefined,
-    icon: <BookOpen className="h-5 w-5 text-blue-500" />,
-    badgeColor: "bg-blue-100 text-blue-800 border-blue-200"
-  }));
+  const courses = (dbUser.enrollments || []).map((enrollment, index) => {
+    const pricing = getCourseCatalogPricing(enrollment.course);
+
+    return {
+      id: `course-${enrollment.course.id}-${index}`,
+      itemId: enrollment.course.id,
+      title: enrollment.course.title,
+      description: enrollment.course.description,
+      price: pricing.amountRupees,
+      originalPrice: pricing.regularRupees,
+      purchaseDate: enrollment.enrolledAt,
+      type: 'course',
+      status: enrollment.course.status,
+      mockCount: undefined,
+      duration: undefined,
+      expiryDate: undefined,
+      icon: <BookOpen className="h-5 w-5 text-blue-500" />,
+      badgeColor: "bg-blue-100 text-blue-800 border-blue-200"
+    };
+  });
 
   const mockTests = (dbUser.subscriptions || [])
     .filter((sub) => sub.mockTest)

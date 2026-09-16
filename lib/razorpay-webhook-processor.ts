@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getEarlierAccessStart, getLaterAccessEnd } from "@/lib/commerce-entitlement";
 import { classifyWebhookProcessingError } from "@/lib/webhook-processing";
+import { getCouponRedemptionAccounting } from "@/lib/coupon-reservation-redemption";
 import {
   getCapturedCourseAccessWindow,
   getGuidanceAccessEnd,
@@ -311,10 +312,8 @@ async function redeemGeneralCouponReservation(
   if (!couponId || !productType || originalAmountPaise === null || discountPaise === null || amountPaise === null) return;
 
   const reservation = await tx.generalCouponReservation.findUnique({ where: { checkoutId: checkout.id } });
-  if (!reservation || reservation.status === "REDEEMED") return;
-  if (reservation.status !== "RESERVED" || reservation.couponId !== couponId) {
-    throw new Error(`V2 checkout ${checkout.id} has an invalid general coupon reservation`);
-  }
+  const accounting = getCouponRedemptionAccounting(reservation, couponId);
+  if (accounting.alreadyRedeemed) return;
 
   await tx.generalCouponUsage.create({
     data: {
@@ -328,13 +327,18 @@ async function redeemGeneralCouponReservation(
       finalAmount: amountPaise / 100,
     },
   });
-  await tx.generalCouponReservation.update({
-    where: { id: reservation.id },
-    data: { status: "REDEEMED", redeemedAt: new Date() },
-  });
+  if (accounting.reservationId) {
+    await tx.generalCouponReservation.update({
+      where: { id: accounting.reservationId },
+      data: { status: "REDEEMED", redeemedAt: new Date() },
+    });
+  }
   await tx.generalCoupon.update({
     where: { id: couponId },
-    data: { reservedCount: { decrement: 1 }, usageCount: { increment: 1 } },
+    data: {
+      ...(accounting.decrementReservedCount ? { reservedCount: { decrement: 1 } } : {}),
+      usageCount: { increment: 1 },
+    },
   });
 }
 

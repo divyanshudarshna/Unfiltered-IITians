@@ -44,6 +44,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { getCourseCatalogPricing } from "@/lib/course-catalog-pricing";
 
 interface AcademicAffiliation {
   institution: string;
@@ -93,6 +94,13 @@ interface Course {
   durationMonths: number;
   details: CourseDetail[];
   hasFreePreview?: boolean;
+  billingMode?: string;
+  subscriptionEnabled?: boolean;
+  recurringPlan?: {
+    amountPaise: number;
+    interval: string;
+    totalCount: number;
+  } | null;
 }
 
 export default function CourseDetailsPage() {
@@ -123,7 +131,13 @@ export default function CourseDetailsPage() {
         if (courseRes.ok) {
           const courseData = await courseRes.json();
           setInstructors(courseData.instructors || []);
-          setCourse((current) => current ? { ...current, hasFreePreview: courseData.hasFreePreview } : current);
+          setCourse((current) => current ? {
+            ...current,
+            hasFreePreview: courseData.hasFreePreview,
+            billingMode: courseData.billingMode,
+            subscriptionEnabled: courseData.subscriptionEnabled,
+            recurringPlan: courseData.recurringPlan,
+          } : current);
         }
       } catch (err: any) {
         console.error("Error fetching course:", err);
@@ -174,6 +188,8 @@ export default function CourseDetailsPage() {
       </div>
     );
   }
+
+  const coursePricing = getCourseCatalogPricing(course);
 
   // Course highlights data
   const courseHighlights = [
@@ -315,14 +331,19 @@ export default function CourseDetailsPage() {
 
             <div className="text-center">
               <div className="text-3xl font-bold mb-4">
-                {course.actualPrice && (
+                {coursePricing.regularRupees !== null && (
                   <span className="line-through text-gray-400 text-2xl mr-3">
-                    ₹{course.price}
+                    ₹{coursePricing.regularRupees}
                   </span>
                 )}
                 <span className="bg-gradient-to-r from-green-600 to-green-500 dark:from-green-400 dark:to-green-300 bg-clip-text text-transparent">
-                  ₹{course.actualPrice}
+                  ₹{coursePricing.amountRupees}
                 </span>
+                {coursePricing.suffix && (
+                  <span className="ml-1 text-lg font-medium text-green-600 dark:text-green-300">
+                    {coursePricing.suffix}
+                  </span>
+                )}
               </div>
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center">

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
+import { readApiResponse } from "@/lib/api-response";
 import {
   FileText,
   Type,
@@ -19,14 +20,14 @@ import {
 
 interface ContentFormProps {
   courseId: string;
-  content?: any; // existing content for edit
+  content?: { id: string; title: string; description?: string | null; order: number };
   onSuccess: () => void;
 }
 
 export default function ContentForm({ courseId, content, onSuccess }: ContentFormProps) {
   const [title, setTitle] = useState(content?.title || "");
   const [description, setDescription] = useState(content?.description || "");
-  const [order, setOrder] = useState(content?.order || 1); // Default to 1
+  const [order, setOrder] = useState<number | string>(content?.order || 1); // Default to 1
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -63,16 +64,13 @@ export default function ContentForm({ courseId, content, onSuccess }: ContentFor
         }),
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to save content");
-      }
+      await readApiResponse(res, "Failed to save content");
 
       toast.success(content ? "Content updated successfully!" : "Content created successfully!");
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(err.message || "Failed to save content");
+      toast.error(err instanceof Error ? err.message : "Failed to save content");
     } finally {
       setLoading(false);
     }

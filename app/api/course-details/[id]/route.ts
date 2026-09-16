@@ -47,7 +47,7 @@ export async function GET(req: Request, { params }: Params) {
 
     return NextResponse.json(course, {
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        'Cache-Control': 'private, no-store',
       }
     });
   } catch (error) {
