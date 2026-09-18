@@ -25,9 +25,17 @@ interface QuizTableProps {
   questions: Question[];
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
-export default function QuizTable({ questions, onEdit, onDelete }: QuizTableProps) {
+export default function QuizTable({
+  questions,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true,
+}: QuizTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -145,12 +153,14 @@ export default function QuizTable({ questions, onEdit, onDelete }: QuizTableProp
               <TableHead className="min-w-[120px]">Options</TableHead>
               <TableHead className="min-w-[120px]">Correct Answer</TableHead>
               <TableHead className="min-w-[150px]">Explanation</TableHead>
-              <TableHead className="text-right w-32 sticky right-0 bg-background shadow-[-1px_0_0_0_hsl(var(--border))]">Actions</TableHead>
+              {(canEdit || canDelete) && (
+                <TableHead className="text-right w-32 sticky right-0 bg-background shadow-[-1px_0_0_0_hsl(var(--border))]">Actions</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentQuestions.length > 0 ? (
-              currentQuestions.map((question, index) => {
+              currentQuestions.map((question) => {
                 const globalIndex = questions.findIndex(q => q === question);
                 return (
                   <TableRow key={globalIndex}>
@@ -171,22 +181,28 @@ export default function QuizTable({ questions, onEdit, onDelete }: QuizTableProp
                     <TableCell>
                       <TruncatedText text={question.explanation || ""} maxLength={50} />
                     </TableCell>
-                    <TableCell className="sticky right-0 bg-background shadow-[-1px_0_0_0_hsl(var(--border))]">
-                      <div className="flex justify-end gap-2">
-                        <Button size="sm" variant="outline" onClick={() => onEdit(globalIndex)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => onDelete(globalIndex)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {(canEdit || canDelete) && (
+                      <TableCell className="sticky right-0 bg-background shadow-[-1px_0_0_0_hsl(var(--border))]">
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <Button size="sm" variant="outline" onClick={() => onEdit(globalIndex)}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button size="sm" variant="destructive" onClick={() => onDelete(globalIndex)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center h-24">
+                <TableCell colSpan={canEdit || canDelete ? 7 : 6} className="text-center h-24">
                   {searchTerm ? "No matching questions found." : "No questions found."}
                 </TableCell>
               </TableRow>

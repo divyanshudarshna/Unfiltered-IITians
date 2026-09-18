@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
+import { handleAuthError } from "@/lib/roleAuth";
+import { assertQuizManagementAccess } from "@/lib/quizAuth";
 
 interface Params {
-  params: { id: string }; // contentId
+  params: Promise<{ id: string }>;
 }
 
 // ➕ Create quiz
 export async function POST(req: Request, { params }: Params) {
   try {
-    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
+    await assertQuizManagementAccess(id, req.method);
     const { questions } = await req.json();
 
     if (!questions) {
@@ -45,8 +46,8 @@ export async function POST(req: Request, { params }: Params) {
 // 📖 Get quiz
 export async function GET(req: Request, { params }: Params) {
   try {
-    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
+    await assertQuizManagementAccess(id, req.method);
     const quiz = await prisma.quiz.findUnique({
       where: { contentId: id },
     });
@@ -68,8 +69,8 @@ export async function GET(req: Request, { params }: Params) {
 // ✏️ Update quiz
 export async function PUT(req: Request, { params }: Params) {
   try {
-    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
+    await assertQuizManagementAccess(id, req.method);
     const { questions } = await req.json();
 
     const updated = await prisma.quiz.update({
@@ -89,8 +90,8 @@ export async function PUT(req: Request, { params }: Params) {
 // ❌ Delete quiz
 export async function DELETE(req: Request, { params }: Params) {
   try {
-    await assertAdminApiAccess(req.url, req.method);
     const { id } = await params;
+    await assertQuizManagementAccess(id, req.method);
     await prisma.quiz.delete({
       where: { contentId: id },
     });

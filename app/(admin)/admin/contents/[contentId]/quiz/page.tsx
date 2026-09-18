@@ -11,10 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { PlusCircle, ArrowLeft, BarChart3, FileText, CheckSquare, Hash } from "lucide-react";
+import { PlusCircle, ArrowLeft, BarChart3, FileText, CheckSquare, Hash, ShieldAlert } from "lucide-react";
 import QuizForm from "./QuizForm";
 import QuizTable from "./QuizTable";
-import { Question, QuestionType } from "./QuizForm";
+import { Question } from "./QuizForm";
 import { Edit } from "lucide-react";
 interface Quiz {
   id: string;
@@ -22,6 +22,12 @@ interface Quiz {
   questions: Question[];
   createdAt: string;
   updatedAt: string;
+}
+
+interface RoleAccess {
+  role: string;
+  readOnly: boolean;
+  canDelete: boolean;
 }
 
 export default function QuizPage() {
@@ -34,32 +40,41 @@ export default function QuizPage() {
 
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
+  const [canManageQuiz, setCanManageQuiz] = useState(false);
+  const [roleAccess, setRoleAccess] = useState<RoleAccess | null>(null);
   const [open, setOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  const fetchQuiz = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/admin/contents/${contentId}/quiz`);
-      if (res.ok) {
-        const data = await res.json();
-        setQuiz(data);
-      } else if (res.status === 404) {
-        setQuiz(null);
-      } else {
-        throw new Error("Failed to load quiz");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load quiz");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchQuiz();
+    const fetchQuiz = async () => {
+      try {
+        setLoading(true);
+        const [res, accessResponse] = await Promise.all([
+          fetch(`/api/admin/contents/${contentId}/quiz`),
+          fetch("/api/admin/roles/me"),
+        ]);
+        if (res.ok) {
+          if (!accessResponse.ok) throw new Error("Failed to load role access");
+          const data = await res.json();
+          const access = (await accessResponse.json()) as RoleAccess;
+          setQuiz(data);
+          setRoleAccess(access);
+          setCanManageQuiz(true);
+        } else if (res.status === 401 || res.status === 403) {
+          setCanManageQuiz(false);
+        } else {
+          throw new Error("Failed to load quiz");
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load quiz");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchQuiz();
   }, [contentId]);
 
   // Calculate stats
@@ -69,8 +84,13 @@ export default function QuizPage() {
     msq: quiz?.questions.filter(q => q.type === "MSQ").length || 0,
     nat: quiz?.questions.filter(q => q.type === "NAT").length || 0,
   };
+  const canWriteQuiz = roleAccess?.role === "ADMIN" || roleAccess?.readOnly === false;
+  const canDeleteQuiz =
+    roleAccess?.role === "ADMIN" || (canWriteQuiz && roleAccess?.canDelete === true);
 
   const handleSaveQuestion = async (question: Question) => {
+    if (!canWriteQuiz) return;
+
     try {
       let updatedQuestions: Question[];
       
@@ -114,6 +134,7 @@ export default function QuizPage() {
 
   const handleDeleteQuestion = async (index: number) => {
     if (!quiz || !confirm("Are you sure you want to delete this question?")) return;
+    if (!canWriteQuiz || (quiz.questions.length === 1 && !canDeleteQuiz)) return;
     
     try {
       const updatedQuestions = quiz.questions.filter((_, i) => i !== index);
@@ -170,6 +191,28 @@ export default function QuizPage() {
   const handleBack = () => {
     router.push(`/admin/courses/${courseId}/contents`); // Replace with actual courseId if available
   };
+
+  if (loading) {
+    return <div className="py-12 text-center text-sm text-muted-foreground">Checking quiz access...</div>;
+  }
+
+  if (!canManageQuiz) {
+    return (
+      <Card className="mx-auto max-w-xl">
+        <CardContent className="flex flex-col items-center py-12 text-center">
+          <ShieldAlert className="mb-4 h-12 w-12 text-amber-600" />
+          <h1 className="text-xl font-semibold">Quiz access restricted</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your role does not have the required course permission for this quiz action.
+          </p>
+          <Button className="mt-6" variant="outline" onClick={handleBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to course contents
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6 min-w-0">
@@ -243,10 +286,12 @@ export default function QuizPage() {
             Manage all questions for this content
           </p>
         </div>
-        <Button onClick={() => setOpen(true)} className="gap-2 w-full sm:w-auto shrink-0">
-          <PlusCircle className="h-4 w-4" />
-          Add Question
-        </Button>
+        {canWriteQuiz && (
+          <Button onClick={() => setOpen(true)} className="gap-2 w-full sm:w-auto shrink-0">
+            <PlusCircle className="h-4 w-4" />
+            Add Question
+          </Button>
+        )}
       </div>
 
       {/* Questions Table */}
@@ -255,6 +300,8 @@ export default function QuizPage() {
           questions={quiz.questions} 
           onEdit={handleEditQuestion}
           onDelete={handleDeleteQuestion}
+          canEdit={canWriteQuiz}
+          canDelete={canWriteQuiz && (quiz.questions.length > 1 || canDeleteQuiz)}
         />
       ) : (
         <Card>
@@ -262,12 +309,16 @@ export default function QuizPage() {
             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No questions yet</h3>
             <p className="text-muted-foreground text-center mb-4">
-              Get started by adding your first question to this content.
+              {canWriteQuiz
+                ? "Get started by adding your first question to this content."
+                : "Your role has read-only access to course quizzes."}
             </p>
-            <Button onClick={() => setOpen(true)}>
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Create First Question
-            </Button>
+            {canWriteQuiz && (
+              <Button onClick={() => setOpen(true)}>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Create First Question
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
