@@ -32,6 +32,8 @@ interface QuestionTableProps {
   setGlobalFilter: (filter: string) => void;
   onEditQuestion: (question: Question) => void;
   onDeleteQuestion: (questionId: string) => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 export default function QuestionTable({
@@ -40,6 +42,8 @@ export default function QuestionTable({
   setGlobalFilter,
   onEditQuestion,
   onDeleteQuestion,
+  canEdit,
+  canDelete,
 }: QuestionTableProps) {
   const columns: ColumnDef<Question>[] = [
     {
@@ -120,13 +124,10 @@ export default function QuestionTable({
         const answer = info.getValue();
         const question = info.row.original;
 
-        if (typeof answer !== "string") {
-          return <Badge variant="outline" className="font-mono">Invalid</Badge>;
-        }
-
         const options = Array.isArray(question?.options) ? question.options : [];
-        const optionIndex = options.indexOf(answer);
-        const display = optionIndex >= 0 ? String.fromCharCode(65 + optionIndex) : answer;
+        const answerText = Array.isArray(answer) ? answer.join("; ") : String(answer ?? "");
+        const optionIndex = options.indexOf(answerText);
+        const display = optionIndex >= 0 ? String.fromCharCode(65 + optionIndex) : answerText;
 
         const maxLength = 20;
         const truncated = display.length > maxLength ? display.slice(0, maxLength) + "..." : display;
@@ -150,22 +151,26 @@ export default function QuestionTable({
 
         return (
           <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => onEditQuestion(question)}
-            >
-              <Edit2 className="w-4 h-4 mr-1" /> Edit
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-8"
-              onClick={() => onDeleteQuestion(question.id)}
-            >
-              <Trash2 className="w-4 h-4 mr-1" /> Delete
-            </Button>
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => onEditQuestion(question)}
+              >
+                <Edit2 className="w-4 h-4 mr-1" /> Edit
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8"
+                onClick={() => onDeleteQuestion(question.id)}
+              >
+                <Trash2 className="w-4 h-4 mr-1" /> Delete
+              </Button>
+            )}
           </div>
         );
       },
@@ -177,6 +182,7 @@ export default function QuestionTable({
     columns,
     state: {
       globalFilter,
+      columnVisibility: { actions: canEdit || canDelete },
     },
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
@@ -185,9 +191,9 @@ export default function QuestionTable({
     getPaginationRowModel: getPaginationRowModel(),
     globalFilterFn: (row, columnId, filterValue) => {
       const search = filterValue.toLowerCase();
-      const question = row.getValue("question").toString().toLowerCase();
-      const type = row.getValue("type").toString().toLowerCase();
-      const answer = row.getValue("answer").toString().toLowerCase();
+      const question = String(row.getValue("question") ?? "").toLowerCase();
+      const type = String(row.getValue("type") ?? "").toLowerCase();
+      const answer = String(row.getValue("answer") ?? "").toLowerCase();
 
       return (
         question.includes(search) ||
@@ -291,7 +297,7 @@ export default function QuestionTable({
 
 // Helper function for question type badge
 function getQuestionTypeBadge(type: string) {
-  const typeMap: Record<string, { icon: JSX.Element; color: string }> = {
+  const typeMap: Record<string, { icon: React.ReactElement; color: string }> = {
     MCQ: {
       icon: <List className="w-4 h-4" />,
       color: "bg-blue-100 text-blue-800",

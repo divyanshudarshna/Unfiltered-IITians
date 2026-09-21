@@ -4,11 +4,11 @@ import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 export async function DELETE(
   req: NextRequest, 
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await assertAdminApiAccess(req.url, req.method);
-    const { id } = params;
+    const { id } = await params;
 
     // Find the mock
     const mock = await prisma.mockTest.findUnique({ 
@@ -37,7 +37,7 @@ export async function DELETE(
       mock: updatedMock
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     const authResponse = handleAuthError(err);
     if (authResponse) return authResponse;
     console.error("Clear questions error:", err);

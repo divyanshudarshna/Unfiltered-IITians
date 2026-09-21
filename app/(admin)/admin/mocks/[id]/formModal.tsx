@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Plus, X, ImageIcon } from "lucide-react";
 import { Question } from "./types";
 import { toast } from "sonner";
+import { normalizeMsqAnswers } from "@/lib/mock-question-utils";
 
 interface FormModalProps {
   isOpen: boolean;
@@ -82,7 +83,7 @@ function EditQuestionForm({
     setMsqAnswers([]);
     
     if (question.type === "MSQ" && question.answer) {
-      setMsqAnswers(question.answer.split(';').filter(opt => opt.trim()));
+      setMsqAnswers(normalizeMsqAnswers(question.answer));
     } else if (question.type === "MCQ" && question.answer) {
       // Find the index of the correct answer in options
       const correctIndex = question.options?.findIndex(

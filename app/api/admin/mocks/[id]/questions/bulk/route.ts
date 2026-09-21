@@ -4,11 +4,11 @@ import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 export async function POST(
   req: NextRequest, 
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await assertAdminApiAccess(req.url, req.method);
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
     const { questions } = body;
 
@@ -94,15 +94,16 @@ export async function POST(
       mock: updatedMock
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     const authResponse = handleAuthError(err);
     if (authResponse) return authResponse;
     console.error("Bulk upload error:", err);
-    
-    if (err.message.includes("Question") && err.message.includes("Invalid") || 
-        err.message.includes("required") || err.message.includes("numerical")) {
+
+    const message = err instanceof Error ? err.message : "";
+    if ((message.includes("Question") && message.includes("Invalid")) ||
+        message.includes("required") || message.includes("numerical")) {
       return NextResponse.json(
-        { error: err.message }, 
+        { error: message },
         { status: 400 }
       );
     }

@@ -16,18 +16,17 @@ import QuizForm from "./QuizForm";
 import QuizTable from "./QuizTable";
 import { Question } from "./QuizForm";
 import { Edit } from "lucide-react";
+import {
+  canPerformAdminAction,
+  getApiErrorMessage,
+  type ClientRoleAccess,
+} from "@/lib/admin-client-access";
 interface Quiz {
   id: string;
   contentId: string;
   questions: Question[];
   createdAt: string;
   updatedAt: string;
-}
-
-interface RoleAccess {
-  role: string;
-  readOnly: boolean;
-  canDelete: boolean;
 }
 
 export default function QuizPage() {
@@ -41,7 +40,7 @@ export default function QuizPage() {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
   const [canManageQuiz, setCanManageQuiz] = useState(false);
-  const [roleAccess, setRoleAccess] = useState<RoleAccess | null>(null);
+  const [roleAccess, setRoleAccess] = useState<ClientRoleAccess | null>(null);
   const [open, setOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -57,7 +56,7 @@ export default function QuizPage() {
         if (res.ok) {
           if (!accessResponse.ok) throw new Error("Failed to load role access");
           const data = await res.json();
-          const access = (await accessResponse.json()) as RoleAccess;
+          const access = (await accessResponse.json()) as ClientRoleAccess;
           setQuiz(data);
           setRoleAccess(access);
           setCanManageQuiz(true);
@@ -84,9 +83,8 @@ export default function QuizPage() {
     msq: quiz?.questions.filter(q => q.type === "MSQ").length || 0,
     nat: quiz?.questions.filter(q => q.type === "NAT").length || 0,
   };
-  const canWriteQuiz = roleAccess?.role === "ADMIN" || roleAccess?.readOnly === false;
-  const canDeleteQuiz =
-    roleAccess?.role === "ADMIN" || (canWriteQuiz && roleAccess?.canDelete === true);
+  const canWriteQuiz = canPerformAdminAction(roleAccess, "courses", "PUT");
+  const canDeleteQuiz = canPerformAdminAction(roleAccess, "courses", "DELETE");
 
   const handleSaveQuestion = async (question: Question) => {
     if (!canWriteQuiz) return;
@@ -124,11 +122,11 @@ export default function QuizPage() {
         setOpen(false);
         resetForm();
       } else {
-        throw new Error("Failed to save question");
+        throw new Error(await getApiErrorMessage(response, "Failed to save question"));
       }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save question");
+      toast.error(error instanceof Error ? error.message : "Failed to save question");
     }
   };
 
@@ -150,7 +148,7 @@ export default function QuizPage() {
           toast.success("Quiz deleted!");
           return;
         } else {
-          throw new Error("Failed to delete quiz");
+          throw new Error(await getApiErrorMessage(response, "Failed to delete quiz"));
         }
       }
       
@@ -168,11 +166,11 @@ export default function QuizPage() {
         setQuiz(updatedQuiz);
         toast.success("Question deleted!");
       } else {
-        throw new Error("Failed to delete question");
+        throw new Error(await getApiErrorMessage(response, "Failed to delete question"));
       }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to delete question");
+      toast.error(error instanceof Error ? error.message : "Failed to delete question");
     }
   };
 

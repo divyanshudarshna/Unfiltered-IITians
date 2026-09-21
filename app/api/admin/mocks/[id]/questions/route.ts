@@ -3,10 +3,10 @@ import prisma from "@/lib/prisma";
 import { assertAdminApiAccess, handleAuthError } from "@/lib/roleAuth";
 
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await assertAdminApiAccess(req.url, req.method);
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
     const { question } = body;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Plus, Upload, Trash2 } from "lucide-react";
@@ -9,6 +9,11 @@ import FormModal from "./formModal";
 import { MockTestDetail, Question } from "./types";
 import CsvUploadModal from "./CsvUploadModal";
 import { toast } from "sonner";
+import {
+  canPerformAdminAction,
+  getApiErrorMessage,
+  type ClientRoleAccess,
+} from "@/lib/admin-client-access";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +33,7 @@ export default function MockDetailPage() {
   const [mock, setMock] = useState<MockTestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [roleAccess, setRoleAccess] = useState<ClientRoleAccess | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
 
   // For edit modal
@@ -42,16 +48,21 @@ export default function MockDetailPage() {
   const [isClearing, setIsClearing] = useState(false);
 
   // Fetch mock by id
-  const fetchMock = async () => {
+  const fetchMock = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/mocks/${mockId}`, {
-        credentials: "include",
-      });
+      const [res, accessResponse] = await Promise.all([
+        fetch(`/api/admin/mocks/${mockId}`, { credentials: "include" }),
+        fetch("/api/admin/roles/me", { credentials: "include" }),
+      ]);
       const data = await res.json();
 
       if (res.ok) {
+        if (!accessResponse.ok) {
+          throw new Error(await getApiErrorMessage(accessResponse, "Failed to load role access"));
+        }
         setMock(data.mock);
+        setRoleAccess((await accessResponse.json()) as ClientRoleAccess);
         setError(null);
       } else {
         setError(data.error || "Failed to load mock");
@@ -62,11 +73,11 @@ export default function MockDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [mockId]);
 
   useEffect(() => {
     if (mockId) fetchMock();
-  }, [mockId]);
+  }, [fetchMock, mockId]);
 
   // Handle CSV upload success
   const handleCsvUploadSuccess = () => {
@@ -75,6 +86,7 @@ export default function MockDetailPage() {
 
   // Clear all questions
   const handleClearAllQuestions = async () => {
+    if (!canDeleteMockQuestions) return;
     setIsClearing(true);
     try {
       const res = await fetch(
@@ -110,6 +122,7 @@ export default function MockDetailPage() {
 
   // Delete question
   const handleDeleteQuestion = async (questionId: string) => {
+    if (!canDeleteMockQuestions) return;
     if (!confirm("Are you sure you want to delete this question?")) return;
 
     try {
@@ -140,12 +153,14 @@ export default function MockDetailPage() {
 
   // Open edit modal and set current question
   const openEditModal = (question: Question) => {
+    if (!canWriteMockQuestions) return;
     setEditQuestion(question);
     setIsEditOpen(true);
   };
 
   // Handle save from edit modal
   const handleSaveQuestion = async (updatedQuestion: Question) => {
+    if (!canWriteMockQuestions) return;
     try {
       setLoading(true);
       const isNew = updatedQuestion.id.startsWith("temp-");
@@ -201,6 +216,7 @@ export default function MockDetailPage() {
 
   // Add new question
   const handleAddQuestion = () => {
+    if (!canWriteMockQuestions) return;
     const newQuestion: Question = {
       id: `temp-${Date.now()}`,
       question: "",
@@ -211,6 +227,9 @@ export default function MockDetailPage() {
     setEditQuestion(newQuestion);
     setIsEditOpen(true);
   };
+
+  const canWriteMockQuestions = canPerformAdminAction(roleAccess, "mocks", "PUT");
+  const canDeleteMockQuestions = canPerformAdminAction(roleAccess, "mocks", "DELETE");
 
   if (loading)
     return (
@@ -261,7 +280,7 @@ export default function MockDetailPage() {
           )}
         </div>
         <div className="flex gap-2">
-          {mock.questions.length > 0 && (
+          {canDeleteMockQuestions && mock.questions.length > 0 && (
             <AlertDialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" className="text-amber-400 hover:text-amber-800 hover:bg-red-50">
@@ -297,14 +316,18 @@ export default function MockDetailPage() {
               </AlertDialogContent>
             </AlertDialog>
           )}
-          <Button onClick={() => setIsCsvUploadOpen(true)} variant="outline">
-            <Upload className="w-4 h-4 mr-2" />
-            Upload CSV
-          </Button>
-          <Button onClick={handleAddQuestion}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Question
-          </Button>
+          {canWriteMockQuestions && (
+            <>
+              <Button onClick={() => setIsCsvUploadOpen(true)} variant="outline">
+                <Upload className="w-4 h-4 mr-2" />
+                Upload CSV
+              </Button>
+              <Button onClick={handleAddQuestion}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Question
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -314,6 +337,8 @@ export default function MockDetailPage() {
         setGlobalFilter={setGlobalFilter}
         onEditQuestion={openEditModal}
         onDeleteQuestion={handleDeleteQuestion}
+        canEdit={canWriteMockQuestions}
+        canDelete={canDeleteMockQuestions}
       />
 
       <FormModal
