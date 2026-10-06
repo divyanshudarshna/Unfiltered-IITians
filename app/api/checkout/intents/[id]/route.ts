@@ -1,21 +1,34 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getDbUserFromClerk } from "@/lib/roleAuth";
+import { reconcileCheckout } from "@/lib/billing-reconciliation";
+import { PENDING_CHECKOUT_STATUSES } from "@/lib/payment-recovery";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await getDbUserFromClerk();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const checkout = await prisma.commerceCheckout.findFirst({
+  let checkout = await prisma.commerceCheckout.findFirst({
     where: { id, userId: user.id },
   });
   if (!checkout) return NextResponse.json({ error: "Checkout not found" }, { status: 404 });
+  let reconciliationPending = false;
+  if (new URL(req.url).searchParams.get("reconcile") === "true"
+    && PENDING_CHECKOUT_STATUSES.some((status) => status === checkout!.status)) {
+    try {
+      await reconcileCheckout(checkout);
+      checkout = await prisma.commerceCheckout.findUniqueOrThrow({ where: { id } });
+    } catch (error) {
+      reconciliationPending = true;
+      console.error(`Checkout reconciliation failed for ${id}:`, error);
+    }
+  }
 
   const now = new Date();
   const entitlement = await prisma.entitlement.findFirst({
@@ -31,6 +44,7 @@ export async function GET(
   });
 
   return NextResponse.json({
+    reconciliationPending,
     checkout: {
       id: checkout.id,
       status: checkout.status,

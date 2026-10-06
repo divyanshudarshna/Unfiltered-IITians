@@ -72,6 +72,7 @@ interface SubscriptionsClientProps {
     id: string;
     title: string;
     productType: string;
+    productHref: string;
     status: string;
     amountPaise: number;
     currentPeriodEnd: Date | null;
@@ -87,8 +88,8 @@ export default function SubscriptionsClient({
   const [activeTab, setActiveTab] = useState("all");
   const [cancellingSubscriptionId, setCancellingSubscriptionId] = useState<string | null>(null);
 
-  const cancelSubscription = async (subscriptionId: string) => {
-    if (!window.confirm("Cancel auto-renewal at the end of the current paid period?")) return;
+  const cancelSubscription = async (subscriptionId: string, hasPaidPeriod: boolean) => {
+    if (!window.confirm(hasPaidPeriod ? "Cancel auto-renewal? Your existing paid access will remain valid through its expiry date." : "Cancel this unfinished subscription attempt so you can start again?")) return;
     setCancellingSubscriptionId(subscriptionId);
     try {
       const response = await fetch(`/api/billing/subscriptions/${subscriptionId}/cancel`, { method: "POST" });
@@ -364,35 +365,43 @@ export default function SubscriptionsClient({
 
         {recurringSubscriptions.length > 0 && (
           <div className="mb-8 space-y-3">
-            <h2 className="text-xl font-semibold">Auto-renewing subscriptions</h2>
-            {recurringSubscriptions.map((subscription) => (
+            <h2 className="text-xl font-semibold">Monthly subscriptions and pending checkouts</h2>
+            {recurringSubscriptions.map((subscription) => {
+              const terminal = ["CANCELLED", "COMPLETED"].includes(subscription.status);
+              const hasPaidPeriod = Boolean(subscription.currentPeriodEnd && new Date(subscription.currentPeriodEnd) > new Date());
+              const unfinished = !terminal && ["CREATED", "AUTHENTICATED"].includes(subscription.status) && !hasPaidPeriod;
+              return (
               <Card key={subscription.id}>
                 <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="font-medium">{subscription.title}</p>
                     <p className="text-sm text-muted-foreground">
-                      {subscription.productType} · ₹{(subscription.amountPaise / 100).toFixed(2)}/month · {subscription.status.toLowerCase()}
+                      {subscription.productType} · ₹{(subscription.amountPaise / 100).toFixed(2)}/month · {unfinished ? "Payment / authorization pending" : subscription.status.toLowerCase()}
                     </p>
-                    {subscription.currentPeriodEnd && (
+                    {unfinished && <p className="text-sm text-muted-foreground mt-1">This attempt has not activated access. Return to the product to retry, or cancel the unfinished attempt.</p>}
+                    {hasPaidPeriod && subscription.currentPeriodEnd && (
                       <p className="text-xs text-muted-foreground">
                         Paid access through {formatDate(subscription.currentPeriodEnd)}
                       </p>
                     )}
                   </div>
+                  <div className="flex flex-wrap gap-2">
+                  {unfinished && <Button variant="default" onClick={() => router.push(subscription.productHref)}>Retry payment</Button>}
                   {subscription.cancelAtPeriodEnd ? (
                     <Badge variant="secondary">Cancellation scheduled</Badge>
-                  ) : !["CANCELLED", "COMPLETED"].includes(subscription.status) ? (
+                  ) : !terminal ? (
                     <Button
                       variant="outline"
                       disabled={cancellingSubscriptionId === subscription.id}
-                      onClick={() => void cancelSubscription(subscription.id)}
+                      onClick={() => void cancelSubscription(subscription.id, hasPaidPeriod)}
                     >
-                      {cancellingSubscriptionId === subscription.id ? "Cancelling..." : "Cancel auto-renewal"}
+                      {cancellingSubscriptionId === subscription.id ? "Cancelling..." : unfinished ? "Cancel pending checkout" : "Cancel auto-renewal"}
                     </Button>
                   ) : null}
+                  </div>
                 </CardContent>
               </Card>
-            ))}
+            ); })}
           </div>
         )}
 

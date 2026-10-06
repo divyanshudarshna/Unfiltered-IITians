@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
+import type { CourseSubscriptionProviderStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { assertRazorpayServerConfiguration, razorpay } from "@/lib/razorpay";
-import {
-  COURSE_CHECKOUT_STALE_MS,
-  getStaleCourseCheckoutDecision,
-} from "@/lib/course-checkout-reconciliation";
-import { releaseConfirmedSessionSeat, releaseSessionSeatHold } from "@/lib/session-seat-inventory";
+import { reconcileCheckout } from "@/lib/billing-reconciliation";
+import { PENDING_CHECKOUT_STATUSES } from "@/lib/payment-recovery";
+import { releaseConfirmedSessionSeat } from "@/lib/session-seat-inventory";
 import { shouldReleaseRecurringSessionSeat } from "@/lib/session-seat-release";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function isAuthorized(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -97,88 +96,50 @@ export async function GET(req: Request) {
     where: { productType: "COURSE", releaseAfter: { lte: now } },
   });
 
-  const staleBefore = new Date(now.getTime() - COURSE_CHECKOUT_STALE_MS);
-  const staleCourseSlots = await prisma.commerceSubscriptionSlot.findMany({
-    where: {
-      productType: "COURSE",
-      createdAt: { lte: staleBefore },
-      OR: [{ releaseAfter: null }, { releaseAfter: { gt: now } }],
-    },
-    orderBy: { updatedAt: "asc" },
-    take: 100,
+  // Also recover missed renewals after the original checkout was already paid.
+  const renewalWhere = {
+    providerStatus: { in: ["ACTIVE", "AUTHENTICATED", "PENDING", "HALTED", "PAUSED"] as CourseSubscriptionProviderStatus[] },
+    originCheckoutId: { not: null },
+    OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { lte: now } }],
+  };
+  const [courseRenewals, commerceRenewals] = await Promise.all([
+    prisma.courseBillingSubscription.findMany({ where: renewalWhere, select: { originCheckoutId: true }, orderBy: { updatedAt: "asc" }, take: 25 }),
+    prisma.commerceBillingSubscription.findMany({ where: renewalWhere, select: { originCheckoutId: true }, orderBy: { updatedAt: "asc" }, take: 25 }),
+  ]);
+  const renewalIds = [...courseRenewals, ...commerceRenewals].flatMap((row) => row.originCheckoutId ? [row.originCheckoutId] : []);
+  // Discover canonical checkouts, including generic products and missing slots.
+  const pendingCheckouts = await prisma.commerceCheckout.findMany({
+    where: { OR: [
+      { status: { in: [...PENDING_CHECKOUT_STATUSES] }, createdAt: { lte: new Date(now.getTime() - 120_000) } },
+      { status: "PAID", id: { in: renewalIds } },
+    ] },
+    orderBy: { updatedAt: "asc" }, take: 25,
   });
-  const staleCourseCheckouts = staleCourseSlots.length > 0
-    ? await prisma.commerceCheckout.findMany({
-        where: {
-          id: { in: staleCourseSlots.map((slot) => slot.checkoutId) },
-        },
-      })
-    : [];
-  const checkoutById = new Map(staleCourseCheckouts.map((checkout) => [checkout.id, checkout]));
-  let releasedAbandonedCourseSlots = 0;
-  let courseReconciliationErrors = 0;
-
-  for (const slot of staleCourseSlots) {
-    const checkout = checkoutById.get(slot.checkoutId);
-    if (!checkout) {
-      await prisma.commerceSubscriptionSlot.delete({ where: { id: slot.id } });
-      releasedAbandonedCourseSlots += 1;
-      continue;
-    }
-    if (!["CREATED", "PROVIDER_CREATED", "PENDING"].includes(checkout.status)) {
-      await prisma.commerceSubscriptionSlot.update({
-        where: { id: slot.id },
-        data: { updatedAt: now },
-      });
-      continue;
-    }
+  let reconciledCheckouts = 0;
+  let cancelledCheckouts = 0;
+  let reconciliationErrors = 0;
+  const deadline = Date.now() + 45_000;
+  for (const checkout of pendingCheckouts) {
+    if (Date.now() >= deadline) break;
     try {
-      let decision: "KEEP" | "CANCEL_LOCAL" = "CANCEL_LOCAL";
-      let terminalProviderStatus: string | null = null;
-      if (checkout.checkoutType === "ONE_TIME" && checkout.razorpayOrderId) {
-        assertRazorpayServerConfiguration();
-        const order = await razorpay.orders.fetch(checkout.razorpayOrderId);
-        decision = getStaleCourseCheckoutDecision("ONE_TIME", order.status);
-      } else if (checkout.checkoutType === "COURSE_RECURRING" && checkout.razorpaySubscriptionId) {
-        assertRazorpayServerConfiguration();
-        const subscription = await razorpay.subscriptions.fetch(checkout.razorpaySubscriptionId);
-        terminalProviderStatus = subscription.status;
-        decision = getStaleCourseCheckoutDecision("COURSE_RECURRING", subscription.status);
-      }
-      if (decision !== "CANCEL_LOCAL") {
-        await prisma.commerceSubscriptionSlot.update({
-          where: { id: slot.id },
-          data: { updatedAt: now },
-        });
-        continue;
-      }
-
-      await prisma.$transaction(async (tx) => {
-        const cancelled = await tx.commerceCheckout.updateMany({
-          where: { id: checkout.id, status: { in: ["CREATED", "PROVIDER_CREATED", "PENDING"] } },
-          data: { status: "CANCELLED" },
-        });
-        if (cancelled.count === 0) return;
-        if (checkout.checkoutType === "COURSE_RECURRING") {
-          const terminalStatus = terminalProviderStatus === "completed" ? "COMPLETED" : "CANCELLED";
-          await tx.courseBillingSubscription.updateMany({
-            where: {
-              originCheckoutId: checkout.id,
-              providerStatus: { in: ["CREATED", "AUTHENTICATED", "ACTIVE", "PENDING", "HALTED", "PAUSED"] },
-            },
-            data: {
-              providerStatus: terminalStatus,
-              ...(terminalStatus === "CANCELLED" ? { cancelledAt: now } : {}),
-            },
-          });
-        }
-        await releaseSessionSeatHold(tx, checkout.id, now);
-        const result = await tx.commerceSubscriptionSlot.deleteMany({ where: { id: slot.id } });
-        releasedAbandonedCourseSlots += result.count;
-      });
+      const result = await reconcileCheckout(checkout);
+      reconciledCheckouts++;
+      if (result.action === "CANCEL_LOCAL") cancelledCheckouts++;
     } catch (error) {
-      courseReconciliationErrors += 1;
-      console.error(`Failed to reconcile stale course checkout ${checkout.id}:`, error);
+      reconciliationErrors++;
+      console.error(`Failed to reconcile pending checkout ${checkout.id}:`, error);
+    } finally {
+      // Rotate attempted rows without changing a concurrently paid status.
+      await prisma.commerceCheckout.updateMany({
+        where: { id: checkout.id, status: { in: [...PENDING_CHECKOUT_STATUSES, "PAID"] } },
+        data: { updatedAt: new Date() },
+      });
+      if (renewalIds.includes(checkout.id)) {
+        await Promise.all([
+          prisma.courseBillingSubscription.updateMany({ where: { originCheckoutId: checkout.id }, data: { updatedAt: new Date() } }),
+          prisma.commerceBillingSubscription.updateMany({ where: { originCheckoutId: checkout.id }, data: { updatedAt: new Date() } }),
+        ]);
+      }
     }
   }
 
@@ -187,8 +148,9 @@ export async function GET(req: Request) {
     checked: candidates.length,
     releasedSubscriptionSlots: releasedSubscriptionSlots.count,
     releasedExpiredCourseSlots: releasedExpiredCourseSlots.count,
-    releasedAbandonedCourseSlots,
-    courseReconciliationErrors,
+    reconciledCheckouts,
+    cancelledCheckouts,
+    reconciliationErrors,
     at: now.toISOString(),
   });
 }

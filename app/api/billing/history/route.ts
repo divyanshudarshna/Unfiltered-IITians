@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getCommerceBillingHistory } from "@/lib/commerce-billing-history";
 
 export async function GET() {
   try {
@@ -140,7 +141,10 @@ export async function GET() {
     });
 
     // Combine and sort by payment date
-    const allHistory = [...subscriptionHistory, ...sessionHistory]
+    const commerceHistory = await getCommerceBillingHistory(dbUser.id);
+    const commercePaymentIds = new Set(commerceHistory.map((item) => item.paymentId));
+    const legacyHistory = [...subscriptionHistory, ...sessionHistory].filter((item) => !commercePaymentIds.has(item.paymentId));
+    const allHistory = [...legacyHistory, ...commerceHistory]
       .filter(item => item.actualAmountPaid > 0) // ✅ Filter out ₹0 transactions
       .sort(
         (a, b) => {
@@ -154,7 +158,7 @@ export async function GET() {
       success: true,
       billingHistory: allHistory,
       totalTransactions: allHistory.length,
-      totalSpent: allHistory.reduce((sum, item) => sum + item.actualAmountPaid, 0),
+      totalSpent: allHistory.reduce((sum, item) => sum + ("paymentStatus" in item && item.paymentStatus === "REFUNDED" ? 0 : item.actualAmountPaid), 0),
     });
 
   } catch (error) {

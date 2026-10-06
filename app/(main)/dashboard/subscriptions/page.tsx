@@ -127,6 +127,7 @@ export default async function SubscriptionsPage() {
       id: subscription.id,
       title: subscription.course.title,
       productType: "Course",
+      productHref: `/courses/${subscription.courseId}?checkout=monthly`,
       status: subscription.providerStatus,
       amountPaise: subscription.billingPlan.amountPaise,
       currentPeriodEnd: subscription.currentPeriodEnd,
@@ -136,6 +137,8 @@ export default async function SubscriptionsPage() {
       id: subscription.id,
       title: productTitles.get(subscription.productId) ?? "Subscription",
       productType: subscription.productType.replaceAll("_", " "),
+      productHref: subscription.productType === "MOCK_TEST" ? `/mocks/${subscription.productId}`
+        : subscription.productType === "MOCK_BUNDLE" ? `/mockBundles/${subscription.productId}` : `/guidance/${subscription.productId}`,
       status: subscription.providerStatus,
       amountPaise: subscription.billingPlan.amountPaise,
       currentPeriodEnd: subscription.currentPeriodEnd,

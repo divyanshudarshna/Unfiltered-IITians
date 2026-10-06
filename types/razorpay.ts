@@ -28,6 +28,7 @@ export interface RazorpayOptions {
 
 export interface RazorpayInstance {
   open: () => void;
+  on: (event: "payment.failed", handler: (response: { error?: { code?: string; description?: string } }) => void) => void;
 }
 
 declare global {

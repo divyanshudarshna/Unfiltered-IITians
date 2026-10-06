@@ -29,6 +29,10 @@ interface BillingItem {
   expiresAt: Date | null;
   isExpired: boolean;
   duration?: number;
+  checkoutId?: string;
+  subscriptionId?: string | null;
+  paymentStatus?: string;
+  accessPending?: boolean;
 }
 
 interface BillingClientProps {
@@ -106,7 +110,7 @@ export default function BillingClient({ user }: BillingClientProps) {
           <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
             <p className="text-sm text-muted-foreground mb-1">Active Subscriptions</p>
             <p className="text-3xl font-bold">
-              {billingHistory.filter(item => !item.isExpired).length}
+              {new Set(billingHistory.filter(item => !item.isExpired && item.paymentStatus !== "REFUNDED").map(item => item.subscriptionId ?? item.checkoutId ?? item.id)).size}
             </p>
           </div>
         </div>

@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getCommerceBillingHistory } from "@/lib/commerce-billing-history";
 
 export async function GET(
   req: Request,
@@ -34,6 +35,17 @@ export async function GET(
         { error: "User not found" },
         { status: 404 }
       );
+    }
+
+    const [commercePayment] = await getCommerceBillingHistory(dbUser.id, receiptId);
+    if (commercePayment) {
+      return NextResponse.json({ success: true, receipt: {
+        ...commercePayment,
+        receiptNumber: `REC-${commercePayment.id.slice(-8).toUpperCase()}`,
+        customerName: dbUser.name || "N/A",
+        customerEmail: dbUser.email,
+        customerPhone: dbUser.phoneNumber || "N/A",
+      } });
     }
 
     // Try to find in subscriptions first

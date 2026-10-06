@@ -852,6 +852,8 @@ async function processSubscriptionEvent(
         externalKey,
         providerPaymentId: paymentId,
         providerSubscriptionId,
+        providerOrderId: getRazorpayString(payment, "order_id"),
+        checkoutId: subscription.originCheckoutId,
         amountPaise,
         currency,
         status: "CAPTURED",
@@ -1180,7 +1182,13 @@ export async function processRazorpayWebhookEvent(input: {
     return { duplicate: false };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { duplicate: true };
+      // A conflict in a payment/entitlement is not a processed webhook. Only
+      // acknowledge a duplicate after the original event transaction committed.
+      const existing = await prisma.razorpayWebhookEvent.findUnique({
+        where: { providerEventId: input.eventId },
+        select: { payloadHash: true },
+      });
+      if (existing?.payloadHash === input.payloadHash) return { duplicate: true };
     }
     throw error;
   }

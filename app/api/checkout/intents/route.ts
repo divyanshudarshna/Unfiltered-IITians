@@ -26,6 +26,8 @@ import {
   SessionSeatUnavailableError,
 } from "@/lib/session-seat-inventory";
 import { COURSE_CHECKOUT_STALE_MS } from "@/lib/course-checkout-reconciliation";
+import { BillingReconciliationError, reconcileCheckout } from "@/lib/billing-reconciliation";
+import { PENDING_CHECKOUT_STATUSES } from "@/lib/payment-recovery";
 
 export const runtime = "nodejs";
 
@@ -72,6 +74,9 @@ function isRecurringCheckout(checkoutType: CommerceCheckoutType) {
 }
 
 function errorResponse(error: unknown) {
+  if (error instanceof BillingReconciliationError) {
+    return NextResponse.json({ error: error.message, code: "RECONCILIATION_PENDING" }, { status: 502 });
+  }
   if (error instanceof CommerceCheckoutInputError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
@@ -648,7 +653,7 @@ export async function POST(req: Request) {
       const claim = await prisma.commerceCheckoutClaim.findUnique({
         where: { key: `${user.id}:${idempotencyKey}` },
       });
-      const existing = claim
+      let existing = claim
         ? await prisma.commerceCheckout.findUnique({ where: { id: claim.checkoutId } })
         : await prisma.commerceCheckout.findFirst({ where: { userId: user.id, idempotencyKey } });
       if (
@@ -678,6 +683,16 @@ export async function POST(req: Request) {
       if (existing?.status === "PAID") {
         return NextResponse.json({ checkout: checkoutResponse(existing) }, { status: 200 });
       }
+      if (existing && (existing.razorpayOrderId || existing.razorpaySubscriptionId)) {
+        const recovery = await reconcileCheckout(existing);
+        existing = await prisma.commerceCheckout.findUniqueOrThrow({ where: { id: existing.id } });
+        if (existing.status === "CANCELLED" || existing.status === "FAILED") {
+          return NextResponse.json({ error: "The previous checkout ended. Please try again.", code: "CHECKOUT_TERMINAL", checkout: checkoutResponse(existing) }, { status: 409 });
+        }
+        if (existing.status === "PAID") return NextResponse.json({ checkout: checkoutResponse(existing) });
+        if (existing.status === "REQUIRES_REVIEW") return NextResponse.json({ error: "This checkout requires payment review", code: "CHECKOUT_REQUIRES_REVIEW" }, { status: 409 });
+        if (recovery.action !== "RESUME") return NextResponse.json({ error: "Your subscription authorization is being processed. Check your subscriptions to manage or cancel it.", code: "PAYMENT_PENDING", checkout: checkoutResponse(existing) }, { status: 409 });
+      }
       if (existing?.razorpayOrderId) {
         return NextResponse.json({
           checkout: checkoutResponse(existing),
@@ -696,6 +711,30 @@ export async function POST(req: Request) {
       }
       if (existing) {
         return NextResponse.json({ error: "Checkout is already being created", code: "CHECKOUT_IN_PROGRESS" }, { status: 409 });
+      }
+    }
+
+    // Recover by owner/product, not just a browser-tab key. This also finds old
+    // checkouts whose auxiliary subscription slot was never persisted.
+    const pending = await prisma.commerceCheckout.findFirst({
+      where: { userId: user.id, productType: input.productType, productId: input.productId, status: { in: [...PENDING_CHECKOUT_STATUSES] } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (pending) {
+      const recovery = await reconcileCheckout(pending);
+      const current = await prisma.commerceCheckout.findUniqueOrThrow({ where: { id: pending.id } });
+      if (current.status === "PAID") return NextResponse.json({ checkout: checkoutResponse(current) });
+      if (current.status === "REQUIRES_REVIEW") return NextResponse.json({ error: "This checkout requires payment review", code: "CHECKOUT_REQUIRES_REVIEW" }, { status: 409 });
+      if (!["FAILED", "CANCELLED"].includes(current.status)) {
+        if (current.checkoutType !== input.checkoutType) {
+          return NextResponse.json({ error: "You have an unfinished checkout with a different payment option. Resume that option or cancel the pending subscription before changing plans.", code: "CHECKOUT_PENDING", checkout: checkoutResponse(current) }, { status: 409 });
+        }
+        if (recovery.action !== "RESUME") return NextResponse.json({ error: "Your subscription authorization is being processed. Check your subscriptions to manage or cancel it.", code: "PAYMENT_PENDING", checkout: checkoutResponse(current) }, { status: 409 });
+        return NextResponse.json({
+          checkout: checkoutResponse(current), resumed: true,
+          ...(current.razorpaySubscriptionId ? { subscription: { id: current.razorpaySubscriptionId } } : {}),
+          ...(current.razorpayOrderId ? { order: { id: current.razorpayOrderId, amount: current.amountPaise, currency: current.currency } } : {}),
+        });
       }
     }
 
@@ -829,9 +868,7 @@ export async function POST(req: Request) {
         const providerSubscription = await razorpay.subscriptions.create({
           plan_id: prepared.razorpayPlanId!,
           total_count: prepared.totalCount!,
-          ...(prepared.checkoutType === "COURSE_RECURRING"
-            ? { expire_by: Math.floor((Date.now() + COURSE_CHECKOUT_STALE_MS) / 1000) }
-            : {}),
+          expire_by: Math.floor((Date.now() + COURSE_CHECKOUT_STALE_MS) / 1000),
           customer_notify: 1,
            notes: {
              checkout_id: pendingCheckout.id,

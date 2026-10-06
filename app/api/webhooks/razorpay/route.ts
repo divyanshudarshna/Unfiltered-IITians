@@ -9,10 +9,7 @@ import type { RazorpayWebhookPayload } from "@/lib/razorpay-event";
 
 export const runtime = "nodejs";
 
-/**
- * Signed event ingestion foundation. Fulfillment stays disabled until the
- * transactional event processor and reconciliation job are deployed.
- */
+/** Authenticate the raw provider payload before transactional fulfillment. */
 export async function POST(req: Request) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-razorpay-signature");
@@ -39,7 +36,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid webhook JSON" }, { status: 400 });
   }
 
-  const eventType = typeof payload.event === "string" ? payload.event : null;
+  const eventType = payload && typeof payload.event === "string" ? payload.event : null;
   if (!eventType) {
     return NextResponse.json({ error: "Webhook event type is required" }, { status: 400 });
   }

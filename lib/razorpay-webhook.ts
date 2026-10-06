@@ -8,7 +8,10 @@ export function getRazorpayWebhookSecrets(
   env: {
     RAZORPAY_WEBHOOK_SECRET?: string;
     RAZORPAY_WEBHOOK_SECRET_PREVIOUS?: string;
-  } = {},
+  } = {
+    RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
+    RAZORPAY_WEBHOOK_SECRET_PREVIOUS: process.env.RAZORPAY_WEBHOOK_SECRET_PREVIOUS,
+  },
 ) {
   return [env.RAZORPAY_WEBHOOK_SECRET, env.RAZORPAY_WEBHOOK_SECRET_PREVIOUS].filter(
     (secret): secret is string => Boolean(secret),

@@ -143,7 +143,7 @@ export default function CourseDetailPage() {
   const [selectedCheckoutType, setSelectedCheckoutType] = useState<CourseCheckoutType>(getDefaultCourseCheckoutType());
 
   const courseCheckoutStorageKey = (courseId: string, checkoutType: "ONE_TIME" | "COURSE_RECURRING") =>
-    `v2-course-checkout:${courseId}:${checkoutType}`;
+    `v2-course-checkout:${userId}:${courseId}:${checkoutType}`;
 
   const instructorsSectionRef = useRef<HTMLDivElement>(null);
   const scrollToInstructors = () => {
@@ -157,9 +157,10 @@ export default function CourseDetailPage() {
         const res = await fetch(`/api/courses/${params.id}`);
         if (!res.ok) throw new Error("Failed to fetch course");
         const data = await res.json();
-         // Debug log
-         // Debug log
         setCourse(data);
+        if (v2CourseCheckoutEnabled && data.recurringPlan && new URLSearchParams(window.location.search).get("checkout") === "monthly") {
+          setSelectedCheckoutType("COURSE_RECURRING");
+        }
       } catch (err) {
         console.error(err);
         toast.error("Failed to load course details");
@@ -248,7 +249,8 @@ export default function CourseDetailPage() {
     toast.loading("Payment received. Confirming course access...", { id: "course-payment" });
     for (let attempt = 0; attempt < checkoutPollAttempts; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, checkoutPollIntervalMs));
-      const response = await fetch(`/api/checkout/intents/${checkoutId}`, { cache: "no-store" });
+      const reconcile = attempt === 0 || attempt === 12 || attempt === checkoutPollAttempts - 1;
+      const response = await fetch(`/api/checkout/intents/${checkoutId}${reconcile ? "?reconcile=true" : ""}`, { cache: "no-store" });
       if (!response.ok) continue;
       const data = await response.json() as {
         checkout: { status: CheckoutPollingStatus };
@@ -272,10 +274,10 @@ export default function CourseDetailPage() {
         return;
       }
     }
-    toast.info("Payment is still being confirmed. Course access will appear automatically once confirmed.", { id: "course-payment" });
+    toast.info("Payment confirmation is pending. You can retry this checkout safely or check your subscriptions. Contact support if money was debited and access is still missing.", { id: "course-payment" });
   };
 
-  const handleV2Checkout = async (checkoutType: "ONE_TIME" | "COURSE_RECURRING") => {
+  const handleV2Checkout = async (checkoutType: "ONE_TIME" | "COURSE_RECURRING", retried = false): Promise<void> => {
     if (!course) return;
     const storageKey = courseCheckoutStorageKey(course.id, checkoutType);
     const idempotencyKey = window.sessionStorage.getItem(storageKey) ?? `course:${course.id}:${checkoutType}:${crypto.randomUUID()}`;
@@ -293,7 +295,13 @@ export default function CourseDetailPage() {
     });
     const data = await response.json();
     if (!response.ok) {
-      if (data.code === "CHECKOUT_TERMINAL") window.sessionStorage.removeItem(storageKey);
+      if (data.code === "CHECKOUT_TERMINAL") {
+        window.sessionStorage.removeItem(storageKey);
+        if (!retried) return handleV2Checkout(checkoutType, true);
+      }
+      if (data.code === "CHECKOUT_PENDING" && ["ONE_TIME", "COURSE_RECURRING"].includes(data.checkout?.checkoutType)) {
+        setSelectedCheckoutType(data.checkout.checkoutType);
+      }
       throw new Error(data.error || "Unable to create checkout");
     }
     if (data.checkout?.status === "PAID" && data.checkout?.id) {
@@ -304,9 +312,15 @@ export default function CourseDetailPage() {
 
     await new Promise<void>((resolve, reject) => {
       let paymentConfirmationStarted = false;
-      const onCheckoutConfirmed = async () => {
+      const onCheckoutConfirmed = async (payment: { razorpay_payment_id: string; razorpay_order_id?: string; razorpay_subscription_id?: string; razorpay_signature: string }) => {
         paymentConfirmationStarted = true;
         try {
+          const confirmation = await fetch(`/api/checkout/intents/${data.checkout.id}/confirm`, {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payment),
+          });
+          if (confirmation.status === 401 || confirmation.status === 400) {
+            throw new Error("Payment verification failed. Please contact support with your payment details.");
+          }
           await waitForV2Fulfillment(data.checkout.id, storageKey);
           resolve();
         } catch (error) {
@@ -346,7 +360,11 @@ export default function CourseDetailPage() {
         reject(new Error("Payment provider did not return checkout details"));
         return;
       }
-      new window.Razorpay(options).open();
+      const razorpayCheckout = new window.Razorpay(options);
+      razorpayCheckout.on("payment.failed", (event: { error?: { description?: string } }) => {
+        toast.error(event.error?.description || "Payment failed. You can retry this checkout safely.");
+      });
+      razorpayCheckout.open();
     });
   };
 

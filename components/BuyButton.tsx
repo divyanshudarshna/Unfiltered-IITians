@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { RazorpayResponse } from "../types/razorpay";
 import { getCheckoutPollingDecision, type CheckoutPollingStatus } from "@/lib/checkout-status";
+import { confirmCheckoutPayment, checkoutStatusUrl } from "@/lib/client-checkout-confirmation";
 
 const v2BundleCheckoutEnabled = process.env.NEXT_PUBLIC_V2_BUNDLE_CHECKOUT_ENABLED === "true";
 const v2BundleSubscriptionEnabled = process.env.NEXT_PUBLIC_V2_BUNDLE_SUBSCRIPTIONS_ENABLED === "true";
@@ -52,7 +53,7 @@ export const BuyButton = ({
 
     for (let attempt = 0; attempt < checkoutPollAttempts; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, checkoutPollIntervalMs));
-      const response = await fetch(`/api/checkout/intents/${checkoutId}`, { cache: "no-store" });
+      const response = await fetch(checkoutStatusUrl(checkoutId, attempt), { cache: "no-store" });
       if (!response.ok) continue;
 
       const data = await response.json() as {
@@ -79,12 +80,12 @@ export const BuyButton = ({
       }
     }
 
-    toast.info("Payment is still being confirmed. Your access will appear automatically once confirmed.", { id: "verify-payment" });
+    toast.info("Payment is still being confirmed. Check your subscriptions or retry this checkout; contact support if money was debited.", { id: "verify-payment" });
   };
 
-  const handleV2Checkout = async (checkoutType: "ONE_TIME" | "RECURRING") => {
+  const handleV2Checkout = async (checkoutType: "ONE_TIME" | "RECURRING", retried = false): Promise<void> => {
     const v2ItemType = itemType === "session" ? "session" : "mockBundle";
-    const storageKey = `${checkoutStorageKey(v2ItemType, itemId)}:${checkoutType.toLowerCase()}`;
+    const storageKey = `${checkoutStorageKey(v2ItemType, itemId)}:${clerkUserId}:${checkoutType.toLowerCase()}`;
     const idempotencyKey = window.sessionStorage.getItem(storageKey) ?? `${v2ItemType}:${itemId}:${checkoutType}:${crypto.randomUUID()}`;
     window.sessionStorage.setItem(storageKey, idempotencyKey);
 
@@ -102,7 +103,10 @@ export const BuyButton = ({
     });
     const data = await response.json();
     if (!response.ok) {
-      if (data.code === "CHECKOUT_TERMINAL") window.sessionStorage.removeItem(storageKey);
+      if (data.code === "CHECKOUT_TERMINAL") {
+        window.sessionStorage.removeItem(storageKey);
+        if (!retried) return handleV2Checkout(checkoutType, true);
+      }
       throw new Error(data.error || "Unable to create checkout");
     }
     if (data.checkout?.status === "PAID" && data.checkout?.id) {
@@ -122,11 +126,17 @@ export const BuyButton = ({
         : data.order?.id
           ? { amount: data.order.amount, currency: data.order.currency, order_id: data.order.id }
           : (() => { throw new Error("Payment provider did not return a checkout order"); })()),
-      handler: () => {
-        void waitForV2Fulfillment(data.checkout.id, storageKey);
+      handler: async (payment) => {
+        try {
+          await confirmCheckoutPayment(data.checkout.id, payment);
+          await waitForV2Fulfillment(data.checkout.id, storageKey);
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "Unable to confirm payment", { id: "verify-payment" });
+        }
       },
       theme: { color: "#6366F1" },
     });
+    razorpay.on("payment.failed", (failure) => toast.error(failure.error?.description || "Payment failed. You can retry this checkout."));
     razorpay.open();
   };
 

@@ -24,6 +24,8 @@ interface BillingItem {
   expiresAt: Date | null;
   isExpired: boolean;
   duration?: number;
+  paymentStatus?: string;
+  accessPending?: boolean;
 }
 
 interface BillingItemCardProps {
@@ -77,7 +79,7 @@ export function BillingItemCard({ item }: BillingItemCardProps) {
       // PAYMENT RECEIPT label
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
-      doc.text("PAYMENT RECEIPT", pageWidth - 20, 20, { align: "right" });
+      doc.text(receipt.paymentStatus === "REFUNDED" ? "REFUNDED PAYMENT" : "PAYMENT RECEIPT", pageWidth - 20, 20, { align: "right" });
       
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
@@ -312,7 +314,7 @@ export function BillingItemCard({ item }: BillingItemCardProps) {
               {item.isExpired ? (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
                   <XCircle className="w-3 h-3" />
-                  Expired
+                  {item.paymentStatus === "REFUNDED" ? "Refunded" : item.accessPending ? "Access pending" : "Expired"}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-600">

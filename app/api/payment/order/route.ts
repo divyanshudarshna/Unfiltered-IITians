@@ -28,12 +28,10 @@ export async function POST(req: Request) {
     const {
       itemId,
       itemType,
-      mockIds,
       studentPhone,
-      amount: frontendAmount, // ✅ receive frontend amount (discounted price)
     } = await req.json();
 
-    if (!itemId || !itemType) {
+    if (typeof itemId !== "string" || !["mockTest", "mockBundle", "session"].includes(itemType)) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -54,13 +52,16 @@ export async function POST(req: Request) {
     // --- 1) Mock Test Purchase ---
     if (itemType === "mockTest") {
       const mock = await prisma.mockTest.findUnique({ where: { id: itemId } });
-      if (!mock || !mock.price) {
+      if (!mock || mock.status !== "PUBLISHED" || !mock.price) {
         return NextResponse.json(
           { error: "Invalid or free mock" },
           { status: 400 }
         );
       }
-      amount = mock.price * 100;
+      if (mock.billingMode === "RECURRING" && mock.subscriptionEnabled) {
+        return NextResponse.json({ error: "This mock requires recurring checkout" }, { status: 409 });
+      }
+      amount = Math.round(mock.price * 100);
       subscriptionData.push({ 
         mockTestId: mock.id,
         mockBundleId: null, // Individual mock purchase
@@ -72,37 +73,32 @@ export async function POST(req: Request) {
 
     // --- 2) Mock Bundle Purchase ---
     if (itemType === "mockBundle") {
-      if (!mockIds || mockIds.length === 0) {
+      const bundle = await prisma.mockBundle.findUnique({ where: { id: itemId } });
+      if (!bundle || bundle.status !== "PUBLISHED" || !bundle.mockIds.length) {
         return NextResponse.json(
-          { error: "No mocks selected in bundle" },
+          { error: "Invalid or unavailable mock bundle" },
           { status: 400 }
         );
       }
-
+      if (bundle.billingMode === "RECURRING" && bundle.subscriptionEnabled) {
+        return NextResponse.json({ error: "This bundle requires recurring checkout" }, { status: 409 });
+      }
+      const mockIds = [...new Set(bundle.mockIds)];
       const mocks = await prisma.mockTest.findMany({
-        where: { id: { in: mockIds } },
+        where: { id: { in: mockIds }, status: "PUBLISHED" },
       });
 
-      if (!mocks.length) {
+      if (mocks.length !== mockIds.length) {
         return NextResponse.json(
           { error: "No valid mocks found in bundle" },
           { status: 400 }
         );
       }
 
-      // Calculate original total price
-      const originalTotalPrice = mocks.reduce((acc, m) => acc + (m.price || 0), 0);
-      
-      // ✅ Use frontend amount (discounted price) if provided, otherwise fallback to sum of mock prices
-      let finalAmount = originalTotalPrice;
-      if (frontendAmount !== undefined && frontendAmount !== null) {
-        finalAmount = frontendAmount;
-        amount = frontendAmount * 100; // Convert to paise
-      } else {
-        amount = originalTotalPrice * 100;
-      }
-
-      const discountApplied = originalTotalPrice - finalAmount;
+      const finalAmount = bundle.discountedPrice ?? bundle.basePrice;
+      amount = Math.round(finalAmount * 100);
+      const originalPrice = bundle.basePrice;
+      const discountApplied = Math.max(0, originalPrice - finalAmount);
 
       // ✅ FIX: Set individual mock subscriptions with 0 amount since they're covered by the bundle
       subscriptionData = mocks.map((m) => ({
@@ -117,7 +113,7 @@ export async function POST(req: Request) {
       subscriptionData.push({
         mockTestId: null, // ✅ Bundle subscription is NOT linked to individual mock
         mockBundleId: itemId, // ✅ Link to the bundle
-        originalPrice: originalTotalPrice,
+        originalPrice,
         actualAmountPaid: finalAmount,
         discountApplied: discountApplied,
       });
@@ -145,7 +141,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "This guidance session has expired" }, { status: 409 });
       }
 
-      if (!studentPhone) {
+      if (typeof studentPhone !== "string" || !studentPhone.trim()) {
         return NextResponse.json(
           { error: "Student phone number is required" },
           { status: 400 }
@@ -168,20 +164,22 @@ export async function POST(req: Request) {
         );
       }
 
-      // Clean up any existing PENDING enrollments for this user-session
-      await prisma.sessionEnrollment.deleteMany({
-        where: {
-          sessionId: sessionRecord.id,
-          userId: user.id,
-          paymentStatus: { in: ["PENDING", "FAILED"] }
-        },
+      amount = Math.round((sessionRecord.discountedPrice ?? sessionRecord.price) * 100);
+      const pendingEnrollment = await prisma.sessionEnrollment.findFirst({
+        where: { sessionId: sessionRecord.id, userId: user.id, paymentStatus: { in: ["PENDING", "FAILED"] } },
       });
-
-      // ✅ Use frontend amount (discounted price) if provided for sessions
-      if (frontendAmount !== undefined && frontendAmount !== null) {
-        amount = frontendAmount * 100; // Convert to paise
-      } else {
-        amount = (sessionRecord.discountedPrice || sessionRecord.price) * 100;
+      if (pendingEnrollment) {
+        if (!pendingEnrollment.razorpayOrderId || Math.round((pendingEnrollment.amountPaid ?? 0) * 100) !== amount) {
+          return NextResponse.json({ error: "A previous payment attempt needs review. Please contact support before starting another payment." }, { status: 409 });
+        }
+        const previousOrder = await razorpay.orders.fetch(pendingEnrollment.razorpayOrderId);
+        if (previousOrder.id !== pendingEnrollment.razorpayOrderId || Number(previousOrder.amount) !== amount || previousOrder.currency !== "INR") {
+          return NextResponse.json({ error: "The previous order needs payment review" }, { status: 409 });
+        }
+        if (previousOrder.status === "paid") {
+          return NextResponse.json({ error: "Payment was received for the previous checkout. Please contact support to confirm access." }, { status: 409 });
+        }
+        return NextResponse.json({ order: previousOrder, resumed: true }, { status: 200 });
       }
 
       enrollmentData.push({
@@ -192,6 +190,10 @@ export async function POST(req: Request) {
         studentPhone,
         accessEndsAt: sessionRecord.expiryDate,
       });
+    }
+
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
+      return NextResponse.json({ error: "This product does not have a valid paid price" }, { status: 400 });
     }
 
     // --- Generate receipt ---
@@ -212,9 +214,9 @@ export async function POST(req: Request) {
           mockTestId: sub.mockTestId || null,
           mockBundleId: sub.mockBundleId || null, // Use mockBundleId from subscription data
           razorpayOrderId: order.id,
-          originalPrice: (sub.originalPrice || 0) * 100, // Store in paise
-          actualAmountPaid: (sub.actualAmountPaid || 0) * 100, // Store in paise
-          discountApplied: (sub.discountApplied || 0) * 100, // Store in paise
+          originalPrice: Math.round((sub.originalPrice || 0) * 100),
+          actualAmountPaid: Math.round((sub.actualAmountPaid || 0) * 100),
+          discountApplied: Math.round((sub.discountApplied || 0) * 100),
           paid: false,
         },
       });
