@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { contactAttachmentLinks } from "@/lib/contact-attachment-storage";
 
 /**
  * GET /api/contact-us/thread/[threadId]
@@ -53,6 +54,7 @@ export async function GET(
         subject: originalInquiry.subject,
         message: originalInquiry.message,
         createdAt: originalInquiry.createdAt,
+        attachments: contactAttachmentLinks(originalInquiry.attachments),
       },
       messages: messages.map(msg => ({
         id: msg.id,
@@ -63,9 +65,10 @@ export async function GET(
         conversationType: msg.conversationType,
         createdAt: msg.createdAt,
         status: msg.status,
+        attachments: contactAttachmentLinks(msg.attachments),
       })),
-      latestMessage: messages[messages.length - 1],
-    });
+      latestMessage: { ...messages[messages.length - 1], attachments: contactAttachmentLinks(messages[messages.length - 1].attachments) },
+    }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("❌ Error fetching thread:", error);
     return NextResponse.json(

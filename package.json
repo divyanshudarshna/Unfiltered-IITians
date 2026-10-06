@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:payments": "node scripts/test-payments.cjs",
+    "test:contact": "node scripts/contact-attachments.test.cjs",
     "billing:reconcile": "tsx scripts/reconcile-pending-checkouts.ts",
     "postinstall": "prisma generate"
   },

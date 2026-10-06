@@ -1,37 +1,29 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { readContactSubmission } from "@/lib/contact-submission";
+import { ContactInputError, type ContactAttachment } from "@/lib/contact-attachments";
+import { contactAttachmentLinks, removeContactAttachments, uploadContactAttachments } from "@/lib/contact-attachment-storage";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 /**
  * POST /api/contact-us/reply
  * Handles user replies to admin emails - creates threaded conversation
  */
 export async function POST(req: Request) {
+  let uploaded: ContactAttachment[] = [];
+  let saved = false;
   try {
-    const body = await req.json();
-    const { threadId, parentId, user_name, user_email, message } = body;
-
-    // Validate required fields
-    if (!threadId || !user_email || !message || !user_name) {
-      return NextResponse.json(
-        { error: "Missing required fields: threadId, user_email, message, user_name" },
-        { status: 400 }
-      );
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(user_email)) {
-      return NextResponse.json(
-        { error: "Invalid email format" },
-        { status: 400 }
-      );
-    }
+    const { threadId, parentId, user_name, user_email, message, files } = await readContactSubmission(req, true);
 
     // Verify thread exists
     const threadExists = await prisma.contactUs.findFirst({
       where: {
         threadId: threadId,
+        email: user_email,
+        conversationType: { in: ["NEW_INQUIRY", "USER_REPLY"] },
       },
     });
 
@@ -40,6 +32,10 @@ export async function POST(req: Request) {
         { error: "Thread not found" },
         { status: 404 }
       );
+    }
+
+    if (parentId && !await prisma.contactUs.findFirst({ where: { id: parentId, threadId } })) {
+      return NextResponse.json({ error: "Parent message not found in this conversation." }, { status: 400 });
     }
 
     // Fetch all messages in the thread for conversation history
@@ -78,7 +74,7 @@ export async function POST(req: Request) {
 
     // Build conversation history string
     let conversationHistory = '\n\n------- Conversation History -------\n';
-    allThreadMessages.forEach((msg, index) => {
+    allThreadMessages.forEach((msg) => {
       const typeLabel = msg.conversationType === 'NEW_INQUIRY' ? 'Original Inquiry' : 
                        msg.conversationType === 'ADMIN_REPLY' ? 'Admin Reply' : 'User Reply';
       conversationHistory += `\n[${typeLabel}] - ${new Date(msg.createdAt).toLocaleString('en-IN')}:\n${msg.message}\n`;
@@ -87,12 +83,14 @@ export async function POST(req: Request) {
     // Create the reply with full conversation history
     const fullMessage = `${message}${conversationHistory}`;
 
+    uploaded = await uploadContactAttachments(files);
     const reply = await prisma.contactUs.create({
       data: {
         name: user_name,
         email: user_email,
         subject: `Re: ${threadExists.subject}`,
         message: fullMessage,
+        ...(uploaded.length ? { attachments: uploaded } : {}),
         status: "PENDING",
         threadId: threadId,
         parentId: parentId || undefined,
@@ -101,6 +99,7 @@ export async function POST(req: Request) {
         lastMessageDate: new Date(),
       },
     });
+    saved = true;
 
     // Get base URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
@@ -155,6 +154,7 @@ export async function POST(req: Request) {
             <div class="message-box">
               <strong>Latest Reply:</strong>
               <p style="white-space: pre-wrap; margin-top: 10px;">${message}</p>
+              ${uploaded.length ? `<p>${uploaded.length} attachment(s) included. Open this conversation in the admin panel to view or download them.</p>` : ""}
             </div>
             
             <div class="conversation-section">
@@ -171,25 +171,30 @@ export async function POST(req: Request) {
       </html>
     `;
 
-    await sendEmail({
-      to: adminEmail,
-      customSubject: `[Reply] ${threadExists.subject}`,
-      customHtml: adminNotificationHtml,
-      source: 'contact-reply',
-      sentBy: user_email,
-      metadata: {
-        threadId,
-        parentId,
-        contactId: reply.id,
-      }
-    });
+    try {
+      await sendEmail({
+        to: adminEmail,
+        customSubject: `[Reply] ${threadExists.subject}`,
+        customHtml: adminNotificationHtml,
+        source: 'contact-reply',
+        sentBy: user_email,
+        metadata: { threadId, parentId, contactId: reply.id },
+      });
+    } catch (emailError) {
+      // The reply and attachments are already saved; do not prompt a duplicate submission.
+      console.error("Contact reply notification failed:", emailError);
+    }
 
     return NextResponse.json({
       success: true,
       message: "Reply sent successfully",
-      data: reply,
+      data: { ...reply, attachments: contactAttachmentLinks(reply.attachments) },
     });
   } catch (error) {
+    if (!saved) await removeContactAttachments(uploaded);
+    if (error instanceof ContactInputError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("POST ContactUs Reply error:", error);
     return NextResponse.json(
       { error: "Failed to send reply" },

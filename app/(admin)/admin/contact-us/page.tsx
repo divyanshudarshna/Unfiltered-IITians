@@ -29,6 +29,8 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "sonner";
+import AttachmentLinks from "@/components/contact/AttachmentLinks";
+import type { ContactAttachmentLink } from "@/lib/contact-attachments";
 
 type ConversationType = "NEW_INQUIRY" | "ADMIN_REPLY" | "USER_REPLY";
 type ContactStatus = "PENDING" | "RESOLVED" | "DELETED";
@@ -45,6 +47,7 @@ type ConversationMessage = {
   createdAt: string;
   updatedAt: string;
   isAdmin: boolean;
+  attachments?: ContactAttachmentLink[];
 };
 
 type AdminConversation = {
@@ -491,6 +494,7 @@ export default function AdminContactUsPage() {
                         </div>
 
                         <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.cleanMessage}</p>
+                        <AttachmentLinks attachments={msg.attachments} />
                       </div>
                     </div>
                   );

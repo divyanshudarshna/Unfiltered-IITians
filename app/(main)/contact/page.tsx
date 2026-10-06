@@ -11,10 +11,12 @@ import { Separator } from '@/components/ui/separator';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { InfoIcon } from 'lucide-react';
+import AttachmentPicker from '@/components/contact/AttachmentPicker';
 
 const Contact = () => {
   const form = useRef<HTMLFormElement>(null);
   const [isSending, setIsSending] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const searchParams = useSearchParams();
   
   // Extract reply parameters from URL
@@ -72,11 +74,13 @@ const Contact = () => {
       
       // Use reply endpoint if it's a reply, otherwise use normal contact endpoint
       const endpoint = isReply ? '/api/contact-us/reply' : '/api/contact-us';
+      const submission = new FormData();
+      Object.entries(data).forEach(([key, value]) => { if (value) submission.set(key, value); });
+      attachments.forEach((file) => submission.append('attachments', file));
       
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: submission,
       });
 
       const result = await res.json();
@@ -88,6 +92,7 @@ const Contact = () => {
             : 'Message sent successfully! We will get back to you soon.'
         );
         form.current.reset();
+        setAttachments([]);
         
         // If reply was successful, redirect to contact page without params
         if (isReply) {
@@ -101,7 +106,7 @@ const Contact = () => {
       }
     } catch (err) {
       console.error('Contact form error:', err);
-      toast.error('Failed to send message. Please try again.');
+      toast.error(err instanceof Error ? err.message : 'Failed to send message. Please try again.');
     } finally {
       setIsSending(false);
     }
@@ -157,6 +162,7 @@ const Contact = () => {
                     name="user_name"
                     type="text"
                     placeholder="Your Name"
+                    maxLength={150}
                     required
                   />
                 </div>
@@ -168,6 +174,7 @@ const Contact = () => {
                     name="user_email"
                     type="email"
                     placeholder="your.email@example.com"
+                    maxLength={254}
                     required
                   />
                 </div>
@@ -180,6 +187,7 @@ const Contact = () => {
                   name="subject"
                   type="text"
                   placeholder="What is this regarding?"
+                  maxLength={250}
                   required
                 />
               </div>
@@ -190,11 +198,14 @@ const Contact = () => {
                   id="message"
                   name="message"
                   rows={5}
+                  maxLength={10000}
                   placeholder="Tell us how we can help you..."
                   className="min-h-[120px]"
                   required
                 />
               </div>
+
+              <AttachmentPicker files={attachments} onChange={setAttachments} disabled={isSending} />
 
               <Button
                 type="submit"

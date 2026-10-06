@@ -11,6 +11,9 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, MessageSquare, Send, Loader2, Lock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import AttachmentPicker from '@/components/contact/AttachmentPicker';
+import AttachmentLinks from '@/components/contact/AttachmentLinks';
+import type { ContactAttachmentLink } from '@/lib/contact-attachments';
 
 type Message = {
   id: string;
@@ -21,6 +24,7 @@ type Message = {
   conversationType: 'NEW_INQUIRY' | 'ADMIN_REPLY' | 'USER_REPLY';
   createdAt: string;
   status: string;
+  attachments?: ContactAttachmentLink[];
 };
 
 type ThreadData = {
@@ -48,6 +52,7 @@ export default function ReplyPage() {
   const [loading, setLoading] = useState(true);
   const [replyMessage, setReplyMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [hasReplied, setHasReplied] = useState(false);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -106,16 +111,18 @@ export default function ReplyPage() {
     try {
       setSending(true);
 
-      const res = await fetch('/api/contact-us/reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const submission = new FormData();
+      Object.entries({
           threadId: threadData.threadId,
           parentId: threadData.latestMessage.id,
           user_name: prefillName || threadData.originalInquiry.name,
           user_email: prefillEmail || threadData.originalInquiry.email,
           message: replyMessage,
-        }),
+      }).forEach(([key, value]) => submission.set(key, value));
+      attachments.forEach((file) => submission.append('attachments', file));
+      const res = await fetch('/api/contact-us/reply', {
+        method: 'POST',
+        body: submission,
       });
 
       const result = await res.json();
@@ -124,6 +131,8 @@ export default function ReplyPage() {
         toast.success('Reply sent successfully!');
         setHasReplied(true);
         setReplyMessage('');
+        setAttachments([]);
+        await fetchThreadData();
         
         // Scroll to top to show success message
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -134,7 +143,7 @@ export default function ReplyPage() {
       }
     } catch (error) {
       console.error('Reply error:', error);
-      toast.error('Failed to send reply. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to send reply. Please try again.');
     } finally {
       setSending(false);
     }
@@ -246,6 +255,7 @@ export default function ReplyPage() {
                       <p className="text-sm whitespace-pre-wrap">
                         {msg.message.split('\n\n-------')[0]}
                       </p>
+                      <AttachmentLinks attachments={msg.attachments} />
                     </div>
                   </div>
                 ))}
@@ -284,6 +294,7 @@ export default function ReplyPage() {
                 <p className="text-sm whitespace-pre-wrap text-foreground/90">
                   {msg.message.split('\n\n-------')[0]}
                 </p>
+                <AttachmentLinks attachments={msg.attachments} />
               </div>
             ))}
           </CardContent>
@@ -344,6 +355,8 @@ export default function ReplyPage() {
                     Replying as: <strong>{threadData.originalInquiry.email}</strong>
                   </p>
                 </div>
+
+                <AttachmentPicker files={attachments} onChange={setAttachments} disabled={sending} />
 
                 <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
                   <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />

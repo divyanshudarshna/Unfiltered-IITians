@@ -1,4 +1,5 @@
 import { ContactStatus, ContactUs, ConversationType } from "@prisma/client";
+import { readContactAttachments, type ContactAttachment } from "./contact-attachments";
 
 export type ConversationMessage = {
   id: string;
@@ -12,6 +13,7 @@ export type ConversationMessage = {
   createdAt: string;
   updatedAt: string;
   isAdmin: boolean;
+  attachments: ContactAttachment[];
 };
 
 export type AdminConversation = {
@@ -128,6 +130,7 @@ export function groupContactsIntoConversations(
         createdAt: msg.createdAt.toISOString(),
         updatedAt: msg.updatedAt.toISOString(),
         isAdmin: msg.conversationType === "ADMIN_REPLY",
+        attachments: readContactAttachments(msg.attachments),
       })),
     });
   }

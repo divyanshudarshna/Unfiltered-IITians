@@ -786,6 +786,7 @@ model ContactUs {
   subject String
   message String
   status  ContactStatus @default(PENDING)
+  attachments Json? // Private support assets; absent on existing messages
 
   // Thread management
   threadId         String? // Groups related messages together
