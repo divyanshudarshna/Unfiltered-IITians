@@ -9,6 +9,7 @@ const tests = [
   "razorpay-webhook-route.test.cjs", "razorpay-webhook-duplicates.test.cjs", "billing-reconciliation.test.cjs",
   "checkout-recovery-routes.test.cjs", "billing-cancellation-cron.test.cjs", "commerce-billing-history-routes.test.cjs",
   "legacy-payment-integrity.test.cjs", "recurring-payment-flow.test.cjs", "session-seat-fulfillment.test.cjs",
+  "admin-course-actions.test.cjs", "admin-course-billing-route.test.cjs", "admin-course-fulfillment.test.cjs", "admin-theme.test.cjs",
 ];
 const root = path.resolve(__dirname, "..");
 for (const test of tests) {

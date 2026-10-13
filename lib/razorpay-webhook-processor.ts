@@ -732,6 +732,8 @@ async function markLateCheckoutPaymentForReview(
   eventId: string,
 ) {
   if (!checkoutId) return false;
+  const terminated = await tx.billingOutbox.findUnique({ where: { dedupeKey: `course-access-terminated:${checkoutId}` } });
+  if (terminated) return true;
   const checkout = await tx.commerceCheckout.findUnique({
     where: { id: checkoutId },
     select: { status: true },
@@ -854,6 +856,10 @@ async function processSubscriptionEvent(
 
   if (eventType !== "subscription.charged") return null;
 
+  // Even an older charged event must serialize with an admin termination.
+  // The admin transaction writes this same document before revoking access.
+  await tx.courseBillingSubscription.update({ where: { id: subscription.id }, data: { updatedAt: new Date() } });
+
   const payment = getRazorpayEntity(payload, "payment");
   const paymentId = getRazorpayString(payment, "id");
   const amountPaise = getRazorpayAmount(payment);
@@ -896,7 +902,8 @@ async function processSubscriptionEvent(
     });
   }
 
-  if (await markLateCheckoutPaymentForReview(tx, subscription.originCheckoutId, paymentId, eventId)) {
+  if (await tx.billingOutbox.findUnique({ where: { dedupeKey: `course-subscription-terminated:${subscription.id}` } })
+    || await markLateCheckoutPaymentForReview(tx, subscription.originCheckoutId, paymentId, eventId)) {
     return `Charged subscription ${providerSubscriptionId} belongs to a cancelled checkout`;
   }
 
@@ -1134,13 +1141,19 @@ async function processRefundEvent(
   if (!refundId || !paymentId || amountPaise === null) return "Refund payload is incomplete";
 
   const payment = await tx.commercePayment.findFirst({ where: { providerPaymentId: paymentId } });
-  if (!payment) return `No V2 payment found for refund ${refundId}`;
+  const existingRefund = await tx.commerceRefund.findUnique({ where: { externalKey: `razorpay:refund:${refundId}` } });
+  // Admin-verified legacy refunds have a durable receipt but no V2 payment.
+  if (!payment && !existingRefund) return `No V2 payment found for refund ${refundId}`;
+  if (existingRefund && (existingRefund.providerPaymentId !== paymentId || existingRefund.amountPaise !== amountPaise || existingRefund.currency !== currency)) {
+    return `Refund ${refundId} does not match its recorded payment receipt`;
+  }
+  const processed = eventType === "refund.processed" || existingRefund?.status === "PROCESSED";
 
   await tx.commerceRefund.upsert({
     where: { externalKey: `razorpay:refund:${refundId}` },
     update: {
-      status: eventType === "refund.processed" ? "PROCESSED" : "CREATED",
-      processedAt: eventType === "refund.processed" ? new Date() : undefined,
+      status: processed ? "PROCESSED" : "CREATED",
+      processedAt: eventType === "refund.processed" ? existingRefund?.processedAt ?? new Date() : undefined,
     },
     create: {
       externalKey: `razorpay:refund:${refundId}`,
@@ -1153,7 +1166,7 @@ async function processRefundEvent(
     },
   });
 
-  if (eventType === "refund.processed" && amountPaise >= payment.amountPaise) {
+  if (payment && processed && amountPaise >= payment.amountPaise) {
     await tx.commercePayment.update({ where: { id: payment.id }, data: { status: "REFUNDED" } });
   }
 

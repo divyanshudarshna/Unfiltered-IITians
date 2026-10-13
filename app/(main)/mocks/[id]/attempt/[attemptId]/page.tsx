@@ -1,7 +1,5 @@
 "use client";
-import { useRef } from "react";
 import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
@@ -31,17 +29,7 @@ export default function MockAttemptPage() {
   >({});
   const [showCalculator, setShowCalculator] = useState(false);
   const [selectedType, setSelectedType] = useState<"ALL" | QuestionType>("ALL");
-  const { setTheme, theme } = useTheme();
-  const previousTheme = useRef<string | undefined>(undefined);
   const [timeLeft, setTimeLeft] = useState(0);
-
-  useEffect(() => {
-    if (!previousTheme.current) previousTheme.current = theme;
-    setTheme("light");
-    return () => {
-      if (previousTheme.current) setTheme(previousTheme.current);
-    };
-  }, [theme, setTheme]);
 
   // Fetch mock
   useEffect(() => {

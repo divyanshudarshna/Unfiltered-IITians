@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { CourseBillingDialog, CoursePaymentReviews, type CourseBillingTarget } from '@/components/admin/CourseBillingActions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -123,6 +124,8 @@ export default function CourseEnrollmentsPage() {
   const { getToken } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [billingTarget, setBillingTarget] = useState<CourseBillingTarget | null>(null);
+  const [billingRefresh, setBillingRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
@@ -934,6 +937,12 @@ export default function CourseEnrollmentsPage() {
                                     <Trash2 className="h-4 w-4" />
                                     Delete Subscription
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem className="cursor-pointer" onClick={() => setBillingTarget({ userId: enrollment.user.id, courseId: enrollment.course.id, action: 'TERMINATE' })}>
+                                    Terminate access
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={() => setBillingTarget({ userId: enrollment.user.id, courseId: enrollment.course.id, action: 'TERMINATE_REFUND' })}>
+                                    Terminate &amp; refund
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -979,6 +988,9 @@ export default function CourseEnrollmentsPage() {
           </Card>
         </>
       )}
+
+      <CoursePaymentReviews courseId={selectedCourse} search={search} refresh={billingRefresh} onManage={setBillingTarget} />
+      {billingTarget && <CourseBillingDialog key={`${billingTarget.userId}:${billingTarget.courseId}`} target={billingTarget} onClose={() => setBillingTarget(null)} onComplete={() => { void fetchEnrollments(); setBillingRefresh(value => value + 1); }} />}
 
       {/* Email Dialog */}
       <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>

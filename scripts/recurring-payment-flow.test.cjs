@@ -238,6 +238,19 @@ async function main() {
   assert.equal(state.entitlements.length, 0);
 
   reset();
+  state.checkout.status = "REQUIRES_REVIEW";
+  state.outbox.push({ dedupeKey: `course-inclusion-review:${period.paymentId}` });
+  state.outbox.push({ dedupeKey: "course-access-terminated:checkout_1" });
+  await webhook.POST(webhookRequest("admin_terminated_delayed_charge"));
+  assert.equal(state.entitlements.length, 0, "Admin termination must override an older recoverable seat review");
+  assert.equal(state.enrollments.length, 0);
+
+  reset(); state.subscription.originCheckoutId = null;
+  state.outbox.push({ dedupeKey: "course-subscription-terminated:local_1" });
+  await webhook.POST(webhookRequest("admin_terminated_orphan_charge"));
+  assert.equal(state.entitlements.length, 0, "Terminated orphan mandates must not regain access even without an origin checkout");
+
+  reset();
   state.payments.push({ id: "refunded", externalKey: `razorpay:payment:${period.paymentId}`, checkoutId: "checkout_1", status: "REFUNDED", providerCapturedAt: new Date(period.paidAt * 1000) });
   await webhook.POST(webhookRequest("refunded_capture"));
   assert.equal(state.entitlements.length, 0, "A delayed charge must never re-grant a refunded payment");

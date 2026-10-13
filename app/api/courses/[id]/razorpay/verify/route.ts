@@ -89,6 +89,8 @@ export async function POST(req: Request) {
     // Claim the payment and grant every current purchase component atomically.
     // Paid retries return above so later admin edits cannot alter this purchase.
     const paymentClaimed = await prisma.$transaction(async (tx) => {
+      const terminated = await tx.billingOutbox.findUnique({ where: { dedupeKey: `legacy-course-access-terminated:${sub.id}` } });
+      if (terminated) throw new Error("This course purchase has been terminated by an administrator");
       const paymentClaim = await tx.subscription.updateMany({
         where: { id: sub.id, paid: false },
         data: {

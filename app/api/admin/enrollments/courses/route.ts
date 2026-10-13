@@ -20,12 +20,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get courses that have at least one enrollment
+    // Paid reviews can exist before an Enrollment is created.
+    const reviewCourses = await prisma.commerceCheckout.findMany({ where: { productType: 'COURSE', status: { in: ['REQUIRES_REVIEW', 'CANCELLED'] } }, select: { productId: true }, distinct: ['productId'] });
     const coursesWithEnrollments = await prisma.course.findMany({
       where: {
-        enrollments: {
-          some: {},
-        },
+        OR: [{ enrollments: { some: {} } }, { id: { in: reviewCourses.map(row => row.productId) } }],
       },
       select: {
         id: true,
