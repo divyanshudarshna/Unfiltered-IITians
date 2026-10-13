@@ -260,11 +260,6 @@ export default function CourseDetailsPage() {
         "Yes, we offer personalized doubt clearing sessions for students enrolled in our comprehensive courses. These sessions are conducted weekly, and you can schedule them based on your convenience.",
     },
     {
-      question: "What if I'm not satisfied with the course?",
-      answer:
-        "We offer a 7-day money-back guarantee for all our courses. If you're not satisfied with the quality of the content, you can request a full refund within 7 days of enrollment.",
-    },
-    {
       question: "Is the course updated according to the latest syllabus?",
       answer:
         "Yes, all our course content is regularly updated to align with the latest syllabus and exam pattern. We monitor any changes in the examination patterns and update our content accordingly.",

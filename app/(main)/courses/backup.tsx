@@ -25,11 +25,6 @@ const faqItems = [
       "Yes, we offer personalized doubt clearing sessions for students enrolled in our comprehensive courses. These sessions are conducted weekly and you can schedule them based on your convenience.",
   },
   {
-    question: "What if I'm not satisfied with the course?",
-    answer:
-      "We offer a 7-day money-back guarantee for all our courses. If you're not satisfied with the quality of the content, you can request a full refund within 7 days of enrollment (provided less than 15% of the materials—including downloadable content, mock tests, lectures, and other resources—have been accessed, if it exceeds 15% - a refund will be issued after deducting 20% of the paid course price).",
-  },
-  {
     question: "Are the practice materials updated according to the latest syllabus?",
     answer:
       "Yes, all our course content and practice materials are regularly updated to align with the latest exam patterns and syllabi. We monitor any changes in the examination patterns and update our content accordingly.",

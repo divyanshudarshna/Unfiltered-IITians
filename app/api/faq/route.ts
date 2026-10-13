@@ -30,7 +30,16 @@ export async function GET(request: Request) {
       skip,
     })
 
-    return NextResponse.json({ data: faqs, count: faqs.length })
+    // Hide course refund messaging across public FAQ consumers while retaining
+    // the admin-managed records and unrelated mock/session FAQs.
+    const publicFaqs = faqs.filter((faq: { question: string; answer: string; category?: string | null }) => {
+      const text = `${faq.category ?? ''} ${faq.question} ${faq.answer}`
+      const isCourseFaq = /\bcourses?\b/i.test(text)
+      const mentionsRefund = /\brefund\w*\b|money[\s-]*back|no questions asked/i.test(text)
+      return !(isCourseFaq && mentionsRefund)
+    })
+
+    return NextResponse.json({ data: publicFaqs, count: publicFaqs.length })
   } catch (err) {
     console.error('public/faq GET error', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test:payments": "node scripts/test-payments.cjs",
     "test:contact": "node scripts/contact-attachments.test.cjs",
+    "test:course-copy": "node scripts/course-refund-copy.test.cjs",
     "billing:reconcile": "tsx scripts/reconcile-pending-checkouts.ts",
     "postinstall": "prisma generate"
   },
