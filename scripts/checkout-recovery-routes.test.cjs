@@ -71,8 +71,12 @@ async function main() {
   assert.equal(calls, before);
   await status.GET(new Request("http://localhost/status?reconcile=true"), params);
   assert.equal(calls, before + 1);
+  checkout.status = "REQUIRES_REVIEW";
+  await status.GET(new Request("http://localhost/status?reconcile=true"), params);
+  assert.equal(calls, before + 2, "A paid seat-review checkout must remain recoverable");
+  checkout.status = "PROVIDER_CREATED";
   assert.equal((await confirm.POST(confirmation("invalid"), params)).status, 401);
-  assert.equal(calls, before + 1);
+  assert.equal(calls, before + 2);
   const signature = createHmac("sha256", process.env.RAZORPAY_KEY_SECRET).update("pay_1|sub_old").digest("hex");
   action = "FULFILL";
   assert.equal((await confirm.POST(confirmation(signature), params)).status, 200);

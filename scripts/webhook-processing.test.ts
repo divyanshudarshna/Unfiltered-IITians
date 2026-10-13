@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { classifyWebhookProcessingError } from "../lib/webhook-processing";
+import { classifyWebhookProcessingError, isRecoverableSeatReview } from "../lib/webhook-processing";
 
 assert.equal(classifyWebhookProcessingError(null), "PROCESSED");
 assert.equal(
@@ -22,5 +22,12 @@ assert.equal(
   classifyWebhookProcessingError("Payment pay_123 amount or currency does not match checkout checkout_123"),
   "ACKNOWLEDGE_REVIEW",
 );
+
+assert.equal(isRecoverableSeatReview("Charged subscription sub_123 requires course-inclusion review"), true);
+assert.equal(isRecoverableSeatReview("Captured payment pay_123 requires session-seat review"), true);
+assert.equal(isRecoverableSeatReview("Recurring guidance subscription sub_123 requires session-seat review"), true);
+assert.equal(isRecoverableSeatReview("Captured payment pay_123 belongs to a cancelled checkout"), false);
+assert.equal(isRecoverableSeatReview("Payment pay_123 amount or currency does not match checkout checkout_123"), false);
+assert.equal(isRecoverableSeatReview(null), false);
 
 console.log("webhook processing tests passed");

@@ -1,9 +1,5 @@
-import { Prisma } from "@prisma/client";
-import {
-  getSeatHoldCaptureDecision,
-  getSeatHoldExpiresAt,
-  type SessionSeatHoldStatus,
-} from "@/lib/session-seat-hold";
+import { Prisma, type SessionSeatHold } from "@prisma/client";
+import { getSeatHoldExpiresAt } from "@/lib/session-seat-hold";
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -222,6 +218,16 @@ export async function releaseSessionSeatHold(
   }
 }
 
+async function getConfirmableSeatInventory(tx: TransactionClient, hold: SessionSeatHold) {
+  const inventory = await tx.sessionSeatInventory.findUnique({ where: { sessionId: hold.sessionId } });
+  if (!inventory) return null;
+  // Expiry alone does not release an allocated seat. Released reservations must
+  // claim current capacity again; unlimited sessions have no capacity conflict.
+  const canConfirm = inventory.capacity === null
+    || (hold.status === "HELD" ? inventory.heldCount > 0 : (inventory.availableSeats ?? 0) > 0);
+  return canConfirm ? inventory : null;
+}
+
 export async function confirmSessionSeatHold(
   tx: TransactionClient,
   checkoutId: string,
@@ -233,43 +239,36 @@ export async function confirmSessionSeatHold(
   });
   if (!hold) return "REQUIRES_REVIEW" as const;
 
-  const decision = getSeatHoldCaptureDecision({
-    status: hold.status as SessionSeatHoldStatus,
-    expiresAt: hold.expiresAt,
-    capturedAt,
+  if (hold.status === "CONFIRMED") return "ALREADY_CONFIRMED" as const;
+  const inventory = await getConfirmableSeatInventory(tx, hold);
+  if (!inventory) return "REQUIRES_REVIEW" as const;
+  const wasHeld = hold.status === "HELD";
+  const confirmed = await tx.sessionSeatHold.updateMany({
+    where: { id: hold.id, checkoutId, status: hold.status },
+    data: { status: "CONFIRMED", confirmedAt: capturedAt, releasedAt: null, requiresReviewAt: null },
   });
-  if (decision === "ALREADY_CONFIRMED") return decision;
-
-  if (decision === "CONFIRM") {
-    const confirmed = await tx.sessionSeatHold.updateMany({
-      where: { id: hold.id, status: "HELD", expiresAt: { gt: capturedAt } },
-      data: { status: "CONFIRMED", confirmedAt: capturedAt },
-    });
-    if (confirmed.count === 1) {
-      const inventory = await tx.sessionSeatInventory.findUnique({ where: { sessionId: hold.sessionId } });
-      if (inventory?.capacity !== null && inventory) {
-        await tx.sessionSeatInventory.update({
-          where: { id: inventory.id },
-          data: {
-            heldCount: { decrement: 1 },
-            confirmedCount: { increment: 1 },
-          },
-        });
-      }
-      return "CONFIRM" as const;
-    }
+  if (confirmed.count !== 1) {
+    const current = await tx.sessionSeatHold.findFirst({ where: { id: hold.id, checkoutId } });
+    if (current?.status === "CONFIRMED") return "ALREADY_CONFIRMED" as const;
+    throw new Error(`Session hold ${hold.sessionId} changed during confirmation`);
   }
-
-  const staleHold = await tx.sessionSeatHold.findUnique({ where: { id: hold.id } });
-  if (staleHold?.status === "CONFIRMED") return "ALREADY_CONFIRMED" as const;
-  if (staleHold?.status === "HELD") {
-    await tx.sessionSeatHold.update({
-      where: { id: staleHold.id },
-      data: { status: "REQUIRES_REVIEW", requiresReviewAt: capturedAt },
+  if (inventory.capacity !== null) {
+    const claimed = await tx.sessionSeatInventory.updateMany({
+      where: {
+        id: inventory.id,
+        capacity: inventory.capacity,
+        ...(wasHeld ? { heldCount: { gt: 0 } } : { availableSeats: { gt: 0 } }),
+      },
+      data: {
+        ...(wasHeld ? { heldCount: { decrement: 1 } } : { availableSeats: { decrement: 1 } }),
+        confirmedCount: { increment: 1 },
+      },
     });
-    await releaseInventorySeat(tx, staleHold.sessionId);
+    // Roll back the entire fulfillment transaction if capacity was claimed by a
+    // concurrent buyer. Never commit partial course access or overbook a session.
+    if (claimed.count !== 1) throw new Error(`Session capacity ${hold.sessionId} changed during confirmation`);
   }
-  return "REQUIRES_REVIEW" as const;
+  return "CONFIRM" as const;
 }
 
 export async function confirmSessionSeatHolds(
@@ -286,19 +285,8 @@ export async function confirmSessionSeatHolds(
 
   for (const sessionId of uniqueSessionIds) {
     const hold = holdsBySession.get(sessionId);
-    if (!hold || getSeatHoldCaptureDecision({
-      status: hold.status as SessionSeatHoldStatus,
-      expiresAt: hold.expiresAt,
-      capturedAt,
-    }) === "REQUIRES_REVIEW") {
+    if (!hold || (hold.status !== "CONFIRMED" && !await getConfirmableSeatInventory(tx, hold))) {
       await releaseSessionSeatHold(tx, checkoutId, capturedAt);
-      for (const confirmedHold of holds.filter((value) => value.status === "CONFIRMED")) {
-        await releaseConfirmedSessionSeat(tx, {
-          checkoutId,
-          sessionId: confirmedHold.sessionId,
-          now: capturedAt,
-        });
-      }
       return sessionId;
     }
   }

@@ -13,3 +13,8 @@ export function classifyWebhookProcessingError(error: string | null): WebhookPro
     ? "RETRY"
     : "ACKNOWLEDGE_REVIEW";
 }
+
+/** Only seat allocation failures may be replayed after fresh provider verification. */
+export function isRecoverableSeatReview(error: string | null) {
+  return Boolean(error && /^(Captured payment \S+ requires (?:course-inclusion|session-seat) review|Charged subscription \S+ requires course-inclusion review|Recurring guidance subscription \S+ requires session-seat review)$/.test(error));
+}

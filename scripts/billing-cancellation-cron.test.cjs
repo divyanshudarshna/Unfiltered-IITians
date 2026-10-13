@@ -70,6 +70,7 @@ async function main() {
   assert.equal(response.status, 200);
   assert.deepEqual(recovered, ["orphan_course", "orphan_bundle", "paid_renewal"]);
   assert.deepEqual(discovered.where.OR[1], { status: "PAID", id: { in: ["paid_renewal"] } });
+  assert.ok(discovered.where.OR[0].status.in.includes("REQUIRES_REVIEW"), "Seat-review checkouts cannot be abandoned by background recovery");
   assert.equal(discovered.where.productType, undefined);
   assert.equal(discovered.where.id, undefined);
   assert.equal((await response.json()).cancelledCheckouts, 2);

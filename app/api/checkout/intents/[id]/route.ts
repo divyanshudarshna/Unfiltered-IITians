@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getDbUserFromClerk } from "@/lib/roleAuth";
 import { reconcileCheckout } from "@/lib/billing-reconciliation";
-import { PENDING_CHECKOUT_STATUSES } from "@/lib/payment-recovery";
+import { RECONCILABLE_CHECKOUT_STATUSES } from "@/lib/payment-recovery";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function GET(
   req: Request,
@@ -20,7 +21,7 @@ export async function GET(
   if (!checkout) return NextResponse.json({ error: "Checkout not found" }, { status: 404 });
   let reconciliationPending = false;
   if (new URL(req.url).searchParams.get("reconcile") === "true"
-    && PENDING_CHECKOUT_STATUSES.some((status) => status === checkout!.status)) {
+    && RECONCILABLE_CHECKOUT_STATUSES.some((status) => status === checkout!.status)) {
     try {
       await reconcileCheckout(checkout);
       checkout = await prisma.commerceCheckout.findUniqueOrThrow({ where: { id } });

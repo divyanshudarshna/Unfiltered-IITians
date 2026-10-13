@@ -1,8 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getEarlierAccessStart, getLaterAccessEnd } from "@/lib/commerce-entitlement";
-import { classifyWebhookProcessingError } from "@/lib/webhook-processing";
+import { classifyWebhookProcessingError, isRecoverableSeatReview } from "@/lib/webhook-processing";
 import { getCouponRedemptionAccounting } from "@/lib/coupon-reservation-redemption";
+import { PENDING_CHECKOUT_STATUSES } from "@/lib/payment-recovery";
 import {
   getCapturedCourseAccessWindow,
   getGuidanceAccessEnd,
@@ -358,7 +359,10 @@ async function findCheckoutForCapturedPayment(
 
   return tx.commerceCheckout.update({
     where: { id: pendingCheckout.id },
-    data: { razorpayOrderId: orderId, status: "PROVIDER_CREATED" },
+    data: {
+      razorpayOrderId: orderId,
+      status: PENDING_CHECKOUT_STATUSES.some((status) => status === pendingCheckout.status) ? "PROVIDER_CREATED" : pendingCheckout.status,
+    },
   });
 }
 
@@ -385,7 +389,10 @@ async function findCourseSubscriptionForEvent(
 
   await tx.commerceCheckout.update({
     where: { id: checkout.id },
-    data: { razorpaySubscriptionId: providerSubscriptionId, status: "PROVIDER_CREATED" },
+    data: {
+      razorpaySubscriptionId: providerSubscriptionId,
+      status: PENDING_CHECKOUT_STATUSES.some((status) => status === checkout.status) ? "PROVIDER_CREATED" : checkout.status,
+    },
   });
   return tx.courseBillingSubscription.update({
     where: { id: pendingSubscription.id },
@@ -416,7 +423,10 @@ async function findCommerceSubscriptionForEvent(
 
   await tx.commerceCheckout.update({
     where: { id: checkout.id },
-    data: { razorpaySubscriptionId: providerSubscriptionId, status: "PROVIDER_CREATED" },
+    data: {
+      razorpaySubscriptionId: providerSubscriptionId,
+      status: PENDING_CHECKOUT_STATUSES.some((status) => status === checkout.status) ? "PROVIDER_CREATED" : checkout.status,
+    },
   });
   return tx.commerceBillingSubscription.update({
     where: { id: pending.id },
@@ -544,6 +554,10 @@ async function processCapturedPayment(
         providerCapturedAt,
       },
     });
+  } else if (recordedPayment.status !== "CAPTURED"
+    || recordedPayment.checkoutId !== checkout.id
+    || recordedPayment.amountPaise !== amountPaise || recordedPayment.currency !== currency) {
+    return `Captured payment ${paymentId} is not an eligible captured payment for this checkout`;
   } else if (!recordedPayment.providerCapturedAt) {
     recordedPayment = await tx.commercePayment.update({
       where: { id: recordedPayment.id },
@@ -722,6 +736,17 @@ async function markLateCheckoutPaymentForReview(
     where: { id: checkoutId },
     select: { status: true },
   });
+  if (checkout?.status === "REQUIRES_REVIEW") {
+    const lateReview = await tx.billingOutbox.findUnique({ where: { dedupeKey: `late-payment-review:${paymentId}` } });
+    if (lateReview) return true;
+    const [courseReview, sessionReview] = await Promise.all([
+      tx.billingOutbox.findUnique({ where: { dedupeKey: `course-inclusion-review:${paymentId}` } }),
+      tx.billingOutbox.findUnique({ where: { dedupeKey: `session-seat-review:${paymentId}` } }),
+    ]);
+    // Do not turn an amount mismatch, cancelled checkout, or other manual review
+    // into paid access. Only this payment's known seat-allocation review is safe.
+    return !courseReview && !sessionReview;
+  }
   if (checkout?.status !== "FAILED" && checkout?.status !== "CANCELLED") return false;
 
   await tx.commerceCheckout.update({
@@ -860,6 +885,10 @@ async function processSubscriptionEvent(
         providerCapturedAt,
       },
     });
+  } else if (recordedPayment.status !== "CAPTURED"
+    || recordedPayment.checkoutId !== subscription.originCheckoutId
+    || recordedPayment.amountPaise !== amountPaise || recordedPayment.currency !== currency) {
+    return `Charged subscription ${providerSubscriptionId} is not an eligible captured payment for this checkout`;
   } else if (!recordedPayment.providerCapturedAt) {
     recordedPayment = await tx.commercePayment.update({
       where: { id: recordedPayment.id },
@@ -1027,6 +1056,10 @@ async function processGenericSubscriptionEvent(
         providerCapturedAt,
       },
     });
+  } else if (recordedPayment.status !== "CAPTURED"
+    || recordedPayment.checkoutId !== subscription.originCheckoutId
+    || recordedPayment.amountPaise !== amountPaise || recordedPayment.currency !== currency) {
+    return `Charged subscription ${providerSubscriptionId} is not an eligible captured payment for this checkout`;
   } else if (!recordedPayment.providerCapturedAt) {
     recordedPayment = await tx.commercePayment.update({
       where: { id: recordedPayment.id },
@@ -1142,10 +1175,22 @@ export async function processRazorpayWebhookEvent(input: {
   eventType: string;
   payload: RazorpayWebhookPayload;
   payloadHash: string;
+  /** Server reconciliation only, after fresh authenticated provider reads. */
+  retrySeatReview?: boolean;
 }) {
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.razorpayWebhookEvent.create({
+    return await prisma.$transaction(async (tx) => {
+      const existing = input.retrySeatReview
+        ? await tx.razorpayWebhookEvent.findUnique({ where: { providerEventId: input.eventId } })
+        : null;
+      if (existing?.payloadHash === input.payloadHash && existing.status === "FAILED"
+        && isRecoverableSeatReview(existing.processingError)) {
+        const claimed = await tx.razorpayWebhookEvent.updateMany({
+          where: { providerEventId: input.eventId, payloadHash: input.payloadHash, status: "FAILED", processingError: existing.processingError },
+          data: { status: "RECEIVED", processingError: null, processedAt: null },
+        });
+        if (!claimed.count) return { duplicate: true, requiresReview: true };
+      } else await tx.razorpayWebhookEvent.create({
         data: {
           providerEventId: input.eventId,
           eventType: input.eventType,
@@ -1177,18 +1222,19 @@ export async function processRazorpayWebhookEvent(input: {
           processedAt: new Date(),
         },
       });
-    });
-
-    return { duplicate: false };
+      return { duplicate: false, ...(decision === "ACKNOWLEDGE_REVIEW" ? { requiresReview: true } : {}) };
+    }, { maxWait: 5_000, timeout: 20_000 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       // A conflict in a payment/entitlement is not a processed webhook. Only
       // acknowledge a duplicate after the original event transaction committed.
       const existing = await prisma.razorpayWebhookEvent.findUnique({
         where: { providerEventId: input.eventId },
-        select: { payloadHash: true },
+        select: { payloadHash: true, status: true },
       });
-      if (existing?.payloadHash === input.payloadHash) return { duplicate: true };
+      if (existing?.payloadHash === input.payloadHash) {
+        return { duplicate: true, ...(existing.status === "FAILED" ? { requiresReview: true } : {}) };
+      }
     }
     throw error;
   }

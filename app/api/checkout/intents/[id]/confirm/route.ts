@@ -5,6 +5,7 @@ import { verifyCheckoutPaymentSignature } from "@/lib/payment-recovery";
 import { reconcileCheckout } from "@/lib/billing-reconciliation";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getDbUserFromClerk();

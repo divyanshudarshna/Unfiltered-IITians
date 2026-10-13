@@ -8,7 +8,7 @@ import { COURSE_CHECKOUT_STALE_MS } from "./course-checkout-reconciliation";
 import { assertCapturedRecoveryPayment, getRecoveredInvoicePeriod, PENDING_CHECKOUT_STATUSES, TERMINAL_PROVIDER_STATUSES } from "./payment-recovery";
 import type { RazorpayEntity, RazorpayWebhookPayload } from "./razorpay-event";
 
-type RecoveryAction = "RESUME" | "FULFILL" | "CANCEL_LOCAL" | "KEEP";
+type RecoveryAction = "RESUME" | "FULFILL" | "CANCEL_LOCAL" | "KEEP" | "REQUIRES_REVIEW";
 type RecoveryOptions = { dryRun?: boolean; timeoutMs?: number };
 
 export class BillingReconciliationError extends Error {
@@ -112,7 +112,9 @@ async function reconcileVerifiedCheckout(checkout: CommerceCheckout, options: Re
       action = "RESUME";
     }
     if (!dryRun) {
-      for (const event of events) await applyVerifiedEvent(event);
+      for (const event of events) {
+        if ((await applyVerifiedEvent(event)).requiresReview) action = "REQUIRES_REVIEW";
+      }
       if (action === "CANCEL_LOCAL") await closeUnpaidCheckout(checkout.id, providerStatus);
       // Synchronize terminal/pending state AFTER charge recovery, so an old charge
       // cannot reactivate a cancelled mandate. Never erase the verified paid period.
@@ -151,7 +153,9 @@ async function reconcileVerifiedCheckout(checkout: CommerceCheckout, options: Re
     else if (payments.items.some((payment) => payment.status === "authorized")) action = "KEEP";
     else action = Date.now() - checkout.createdAt.getTime() > COURSE_CHECKOUT_STALE_MS ? "CANCEL_LOCAL" : "RESUME";
     if (!dryRun) {
-      for (const event of events) await applyVerifiedEvent(event);
+      for (const event of events) {
+        if ((await applyVerifiedEvent(event)).requiresReview) action = "REQUIRES_REVIEW";
+      }
       if (action === "CANCEL_LOCAL") await closeUnpaidCheckout(checkout.id, providerStatus);
     }
   }
@@ -160,9 +164,10 @@ async function reconcileVerifiedCheckout(checkout: CommerceCheckout, options: Re
 
 async function applyVerifiedEvent(payload: RazorpayWebhookPayload) {
   const paymentId = payload.payload?.payment?.entity?.id;
-  await processRazorpayWebhookEvent({
+  return processRazorpayWebhookEvent({
     eventId: `reconciliation:${payload.event}:${paymentId}`,
     eventType: payload.event, payload,
     payloadHash: hashRazorpayWebhookBody(JSON.stringify(payload)),
+    retrySeatReview: true,
   });
 }

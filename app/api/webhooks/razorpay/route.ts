@@ -8,6 +8,7 @@ import { processRazorpayWebhookEvent } from "@/lib/razorpay-webhook-processor";
 import type { RazorpayWebhookPayload } from "@/lib/razorpay-event";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 /** Authenticate the raw provider payload before transactional fulfillment. */
 export async function POST(req: Request) {

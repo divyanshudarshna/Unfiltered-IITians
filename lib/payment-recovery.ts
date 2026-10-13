@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { RazorpayEntity } from "./razorpay-event";
 
 export const PENDING_CHECKOUT_STATUSES = ["CREATED", "PROVIDER_CREATED", "PENDING"] as const;
+export const RECONCILABLE_CHECKOUT_STATUSES = [...PENDING_CHECKOUT_STATUSES, "REQUIRES_REVIEW"] as const;
 export const TERMINAL_PROVIDER_STATUSES = ["cancelled", "completed", "expired"];
 
 export function getSubscriptionCancellationMode(subscription: RazorpayEntity, nowSeconds = Math.floor(Date.now() / 1000)) {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { CourseSubscriptionProviderStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reconcileCheckout } from "@/lib/billing-reconciliation";
-import { PENDING_CHECKOUT_STATUSES } from "@/lib/payment-recovery";
+import { RECONCILABLE_CHECKOUT_STATUSES } from "@/lib/payment-recovery";
 import { releaseConfirmedSessionSeat } from "@/lib/session-seat-inventory";
 import { shouldReleaseRecurringSessionSeat } from "@/lib/session-seat-release";
 
@@ -110,7 +110,7 @@ export async function GET(req: Request) {
   // Discover canonical checkouts, including generic products and missing slots.
   const pendingCheckouts = await prisma.commerceCheckout.findMany({
     where: { OR: [
-      { status: { in: [...PENDING_CHECKOUT_STATUSES] }, createdAt: { lte: new Date(now.getTime() - 120_000) } },
+      { status: { in: [...RECONCILABLE_CHECKOUT_STATUSES] }, createdAt: { lte: new Date(now.getTime() - 120_000) } },
       { status: "PAID", id: { in: renewalIds } },
     ] },
     orderBy: { updatedAt: "asc" }, take: 25,
@@ -131,7 +131,7 @@ export async function GET(req: Request) {
     } finally {
       // Rotate attempted rows without changing a concurrently paid status.
       await prisma.commerceCheckout.updateMany({
-        where: { id: checkout.id, status: { in: [...PENDING_CHECKOUT_STATUSES, "PAID"] } },
+        where: { id: checkout.id, status: { in: [...RECONCILABLE_CHECKOUT_STATUSES, "PAID"] } },
         data: { updatedAt: new Date() },
       });
       if (renewalIds.includes(checkout.id)) {

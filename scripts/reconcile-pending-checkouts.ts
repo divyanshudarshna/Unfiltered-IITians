@@ -5,13 +5,14 @@ async function main() {
   // Import only after loading server credentials; dry-run is the default.
   const { prisma } = await import("../lib/prisma");
   const { reconcileCheckout } = await import("../lib/billing-reconciliation");
+  const { RECONCILABLE_CHECKOUT_STATUSES } = await import("../lib/payment-recovery");
   const args = process.argv.slice(2);
   const apply = args.includes("--apply");
   const checkoutId = args.find((arg) => arg.startsWith("--checkout="))?.slice("--checkout=".length);
   let failed = 0;
   try {
     const checkouts = await prisma.commerceCheckout.findMany({
-      where: checkoutId ? { id: checkoutId } : { status: { in: ["CREATED", "PROVIDER_CREATED", "PENDING"] } },
+      where: checkoutId ? { id: checkoutId } : { status: { in: [...RECONCILABLE_CHECKOUT_STATUSES] } },
       orderBy: { updatedAt: "asc" }, take: 100,
     });
     for (const checkout of checkouts) {
